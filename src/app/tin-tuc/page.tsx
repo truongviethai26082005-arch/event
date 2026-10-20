@@ -104,41 +104,37 @@ export default function BlogListPage() {
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0 text-xs">
             <button
               onClick={() => setSelectedTag("all")}
-              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${
-                selectedTag === "all"
+              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${selectedTag === "all"
                   ? "bg-[#0A1E5E] text-[#D4AF37]"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+                }`}
             >
               Tất cả
             </button>
             <button
               onClick={() => setSelectedTag("khai trương")}
-              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${
-                selectedTag === "khai trương"
+              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${selectedTag === "khai trương"
                   ? "bg-[#0A1E5E] text-[#D4AF37]"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+                }`}
             >
               Khai trương
             </button>
             <button
               onClick={() => setSelectedTag("year end party")}
-              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${
-                selectedTag === "year end party"
+              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${selectedTag === "year end party"
                   ? "bg-[#0A1E5E] text-[#D4AF37]"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+                }`}
             >
               Year End Party
             </button>
             <button
               onClick={() => setSelectedTag("team building")}
-              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${
-                selectedTag === "team building"
+              className={`px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${selectedTag === "team building"
                   ? "bg-[#0A1E5E] text-[#D4AF37]"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+                }`}
             >
               Team Building & Tour
             </button>
