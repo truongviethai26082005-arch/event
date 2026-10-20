@@ -14,6 +14,7 @@ import {
   Compass,
   FileText,
   ChevronRight,
+  Users,
 } from "lucide-react";
 
 export default function Header() {
@@ -22,6 +23,7 @@ export default function Header() {
 
   const navLinks = [
     { href: "/", label: "Trang Chủ", icon: Calendar },
+    { href: "/ve-chung-toi", label: "Giới Thiệu", icon: Users },
     { href: "/dich-vu", label: "Dịch Vụ Sự Kiện & Tour", icon: Compass },
     { href: "/tin-tuc", label: "Tin Tức & Cẩm Nang", icon: FileText },
   ];
@@ -72,7 +74,7 @@ export default function Header() {
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-lg md:text-xl tracking-tight text-white group-hover:text-[#D4AF37] transition-colors leading-tight">
+              <span className="font-bold text-lg md:text-xl tracking-tight text-white group-hover:text-[#D4AF37] transition-colors leading-tight">
                 TRƯỜNG HẢI
               </span>
               <span className="text-[11px] uppercase tracking-widest text-[#D4AF37] font-semibold">
@@ -90,11 +92,10 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    active
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
                       ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow-md shadow-[#D4AF37]/20"
                       : "text-slate-200 hover:text-white hover:bg-white/10"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4 mr-1.5 opacity-80" />
                   {item.label}
@@ -108,11 +109,10 @@ export default function Header() {
             {/* Radar SEO internal tool link */}
             <Link
               href="/admin-radar"
-              className={`flex items-center px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide border transition-all duration-200 ${
-                isActive("/admin-radar")
+              className={`flex items-center px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide border transition-all duration-200 ${isActive("/admin-radar")
                   ? "bg-[#06123B] text-[#D4AF37] border-[#D4AF37]"
                   : "bg-white/5 border-white/20 text-slate-200 hover:border-[#D4AF37] hover:text-[#D4AF37]"
-              }`}
+                }`}
             >
               <Radar className="w-4 h-4 mr-1.5 text-[#D4AF37] animate-spin [animation-duration:6s]" />
               Radar SEO AI
@@ -164,11 +164,10 @@ export default function Header() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center px-3 py-2.5 rounded-lg text-base font-medium ${
-                  active
+                className={`flex items-center px-3 py-2.5 rounded-lg text-base font-medium ${active
                     ? "bg-[#D4AF37] text-[#0A1E5E] font-bold"
                     : "text-slate-200 hover:bg-white/5"
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5 mr-3 opacity-80" />
                 {item.label}
