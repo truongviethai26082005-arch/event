@@ -2,144 +2,80 @@
 
 /**
  * =========================================================================
- * KHU VỰC DÀNH CHO THÀNH VIÊN 2: MẢNG DỊCH VỤ & FORM BÁO GIÁ
- * Lưu ý: Thành viên 2 chỉ được phép chỉnh sửa các file bên trong src/app/dich-vu/
+ * PHÂN HỆ DỊCH VỤ & BÁO GIÁ TRỰC TUYẾN - TRƯỜNG HẢI EVENT & TRAVEL
+ * Dành cho Thành viên 2: Quản lý trọn bộ hệ thống Dịch vụ, Khuyến mãi & Form Báo giá
+ * Tuân thủ nghiêm ngặt nguyên tắc: Chỉ chỉnh sửa bên trong src/app/dich-vu/
  * =========================================================================
  */
 
-import React, { useState, useEffect } from "react";
-import { COMPANY_INFO, SERVICES_DATA, ServiceItem } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabaseLead } from "@/lib/supabase";
+import React, { useState } from "react";
+import { COMPANY_INFO } from "@/lib/company-data";
+import {
+  CORE_SERVICES,
+  ServiceDetail,
+  PromotionCombo,
+  PRICING_TIERS,
+  SERVICE_FAQS,
+} from "./data/services-data";
+import ServiceModal from "./components/ServiceModal";
+import PromotionSection from "./components/PromotionSection";
+import LeadForm from "./components/LeadForm";
 import {
   Calendar,
   Compass,
   CheckCircle2,
-  Phone,
-  Send,
   Sparkles,
   ShieldCheck,
-  Clock,
   Award,
   HelpCircle,
+  Flame,
+  ArrowRight,
+  Eye,
+  SlidersHorizontal,
+  ChevronDown,
+  Warehouse,
+  Headphones,
   FileCheck,
+  Clock,
 } from "lucide-react";
 
 export default function ServicesPage() {
-  const [activeTab, setActiveTab] = useState<"su-kien" | "du-lich">("su-kien");
-  const [services, setServices] = useState<ServiceItem[]>(SERVICES_DATA);
-  const [loadingServices, setLoadingServices] = useState(false);
+  // Bộ lọc 2 mảng chính: Sự kiện vs Du lịch & Vận tải
+  const [mainTab, setMainTab] = useState<"all" | "su-kien" | "du-lich">("all");
+  const [selectedSubTag, setSelectedSubTag] = useState<string>("all");
 
-  // Form State
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
-    email: "",
-    eventType: "Lễ kỷ niệm, khánh thành, khai trương",
-    estimatedGuests: "100 - 300 khách",
-    notes: "",
+  // State điều khiển modal xem chi tiết dịch vụ
+  const [activeModalService, setActiveModalService] = useState<ServiceDetail | null>(null);
+
+  // State điều khiển Form báo giá tự động
+  const [selectedServiceForQuote, setSelectedServiceForQuote] = useState<string>(
+    "Tổ chức Lễ Khai trương, Khánh thành & Khởi công"
+  );
+  const [selectedPromo, setSelectedPromo] = useState<PromotionCombo | null>(null);
+
+  // FAQ Accordion state
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Lọc danh sách dịch vụ theo tab
+  const filteredServices = CORE_SERVICES.filter((item) => {
+    const matchMain = mainTab === "all" ? true : item.category === mainTab;
+    const matchSub = selectedSubTag === "all" ? true : item.tag === selectedSubTag;
+    return matchMain && matchSub;
   });
 
-  const [submitting, setSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-
-  // Tải dữ liệu từ Supabase (nếu có bảng services)
-  useEffect(() => {
-    async function fetchServicesFromSupabase() {
-      if (!isSupabaseConfigured) return;
-      try {
-        setLoadingServices(true);
-        const { data, error } = await supabase
-          .from("services")
-          .select("*")
-          .order("created_at", { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          // Map to ServiceItem
-          const mapped: ServiceItem[] = data.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            slug: item.slug,
-            category: item.category as "su-kien" | "du-lich",
-            description: item.description,
-            features: item.features || [
-              "Trọn gói kịch bản, âm thanh, ánh sáng",
-              "Đội ngũ kỹ thuật viên trực chiến",
-              "Cam kết chất lượng và an toàn tuyệt đối",
-            ],
-            image_url: item.image_url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80",
-          }));
-          setServices(mapped);
-        }
-      } catch (err) {
-        console.warn("Dùng dữ liệu fallback cho services:", err);
-      } finally {
-        setLoadingServices(false);
-      }
-    }
-
-    fetchServicesFromSupabase();
-  }, []);
-
-  const filteredServices = services.filter((s) => s.category === activeTab);
-
-  // Xử lý gửi Form báo giá vào bảng leads trên Supabase
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setSubmitResult({ type: null, message: "" });
-
-    try {
-      if (isSupabaseConfigured) {
-        const leadRecord: DatabaseLead = {
-          full_name: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          event_type: `${formData.eventType} (${formData.estimatedGuests})`,
-          notes: formData.notes,
-        };
-
-        const { error } = await supabase.from("leads").insert([leadRecord]);
-
-        if (error) {
-          throw error;
-        }
-      } else {
-        // Giả lập lưu thành công khi chưa cấu hình Supabase
-        console.log("Mock lead submission:", formData);
-        await new Promise((r) => setTimeout(r, 600));
-      }
-
-      setSubmitResult({
-        type: "success",
-        message: `Cảm ơn quý khách ${formData.fullName}! Yêu cầu báo giá đã được ghi nhận. Chuyên viên Trường Hải Event sẽ liên hệ qua số ${formData.phone} trong vòng 30 phút.`,
-      });
-
-      // Reset form
-      setFormData({
-        fullName: "",
-        phone: "",
-        email: "",
-        eventType: "Lễ kỷ niệm, khánh thành, khai trương",
-        estimatedGuests: "100 - 300 khách",
-        notes: "",
-      });
-    } catch (err: any) {
-      console.error("Lỗi khi gửi lead:", err);
-      setSubmitResult({
-        type: "error",
-        message:
-          "Hệ thống đang bận. Quý khách vui lòng gọi trực tiếp Hotline 24/7: 0844 198 333 để nhận báo giá nhanh nhất!",
-      });
-    } finally {
-      setSubmitting(false);
+  // Xử lý khi khách bấm "Nhận Báo Giá Gói Này" từ Card
+  const handleSelectService = (serviceTitle: string) => {
+    setSelectedServiceForQuote(serviceTitle);
+    const formElement = document.getElementById("bao-gia");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
     }
   };
 
-  const selectServiceForQuote = (serviceTitle: string) => {
-    setFormData((prev) => ({ ...prev, eventType: serviceTitle }));
+  // Xử lý khi khách bấm "Áp Dụng Ưu Đãi" từ Promotion Section
+  const handleSelectPromo = (promo: PromotionCombo) => {
+    setSelectedPromo(promo);
+    setSelectedServiceForQuote(promo.serviceGroup);
     const formElement = document.getElementById("bao-gia");
     if (formElement) {
       formElement.scrollIntoView({ behavior: "smooth" });
@@ -147,349 +83,500 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Banner đầu trang */}
-      <div className="bg-[#0A1E5E] text-white py-14 border-b border-[#D4AF37]/30 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#122868] opacity-90" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-4">
-          <span className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#D4AF37] border border-[#D4AF37]/40">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Trường Hải Event & Travel • Báo Giá Chuẩn Xác - Tối Ưu Chi Phí</span>
-          </span>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white">
-            Dịch Vụ Sự Kiện & Du Lịch Trọn Gói
-          </h1>
-          <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto font-light">
-            Cung cấp giải pháp sự kiện và tour du lịch chuyên nghiệp, thiết bị chính hãng, kịch bản độc bản và quy trình vận hành an toàn tuyệt đối.
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-[#D4AF37] selection:text-[#0A1E5E]">
+      {/* =========================================================================
+          1. HERO BANNER: ĐẲNG CẤP & UY TÍN DOANH NGHIỆP
+      ========================================================================= */}
+      <section className="relative bg-[#0A1E5E] text-white py-16 sm:py-20 md:py-24 border-b border-[#D4AF37]/30 overflow-hidden">
+        {/* Visual background lights */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#142a6d] opacity-95" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Navigation Tabs */}
-        <div className="flex justify-center mb-10">
-          <div className="inline-flex p-1.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-xs font-bold text-[#D4AF37] border border-[#D4AF37]/40 shadow-sm backdrop-blur-sm">
+            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+            <span>HỆ SINH THÁI TỔ CHỨC SỰ KIỆN & DU LỊCH TRỌN GÓI</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+            Giải Pháp Sự Kiện Độc Bản & Du Lịch Trải Nghiệm Đẳng Cấp
+          </h1>
+
+          <p className="text-xs sm:text-sm md:text-base text-slate-300 max-w-3xl mx-auto font-light leading-relaxed">
+            Trực tiếp sở hữu kho thiết bị hơn 1.000m² tại Hà Nội, dàn âm thanh Line Array công suất khủng, màn LED P2.5 siêu nét cùng đội ngũ đạo diễn chuyên nghiệp. Cam kết tối ưu <strong>20% - 25% ngân sách</strong> và không phát sinh chi phí.
+          </p>
+
+          {/* Key Value Badges */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-slate-200">
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+              <Warehouse className="w-4 h-4 text-[#D4AF37]" />
+              <span>Kho Thiết Bị Giá Gốc 100%</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+              <Headphones className="w-4 h-4 text-[#D4AF37]" />
+              <span>Báo Giá Nhanh Trong 30 Phút</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+              <FileCheck className="w-4 h-4 text-[#D4AF37]" />
+              <span>Ký Hợp Đồng & Xuất VAT Chuẩn</span>
+            </div>
+          </div>
+
+          {/* Quick CTA Actions */}
+          <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
             <button
-              onClick={() => setActiveTab("su-kien")}
-              className={`flex items-center px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-                activeTab === "su-kien"
-                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md"
-                  : "text-slate-600 hover:text-[#0A1E5E]"
-              }`}
+              onClick={() => {
+                const el = document.getElementById("khuyen-mai");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#b89528] text-[#0A1E5E] font-black text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 cursor-pointer"
             >
-              <Calendar className="w-4 h-4 mr-2" />
-              Mảng Sự Kiện ({services.filter((s) => s.category === "su-kien").length})
+              <Flame className="w-4 h-4 text-[#0A1E5E]" />
+              <span>Săn Combo Ưu Đãi Mùa Này</span>
             </button>
 
             <button
-              onClick={() => setActiveTab("du-lich")}
-              className={`flex items-center px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-                activeTab === "du-lich"
-                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md"
-                  : "text-slate-600 hover:text-[#0A1E5E]"
-              }`}
+              onClick={() => {
+                const el = document.getElementById("bao-gia");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all flex items-center gap-2 cursor-pointer"
             >
-              <Compass className="w-4 h-4 mr-2" />
-              Mảng Du Lịch & Vận Tải ({services.filter((s) => s.category === "du-lich").length})
+              <span>Nhận Dự Toán Báo Giá Nhanh</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
+      </section>
 
-        {/* Tab Content Header */}
-        <div className="mb-8 flex items-center justify-between">
+      {/* =========================================================================
+          2. BỘ LỌC 2 MẢNG: [SỰ KIỆN] | [DU LỊCH & VẬN TẢI]
+      ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-7 relative z-20">
+        <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-xl border border-slate-200/90 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Main Filter Tabs */}
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <button
+              onClick={() => {
+                setMainTab("all");
+                setSelectedSubTag("all");
+              }}
+              className={`px-5 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                mainTab === "all"
+                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                  : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Tất Cả Dịch Vụ ({CORE_SERVICES.length})</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setMainTab("su-kien");
+                setSelectedSubTag("all");
+              }}
+              className={`px-5 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                mainTab === "su-kien"
+                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                  : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Mảng Sự Kiện ({CORE_SERVICES.filter((s) => s.category === "su-kien").length})</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setMainTab("du-lich");
+                setSelectedSubTag("all");
+              }}
+              className={`px-5 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                mainTab === "du-lich"
+                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                  : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+              }`}
+            >
+              <Compass className="w-4 h-4" />
+              <span>Mảng Du Lịch & Vận Tải ({CORE_SERVICES.filter((s) => s.category === "du-lich").length})</span>
+            </button>
+          </div>
+
+          {/* Quick Stats or Promo Jump */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <span>Đang hiển thị: <strong className="text-[#0A1E5E]">{filteredServices.length} gói dịch vụ</strong></span>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          3. DANH SÁCH 5 DỊCH VỤ ĐÓNG GÓI CHI TIẾT (SERVICES GRID)
+      ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black text-[#0A1E5E]">
-              {activeTab === "su-kien"
-                ? "Danh Sách Dịch Vụ Tổ Chức Sự Kiện"
-                : "Danh Sách Dịch Vụ Du Lịch & Vận Tải"}
+            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] block mb-1">
+              CHẤT LƯỢNG TIÊN PHONG
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#0A1E5E]">
+              Chi Tiết Danh Mục Dịch Vụ Cung Cấp
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              {activeTab === "su-kien"
-                ? "Khánh thành, khai trương, hội nghị, tiệc tất niên Y.E.P, sân khấu âm thanh ánh sáng LED"
-                : "Tour doanh nghiệp kết hợp Team Building, du lịch thiện nguyện, xe đời mới 7-45 chỗ"}
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Mỗi gói dịch vụ đều được đóng gói đầy đủ nhân sự, trang thiết bị và kịch bản vận hành an toàn 100%.
             </p>
           </div>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Cam kết giá gốc trực tiếp tận kho
+            </span>
+          </div>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        {/* Grid 5 dịch vụ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredServices.map((service) => (
             <div
               key={service.id}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group"
+              className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group"
             >
-              <div className="h-52 relative overflow-hidden bg-slate-900">
+              {/* Image & Tag Header */}
+              <div className="h-56 relative overflow-hidden bg-slate-900 shrink-0">
                 <img
-                  src={service.image_url}
+                  src={service.imageUrl}
                   alt={service.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-md bg-[#0A1E5E] text-[#D4AF37] text-xs font-bold border border-[#D4AF37]/30">
-                  {service.category === "su-kien" ? "Sự Kiện" : "Du Lịch"}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+
+                {/* Badge top right */}
+                <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full bg-[#0A1E5E]/90 text-[#D4AF37] text-[11px] font-black uppercase tracking-wider border border-[#D4AF37]/30 backdrop-blur-sm">
+                    {service.tag}
+                  </span>
+                </div>
+
+                {/* Price tag bottom */}
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white">
+                  <span className="text-xs font-semibold text-[#D4AF37] bg-black/50 px-2.5 py-1 rounded-lg backdrop-blur-sm">
+                    {service.priceNote}
+                  </span>
+                  {service.badge && (
+                    <span className="text-[11px] font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-400/30">
+                      {service.badge}
+                    </span>
+                  )}
                 </div>
               </div>
 
+              {/* Card Body */}
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <div>
-                  <h3 className="font-bold text-lg text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors line-clamp-2">
+                  <h3 className="font-black text-lg text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-snug">
                     {service.title}
                   </h3>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                    {service.description}
+                  <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">
+                    {service.shortDesc}
                   </p>
 
-                  {/* Features list */}
-                  {service.features && service.features.length > 0 && (
-                    <ul className="mt-4 space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600">
-                      {service.features.map((feat, fIdx) => (
-                        <li key={fIdx} className="flex items-start">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] mr-2 shrink-0 mt-0.5" />
-                          <span>{feat}</span>
+                  {/* Highlights Bullet List */}
+                  <div className="mt-4 pt-3 border-t border-slate-100">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                      Đặc Quyền Gói:
+                    </span>
+                    <ul className="space-y-1.5 text-xs text-slate-700">
+                      {service.highlights.slice(0, 3).map((item, hIdx) => (
+                        <li key={hIdx} className="flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{item}</span>
                         </li>
                       ))}
                     </ul>
-                  )}
+                  </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100">
+                {/* Card Action Buttons */}
+                <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => selectServiceForQuote(service.title)}
-                    className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-[#0A1E5E] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all flex items-center justify-center space-x-2 shadow-sm"
+                    onClick={() => setActiveModalService(service)}
+                    className="py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-[#0A1E5E] hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>Nhận Báo Giá Gói Này</span>
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Xem Bóc Tách</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectService(service.title)}
+                    className="py-2.5 px-3 rounded-xl font-black text-xs bg-gradient-to-r from-[#D4AF37] to-[#c7a02b] hover:brightness-105 text-[#0A1E5E] shadow-sm transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>Nhận Báo Giá</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
+      </section>
 
-        {/* =========================================================================
-            FORM BÁO GIÁ TRỰC TUYẾN (LƯU VÀO SUPABASE LEADS)
-        ========================================================================= */}
-        <div id="bao-gia" className="scroll-mt-28">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-12">
-              {/* Left Column: Form info & Contact */}
-              <div className="lg:col-span-5 bg-[#0A1E5E] text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+      {/* =========================================================================
+          4. KHU VỰC KHUYẾN MÃI & COMBO ƯU ĐÃI (PROMOTION CORE - HÒA BÌNH GROUP STYLE)
+      ========================================================================= */}
+      <PromotionSection onSelectPromo={handleSelectPromo} />
 
-                <div className="space-y-6 relative z-10">
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#D4AF37] border border-[#D4AF37]/30">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Phản Hồi Nhanh Trong 30 Phút</span>
+      {/* =========================================================================
+          5. BẢNG SO SÁNH CÁC GÓI DỊCH VỤ (PRICE ANCHORING - TIẾT KIỆM ĐẾN VIP)
+      ========================================================================= */}
+      <section className="py-16 bg-white border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+              MINH BẠCH NGÂN SÁCH
+            </span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A1E5E]">
+              Bảng So Sánh Các Gói Quy Mô Sự Kiện
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-light leading-relaxed">
+              Dễ dàng cân đối tài chính cho công ty của bạn. Toàn bộ thiết bị đều là hàng nhập khẩu mới 100%, bảo dưỡng định kỳ và có kỹ thuật viên trực xuyên suốt.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            {PRICING_TIERS.map((tier) => (
+              <div
+                key={tier.id}
+                className={`rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 relative ${
+                  tier.isFeatured
+                    ? "bg-[#0A1E5E] text-white shadow-2xl ring-4 ring-[#D4AF37]/50 scale-100 md:scale-105 z-10"
+                    : "bg-slate-50 text-slate-800 border border-slate-200 shadow-md hover:shadow-xl"
+                }`}
+              >
+                {tier.isFeatured && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-[#D4AF37] text-[#0A1E5E] px-4 py-1 rounded-full text-xs font-black uppercase shadow-md flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Lựa Chọn Nhiều Nhất (70%)
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className={`font-black text-xl ${tier.isFeatured ? "text-white" : "text-[#0A1E5E]"}`}>
+                      {tier.name}
+                    </h3>
+                  </div>
+                  <span className={`text-xs block font-semibold mb-4 ${tier.isFeatured ? "text-slate-300" : "text-slate-500"}`}>
+                    {tier.scale}
                   </span>
 
-                  <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                    Đăng Ký Nhận Tư Vấn & Báo Giá Sự Kiện / Tour
-                  </h3>
-
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
-                    Hãy chia sẻ sơ bộ về kế hoạch của bạn. Đội ngũ đạo diễn và chuyên gia tổ chức của Trường Hải Event & Travel sẽ lên phương án kịch bản độc bản và dự toán chi phí tối ưu nhất.
-                  </p>
-
-                  <div className="space-y-4 pt-4 text-xs">
-                    <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                      <Phone className="w-5 h-5 text-[#D4AF37] shrink-0" />
-                      <div>
-                        <span className="text-slate-400 block">Hotline tư vấn khẩn cấp:</span>
-                        <a
-                          href={`tel:${COMPANY_INFO.hotline}`}
-                          className="font-bold text-base text-[#D4AF37] hover:underline"
-                        >
-                          {COMPANY_INFO.hotlineDisplay}
-                        </a>
-                      </div>
+                  <div className="mb-6 pb-6 border-b border-slate-200/40">
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-3xl sm:text-4xl font-black ${tier.isFeatured ? "text-[#D4AF37]" : "text-[#0A1E5E]"}`}>
+                        {tier.priceDisplay}
+                      </span>
+                      <span className={`text-xs ${tier.isFeatured ? "text-slate-300" : "text-slate-500"}`}>
+                        {tier.unit}
+                      </span>
                     </div>
+                    <p className={`text-xs mt-2 font-light leading-relaxed ${tier.isFeatured ? "text-slate-300" : "text-slate-600"}`}>
+                      {tier.description}
+                    </p>
+                  </div>
 
-                    <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                      <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <div>
-                        <span className="text-slate-400 block">Bảo mật thông tin:</span>
-                        <span className="text-slate-200">
-                          Cam kết bảo mật 100% thông tin sự kiện & kinh phí dự án
-                        </span>
-                      </div>
-                    </div>
+                  {/* Included Features */}
+                  <div className="space-y-3 mb-6">
+                    <span className={`text-[11px] font-bold uppercase tracking-wider block ${tier.isFeatured ? "text-[#D4AF37]" : "text-slate-700"}`}>
+                      Hạng mục bao gồm:
+                    </span>
+                    <ul className="space-y-2 text-xs">
+                      {tier.features.map((feat, fIdx) => (
+                        <li key={fIdx} className="flex items-start gap-2">
+                          <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${tier.isFeatured ? "text-[#D4AF37]" : "text-emerald-600"}`} />
+                          <span className={tier.isFeatured ? "text-slate-200" : "text-slate-700"}>
+                            {feat}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
 
-                <div className="pt-8 mt-8 border-t border-white/10 text-xs text-slate-400 relative z-10">
-                  {COMPANY_INFO.name} • MST: {COMPANY_INFO.taxId}
-                </div>
-              </div>
-
-              {/* Right Column: Lead Form */}
-              <div className="lg:col-span-7 p-8 sm:p-10">
-                <form onSubmit={handleSubmitLead} className="space-y-5">
-                  <h4 className="text-lg font-bold text-[#0A1E5E] pb-2 border-b border-slate-100 flex items-center">
-                    <FileCheck className="w-5 h-5 mr-2 text-[#D4AF37]" />
-                    Thông Tin Nhu Cầu Của Quý Khách
-                  </h4>
-
-                  {submitResult.type && (
-                    <div
-                      className={`p-4 rounded-xl text-xs font-medium ${
-                        submitResult.type === "success"
-                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                          : "bg-rose-50 text-rose-800 border border-rose-200"
-                      }`}
-                    >
-                      {submitResult.message}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Họ và tên của bạn <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Nguyễn Văn A"
-                        value={formData.fullName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, fullName: e.target.value })
-                        }
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Số điện thoại / Zalo <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="0912 345 678"
-                        value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Email liên hệ (nếu có)
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="example@company.com"
-                        value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Quy mô khách dự kiến
-                      </label>
-                      <select
-                        value={formData.estimatedGuests}
-                        onChange={(e) =>
-                          setFormData({ ...formData, estimatedGuests: e.target.value })
-                        }
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
-                      >
-                        <option value="Dưới 50 khách">Dưới 50 khách</option>
-                        <option value="50 - 150 khách">50 - 150 khách</option>
-                        <option value="150 - 300 khách">150 - 300 khách</option>
-                        <option value="300 - 600 khách">300 - 600 khách</option>
-                        <option value="Trên 600 khách (Đại lễ lớn)">
-                          Trên 600 khách (Đại lễ lớn)
-                        </option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Loại hình sự kiện / Dịch vụ quan tâm <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={formData.eventType}
-                      onChange={(e) =>
-                        setFormData({ ...formData, eventType: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
-                    >
-                      <optgroup label="Mảng Tổ Chức Sự Kiện">
-                        <option value="Lễ kỷ niệm, khánh thành, khai trương, khởi công – động thổ">
-                          Lễ kỷ niệm, khánh thành, khai trương, khởi công
-                        </option>
-                        <option value="Tiệc tất niên Year End Party (Y.E.P), Gala Dinner">
-                          Tiệc tất niên Year End Party (Y.E.P), Gala Dinner
-                        </option>
-                        <option value="Sự kiện mở bán Bất động sản, Hội nghị & Hội thảo">
-                          Sự kiện mở bán BĐS, Hội nghị, Hội thảo
-                        </option>
-                        <option value="Sự kiện Trung thu, Tết Thiếu nhi, Họp lớp">
-                          Sự kiện Trung thu, Tết Thiếu nhi, Họp lớp
-                        </option>
-                        <option value="Thuê thiết bị Âm thanh, Ánh sáng, Sân khấu, Màn hình LED">
-                          Thuê thiết bị Âm thanh, Ánh sáng, Sân khấu, Màn LED
-                        </option>
-                      </optgroup>
-                      <optgroup label="Mảng Du Lịch & Vận Tải">
-                        <option value="Tour Doanh nghiệp kết hợp Team Building">
-                          Tour Doanh nghiệp kết hợp Team Building
-                        </option>
-                        <option value="Thuê xe du lịch 7 - 45 chỗ đời mới">
-                          Thuê xe du lịch 7 - 45 chỗ đời mới
-                        </option>
-                        <option value="Tour du lịch trải nghiệm & Thiện nguyện cộng đồng">
-                          Tour du lịch trải nghiệm & Thiện nguyện
-                        </option>
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Ghi chú thêm về địa điểm, thời gian hoặc yêu cầu đặc biệt
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="VD: Dự kiến tổ chức vào giữa tháng 12 tại Hà Nội, cần thuê trọn gói âm thanh ánh sáng và MC..."
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition"
-                    />
-                  </div>
-
+                {/* Tier CTA */}
+                <div className="pt-4">
                   <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-[#D4AF37] via-[#eed06f] to-[#D4AF37] text-[#0A1E5E] shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                    onClick={() => handleSelectService(`Đăng ký: ${tier.name}`)}
+                    className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      tier.isFeatured
+                        ? "bg-gradient-to-r from-[#D4AF37] to-[#c59c23] text-[#0A1E5E] shadow-lg hover:brightness-110"
+                        : "bg-[#0A1E5E] text-[#D4AF37] hover:bg-[#142a6d]"
+                    }`}
                   >
-                    {submitting ? (
-                      <span>Đang gửi thông tin...</span>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-1" />
-                        <span>Gửi Yêu Cầu Báo Giá Miễn Phí</span>
-                      </>
-                    )}
+                    <span>{tier.ctaText}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
-                </form>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          6. FORM ĐĂNG KÝ BÁO GIÁ TRỰC TUYẾN (LEAD CONVERTER)
+      ========================================================================= */}
+      <section className="py-16 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <LeadForm
+            initialService={selectedServiceForQuote}
+            initialPromo={selectedPromo}
+            onClearPromo={() => setSelectedPromo(null)}
+          />
+        </div>
+      </section>
+
+      {/* =========================================================================
+          7. SOCIAL PROOF & 5 CAM KẾT VÀNG TỪ TRƯỜNG HẢI
+      ========================================================================= */}
+      <section className="py-16 bg-[#06123B] text-white border-t border-[#D4AF37]/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+              AN TÂM TUYỆT ĐỐI
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              5 Cam Kết Vàng Đồng Hành Cùng Doanh Nghiệp
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 font-light">
+              Trường Hải Event & Travel hoạt động với tôn chỉ: Đặt uy tín thương hiệu và sự an toàn của khách hàng lên hàng đầu.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition text-center space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                <Warehouse className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-xs text-white">Kho Thiết Bị Trực Tiếp</h4>
+              <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                Không qua bất kỳ khâu trung gian nào, tiết kiệm 20% - 25% chi phí dự án.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition text-center space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-xs text-white">Cam Kết Không Phát Sinh</h4>
+              <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                Bảng dự toán chuẩn xác từng hạng mục, không phát sinh chi phí sau ký hợp đồng.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition text-center space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                <Clock className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-xs text-white">Setup Sớm Trước 12-24H</h4>
+              <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                Lắp đặt hoàn thiện trước giờ G tối thiểu 12 giờ để chạy tổng duyệt chương trình.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition text-center space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                <Award className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-xs text-white">Kịch Bản Độc Bản</h4>
+              <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                Đạo diễn xây dựng concept riêng theo văn hóa và câu chuyện thương hiệu công ty.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition text-center space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-xs text-white">Hợp Đồng & VAT Đầy Đủ</h4>
+              <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                Pháp nhân công ty minh bạch, hỗ trợ đầy đủ chứng từ thanh quyết toán tài chính.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* =========================================================================
+          8. FAQ: CÂU HỎI THƯỜNG GẶP
+      ========================================================================= */}
+      <section className="py-16 bg-white border-t border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+              GIẢI ĐÁP THẮC MẮC
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#0A1E5E]">
+              Câu Hỏi Thường Gặp Về Dịch Vụ & Báo Giá
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {SERVICE_FAQS.map((faq, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50/50 transition-all"
+              >
+                <button
+                  onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
+                  className="w-full p-4 sm:p-5 text-left font-bold text-xs sm:text-sm text-[#0A1E5E] flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/70 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                    {faq.question}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      openFaqIndex === idx ? "rotate-180 text-[#0A1E5E]" : ""
+                    }`}
+                  />
+                </button>
+                {openFaqIndex === idx && (
+                  <div className="px-5 pb-5 pt-1 text-xs text-slate-600 leading-relaxed font-light border-t border-slate-200/60 bg-white">
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Hotline Box */}
+          <div className="mt-10 p-6 rounded-3xl bg-amber-50/80 border border-[#D4AF37]/50 text-center space-y-3">
+            <h4 className="font-black text-sm text-[#0A1E5E]">
+              Bạn cần giải đáp phương án kỹ thuật ngay lập tức?
+            </h4>
+            <p className="text-xs text-slate-600">
+              Đội ngũ chuyên gia của Trường Hải Event & Travel luôn sẵn sàng hỗ trợ 24/7 kể cả ngày nghỉ và lễ tết.
+            </p>
+            <div className="pt-1">
+              <a
+                href={`tel:${COMPANY_INFO.hotline}`}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0A1E5E] text-[#D4AF37] font-black text-xs shadow-md hover:bg-[#122868] transition"
+              >
+                <span>Gọi Hotline 24/7: {COMPANY_INFO.hotlineDisplay}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          MODAL XEM CHI TIẾT DỊCH VỤ & BÓC TÁCH THIẾT BỊ
+      ========================================================================= */}
+      <ServiceModal
+        service={activeModalService}
+        onClose={() => setActiveModalService(null)}
+        onSelectForQuote={(title) => handleSelectService(title)}
+      />
     </div>
   );
 }
