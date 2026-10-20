@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabasePost } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured, DatabasePost, DatabaseLead } from "@/lib/supabase";
 import {
   Radar,
   Sparkles,
@@ -34,6 +34,10 @@ import {
   ShieldCheck,
   Check,
   Eye,
+  Users,
+  PhoneCall,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 
@@ -76,9 +80,129 @@ export default function RadarSeoAdminPage() {
   const [scheduledTime, setScheduledTime] = useState<string>("");
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  // Leads state
+  const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads">("posts");
+
   // Posts table state
   const [postsList, setPostsList] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
+
+  const filteredPosts = postsList.filter((post) => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      (post.title && post.title.toLowerCase().includes(query)) ||
+      (post.focus_keyword && post.focus_keyword.toLowerCase().includes(query)) ||
+      (post.slug && post.slug.toLowerCase().includes(query));
+
+    const matchesStatus =
+      statusFilter === "all" || post.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const publishedCount = postsList.filter((p) => p.status === "published").length;
+  const draftCount = postsList.filter((p) => p.status === "draft" || !p.status).length;
+
+  // Fetch leads from Supabase
+  const fetchLeads = async () => {
+    setLoadingLeads(true);
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          setLeadsList(data);
+          setLoadingLeads(false);
+          return;
+        }
+      } catch (e) {
+        console.warn("Lỗi tải leads từ Supabase:", e);
+      }
+    }
+
+    // Mock leads fallback
+    setLeadsList([
+      {
+        id: "lead-1",
+        full_name: "Nguyễn Văn Hùng",
+        phone: "0912 345 678",
+        email: "hung.nv@techcorp.vn",
+        event_type: "Hội nghị khách hàng 300 khách",
+        notes: "Cần báo giá trọn gói âm thanh ánh sáng & tiệc teabreak tại Hà Nội cuối tháng sau.",
+        created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+      },
+      {
+        id: "lead-2",
+        full_name: "Trần Thị Mai Anh",
+        phone: "0988 765 432",
+        email: "maianh.event@vietgroup.com",
+        event_type: "Lễ khai trương chi nhánh mới",
+        notes: "Cần kịch bản đón tiếp khách VIP và đội múa Lân Sư Rồng tại Cầu Giấy.",
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      },
+      {
+        id: "lead-3",
+        full_name: "Lê Hoàng Long",
+        phone: "0903 112 233",
+        email: "long.lh@sunshine.vn",
+        event_type: "Teambuilding & Gala Dinner 2N1Đ",
+        notes: "Đoàn 150 người tại Hạ Long, yêu cầu MC nhiệt huyết và quà tặng teambuilding.",
+        created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
+      },
+    ]);
+    setLoadingLeads(false);
+  };
+
+  const handleDeleteLead = async (leadId?: string) => {
+    if (!leadId) return;
+    if (!window.confirm("Bạn có chắc muốn xóa yêu cầu tư vấn của khách hàng này?")) return;
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from("leads").delete().eq("id", leadId);
+        fetchLeads();
+        return;
+      } catch (e) {
+        console.warn("Lỗi khi xóa lead:", e);
+      }
+    }
+    setLeadsList(leadsList.filter((l) => l.id !== leadId));
+  };
+
+  const handleStartEditPost = (post: any) => {
+    setEditingPostId(post.id);
+    setEditablePost({
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      meta_description: post.meta_description,
+      focus_keyword: post.focus_keyword,
+      category: "su-kien",
+      reading_time: "5 phút",
+    });
+    setActiveResultTab("article");
+    setTimeout(() => {
+      const editorEl = document.getElementById("radar-results-editor");
+      if (editorEl) {
+        editorEl.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
+    setEditablePost(null);
+    setSaveStatus(null);
+  };
 
   // Load existing posts from Supabase or mock
   const fetchPosts = async () => {
@@ -117,6 +241,7 @@ export default function RadarSeoAdminPage() {
 
   useEffect(() => {
     fetchPosts();
+    fetchLeads();
   }, []);
 
   // Quick fill samples
@@ -203,17 +328,43 @@ export default function RadarSeoAdminPage() {
       };
 
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from("posts").insert([payload]);
-        if (error) throw error;
-        setSaveStatus(
-          status === "published"
-            ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
-            : status === "scheduled"
-            ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
-            : "Đã lưu bản nháp vào bảng 'posts' thành công!"
-        );
-        fetchPosts();
+        if (editingPostId) {
+          const { error } = await supabase
+            .from("posts")
+            .update(payload)
+            .eq("id", editingPostId);
+          if (error) throw error;
+          setSaveStatus(
+            status === "published"
+              ? "Đã cập nhật & xuất bản bài viết thành công!"
+              : "Đã cập nhật bài viết thành công!"
+          );
+          setEditingPostId(null);
+          fetchPosts();
+        } else {
+          const { error } = await supabase.from("posts").insert([payload]);
+          if (error) throw error;
+          setSaveStatus(
+            status === "published"
+              ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
+              : status === "scheduled"
+              ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
+              : "Đã lưu bản nháp vào bảng 'posts' thành công!"
+          );
+          fetchPosts();
+        }
       } else {
+        if (editingPostId) {
+          setPostsList(
+            postsList.map((p) =>
+              p.id === editingPostId
+                ? { ...p, ...editablePost, status }
+                : p
+            )
+          );
+          setSaveStatus("Đã cập nhật bài viết (chế độ demo)!");
+          setEditingPostId(null);
+        } else {
         // Mock save
         const newMockPost = {
           id: `post-${Date.now()}`,
@@ -235,6 +386,7 @@ export default function RadarSeoAdminPage() {
             ? `Đã lên lịch đăng vào: ${scheduledTime} (demo)!`
             : "Đã lưu bản nháp thành công (chế độ demo)!"
         );
+        }
       }
       setShowScheduleModal(false);
     } catch (err: any) {
@@ -531,7 +683,22 @@ export default function RadarSeoAdminPage() {
             RESULTS WORKSPACE: BÁO CÁO PHÂN TÍCH ĐỐI THỦ & TRÌNH BIÊN TẬP
         ===================================================================== */}
         {(analysisResult || editablePost) && (
-          <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+          <div id="radar-results-editor" className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+            {editingPostId && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs gap-2 animate-in fade-in">
+                <span className="font-semibold flex items-center">
+                  <Edit3 className="w-4 h-4 mr-2 text-amber-400" />
+                  Đang ở chế độ chỉnh sửa bài viết đã có trong Database
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-all w-fit"
+                >
+                  ✕ Hủy chỉnh sửa
+                </button>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
               {/* Tab Selector: Analysis Tab is clear & primary */}
               <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
@@ -929,9 +1096,161 @@ export default function RadarSeoAdminPage() {
         )}
 
         {/* =====================================================================
-            POSTS MANAGEMENT TABLE (HIỆN RÕ GIỜ/NGÀY & CÓ THAO TÁC XÓA)
+            DASHBOARD METRIC CARDS (THỐNG KÊ TỔNG QUAN)
         ===================================================================== */}
-        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Tổng bài viết SEO</p>
+              <h3 className="text-2xl font-black text-white">{postsList.length}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Đã xuất bản</p>
+              <h3 className="text-2xl font-black text-emerald-400">{publishedCount}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Bản nháp chờ duyệt</p>
+              <h3 className="text-2xl font-black text-amber-400">{draftCount}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Khách cần tư vấn</p>
+              <h3 className="text-2xl font-black text-[#D4AF37]">{leadsList.length}</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* =====================================================================
+            CMS DATA WORKSPACE: POSTS MANAGEMENT & LEADS MANAGEMENT
+        ===================================================================== */}
+        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+          {/* Main CMS Tab Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
+            <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
+              <button
+                type="button"
+                onClick={() => setActiveAdminTab("posts")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "posts"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Quản Lý Bài Viết SEO ({postsList.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminTab("leads")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "leads"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Khách Hàng Đăng Ký Tư Vấn ({leadsList.length})</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                fetchPosts();
+                fetchLeads();
+              }}
+              className="inline-flex items-center text-xs text-[#D4AF37] hover:underline self-end sm:self-auto"
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+              Làm mới dữ liệu
+            </button>
+          </div>
+
+          {activeAdminTab === "posts" ? (
+            <div className="space-y-4">
+              {/* Search & Filter Toolbar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo tiêu đề, từ khóa, slug..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-500 transition"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-white/5 border border-white/10 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      statusFilter === "all"
+                        ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm font-bold"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Tất cả ({postsList.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("published")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                      statusFilter === "published"
+                        ? "bg-emerald-500 text-white shadow-sm font-bold"
+                        : "text-emerald-400 hover:bg-emerald-500/10"
+                    }`}
+                  >
+                    <span>Đã duyệt ({publishedCount})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("draft")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                      statusFilter === "draft"
+                        ? "bg-amber-500 text-slate-900 shadow-sm font-bold"
+                        : "text-amber-400 hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <span>Nháp ({draftCount})</span>
+                  </button>
+                </div>
+              </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-2">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center">
@@ -965,7 +1284,21 @@ export default function RadarSeoAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {postsList.map((post) => (
+                {filteredPosts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <FileText className="w-8 h-8 text-slate-600" />
+                        <p className="text-xs">
+                          {searchQuery
+                            ? `Không tìm thấy bài viết nào khớp với từ khóa "${searchQuery}"`
+                            : "Không có bài viết nào trong danh mục này"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPosts.map((post) => (
                   <tr key={post.id} className="hover:bg-white/5 transition-colors">
                     <td className="py-3.5 px-4 font-semibold text-white max-w-xs truncate">
                       {post.title}
@@ -1014,11 +1347,21 @@ export default function RadarSeoAdminPage() {
                         {post.status === "published" ? "Thu hồi nháp" : "Duyệt đăng"}
                       </button>
 
+                      {/* Nút Sửa bài viết */}
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditPost(post)}
+                        className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 inline-flex items-center transition-all ml-1"
+                        title="Chỉnh sửa bài viết"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+
                       {/* Nút Xem bài viết */}
                       <Link
                         href={`/tin-tuc/${post.slug}`}
                         target="_blank"
-                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center"
+                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center ml-1"
                         title="Xem bài viết"
                       >
                         <ExternalLink className="w-3 h-3" />
@@ -1035,10 +1378,112 @@ export default function RadarSeoAdminPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
+            </div>
+          ) : (
+            /* =====================================================================
+               LEADS MANAGEMENT TABLE (DANH SÁCH KHÁCH HÀNG BÁO GIÁ)
+            ===================================================================== */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400">
+                  Danh sách khách hàng điền form nhận báo giá từ website Trường Hải Event & Travel
+                </p>
+                <span className="text-xs text-emerald-400 font-semibold flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1.5" />
+                  Đồng bộ Real-time từ Supabase
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
+                    <tr>
+                      <th className="py-3 px-4">Khách hàng</th>
+                      <th className="py-3 px-4">Thông tin liên hệ</th>
+                      <th className="py-3 px-4">Nhu cầu sự kiện</th>
+                      <th className="py-3 px-4">Ghi chú chi tiết</th>
+                      <th className="py-3 px-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {leadsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center space-y-2">
+                            <Users className="w-8 h-8 text-slate-600" />
+                            <p className="text-xs">Chưa có khách hàng nào để lại yêu cầu tư vấn</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      leadsList.map((lead) => (
+                        <tr key={lead.id || Math.random()} className="hover:bg-white/5 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-white">
+                            <div>
+                              <span>{lead.full_name}</span>
+                              <span className="block text-[10px] text-slate-400 font-normal">
+                                {lead.created_at
+                                  ? formatFullDateTime(lead.created_at)
+                                  : "Mới gửi"}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <a
+                                href={`tel:${lead.phone}`}
+                                className="flex items-center text-[#D4AF37] hover:underline font-bold"
+                              >
+                                <PhoneCall className="w-3 h-3 mr-1" />
+                                {lead.phone}
+                              </a>
+                              {lead.email && (
+                                <a
+                                  href={`mailto:${lead.email}`}
+                                  className="flex items-center text-slate-400 hover:text-slate-200 text-[11px]"
+                                >
+                                  <Mail className="w-3 h-3 mr-1" />
+                                  {lead.email}
+                                </a>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <span className="px-2.5 py-1 rounded-lg bg-[#0A1E5E] border border-[#D4AF37]/30 text-[#D4AF37] font-semibold text-[11px] inline-block">
+                              {lead.event_type}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4 text-slate-300 max-w-sm">
+                            <p className="line-clamp-2 text-xs">
+                              {lead.notes || "Không có ghi chú thêm."}
+                            </p>
+                          </td>
+
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLead(lead.id)}
+                              className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 inline-flex items-center transition-colors"
+                              title="Xóa yêu cầu tư vấn này"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
