@@ -49,10 +49,30 @@ export default function RadarSeoAdminPage() {
   const [editablePost, setEditablePost] = useState<any>(null);
   const [activeResultTab, setActiveResultTab] = useState<"analysis" | "article">("article");
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
   // Posts table state
   const [postsList, setPostsList] = useState<DatabasePost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+
+  const filteredPosts = postsList.filter((post) => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      post.title.toLowerCase().includes(query) ||
+      (post.focus_keyword && post.focus_keyword.toLowerCase().includes(query)) ||
+      post.slug.toLowerCase().includes(query);
+
+    const matchesStatus =
+      statusFilter === "all" || post.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const publishedCount = postsList.filter((p) => p.status === "published").length;
+  const draftCount = postsList.filter((p) => p.status === "draft").length;
 
   // Load existing posts from Supabase or mock
   const fetchPosts = async () => {
@@ -151,10 +171,37 @@ export default function RadarSeoAdminPage() {
     }
   };
 
-  // Manual save to Supabase
+  // Start editing existing post
+  const handleStartEditPost = (post: DatabasePost) => {
+    setEditingPostId(post.id);
+    setEditablePost({
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      meta_description: post.meta_description,
+      focus_keyword: post.focus_keyword,
+      category: "su-kien",
+      reading_time: "5 phút",
+    });
+    setActiveResultTab("article");
+    setTimeout(() => {
+      const editorEl = document.getElementById("radar-results-editor");
+      if (editorEl) {
+        editorEl.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
+    setEditablePost(null);
+    setSaveStatus(null);
+  };
+
+  // Manual save or update to Supabase
   const handleSaveToSupabase = async (status: "draft" | "published") => {
     if (!editablePost) return;
-    setSaveStatus("Đang lưu bài viết vào Supabase...");
+    setSaveStatus(editingPostId ? "Đang cập nhật bài viết vào Supabase..." : "Đang lưu bài viết vào Supabase...");
 
     try {
       if (isSupabaseConfigured) {
@@ -164,38 +211,68 @@ export default function RadarSeoAdminPage() {
           content: editablePost.content,
           meta_description: editablePost.meta_description,
           focus_keyword: editablePost.focus_keyword,
-          competitor_source_url: competitorUrl,
           status: status,
         };
 
-        const { error } = await supabase.from("posts").insert([payload]);
+        if (editingPostId) {
+          // UPDATE EXISTING POST
+          const { error } = await supabase
+            .from("posts")
+            .update(payload)
+            .eq("id", editingPostId);
 
-        if (error) throw error;
-        setSaveStatus(
-          status === "published"
-            ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
-            : "Đã lưu bản nháp vào bảng 'posts' thành công!"
-        );
-        fetchPosts();
+          if (error) throw error;
+          setSaveStatus(
+            status === "published"
+              ? "Đã cập nhật & xuất bản bài viết thành công!"
+              : "Đã cập nhật bài viết (trạng thái bản nháp) thành công!"
+          );
+          setEditingPostId(null);
+          fetchPosts();
+        } else {
+          // INSERT NEW POST
+          payload.competitor_source_url = competitorUrl;
+          const { error } = await supabase.from("posts").insert([payload]);
+
+          if (error) throw error;
+          setSaveStatus(
+            status === "published"
+              ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
+              : "Đã lưu bản nháp vào bảng 'posts' thành công!"
+          );
+          fetchPosts();
+        }
       } else {
-        // Mock save
-        const newMockPost: DatabasePost = {
-          id: `post-${Date.now()}`,
-          title: editablePost.title,
-          slug: editablePost.slug,
-          content: editablePost.content,
-          meta_description: editablePost.meta_description,
-          focus_keyword: editablePost.focus_keyword,
-          competitor_source_url: competitorUrl,
-          status: status,
-          created_at: new Date().toISOString(),
-        };
-        setPostsList([newMockPost, ...postsList]);
-        setSaveStatus(
-          status === "published"
-            ? "Đã xuất bản (chế độ demo - chưa kết nối Supabase)!"
-            : "Đã lưu bản nháp (chế độ demo - chưa kết nối Supabase)!"
-        );
+        // Mock save/update
+        if (editingPostId) {
+          setPostsList(
+            postsList.map((p) =>
+              p.id === editingPostId
+                ? { ...p, ...editablePost, status }
+                : p
+            )
+          );
+          setSaveStatus("Đã cập nhật bài viết (chế độ demo)!");
+          setEditingPostId(null);
+        } else {
+          const newMockPost: DatabasePost = {
+            id: `post-${Date.now()}`,
+            title: editablePost.title,
+            slug: editablePost.slug,
+            content: editablePost.content,
+            meta_description: editablePost.meta_description,
+            focus_keyword: editablePost.focus_keyword,
+            competitor_source_url: competitorUrl,
+            status: status,
+            created_at: new Date().toISOString(),
+          };
+          setPostsList([newMockPost, ...postsList]);
+          setSaveStatus(
+            status === "published"
+              ? "Đã xuất bản (chế độ demo - chưa kết nối Supabase)!"
+              : "Đã lưu bản nháp (chế độ demo - chưa kết nối Supabase)!"
+          );
+        }
       }
     } catch (err: any) {
       console.error("Save error:", err);
@@ -229,6 +306,32 @@ export default function RadarSeoAdminPage() {
         p.id === post.id ? { ...p, status: nextStatus } : p
       )
     );
+  };
+
+  // Xóa bài viết khỏi Supabase & cập nhật lại danh sách
+  const handleDeletePost = async (post: DatabasePost) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa bài viết:\n"${post.title}"?`)) {
+      return;
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from("posts")
+          .delete()
+          .eq("id", post.id);
+
+        if (!error) {
+          fetchPosts();
+          return;
+        }
+      } catch (e) {
+        console.warn("Lỗi khi xóa bài viết Supabase:", e);
+      }
+    }
+
+    // Cập nhật lại danh sách nếu ở chế độ demo
+    setPostsList(postsList.filter((p) => p.id !== post.id));
   };
 
   return (
@@ -464,7 +567,22 @@ export default function RadarSeoAdminPage() {
             RESULTS WORKSPACE (ANALYSIS & NEW ARTICLE EDITOR)
         ===================================================================== */}
         {(analysisResult || editablePost) && (
-          <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+          <div id="radar-results-editor" className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+            {editingPostId && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs gap-2 animate-in fade-in">
+                <span className="font-semibold flex items-center">
+                  <Edit3 className="w-4 h-4 mr-2 text-amber-400" />
+                  Đang ở chế độ chỉnh sửa bài viết đã có trong Database
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-all w-fit"
+                >
+                  ✕ Hủy chỉnh sửa
+                </button>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
               {/* Tab Selector */}
               <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
@@ -503,7 +621,7 @@ export default function RadarSeoAdminPage() {
                   className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/20 font-bold flex items-center space-x-1.5 transition-all"
                 >
                   <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Lưu Bản Nháp (Supabase)</span>
+                  <span>{editingPostId ? "Lưu Cập Nhật (Nháp)" : "Lưu Bản Nháp (Supabase)"}</span>
                 </button>
 
                 <button
@@ -512,7 +630,7 @@ export default function RadarSeoAdminPage() {
                   className="px-4 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#edd47a] text-[#0A1E5E] font-black flex items-center space-x-1.5 shadow-md transition-all"
                 >
                   <Send className="w-3.5 h-3.5 text-[#0A1E5E]" />
-                  <span>Xuất Bản Ngay</span>
+                  <span>{editingPostId ? "Cập Nhật & Xuất Bản" : "Xuất Bản Ngay"}</span>
                 </button>
               </div>
             </div>
@@ -717,6 +835,69 @@ export default function RadarSeoAdminPage() {
             </button>
           </div>
 
+          {/* Search & Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tiêu đề, từ khóa, slug..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-white/5 border border-white/10 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  statusFilter === "all"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm font-bold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Tất cả ({postsList.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter("published")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                  statusFilter === "published"
+                    ? "bg-emerald-500 text-white shadow-sm font-bold"
+                    : "text-emerald-400 hover:bg-emerald-500/10"
+                }`}
+              >
+                <span>Đã duyệt ({publishedCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter("draft")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                  statusFilter === "draft"
+                    ? "bg-amber-500 text-slate-900 shadow-sm font-bold"
+                    : "text-amber-400 hover:bg-amber-500/10"
+                }`}
+              >
+                <span>Nháp ({draftCount})</span>
+              </button>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
@@ -729,7 +910,21 @@ export default function RadarSeoAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {postsList.map((post) => (
+                {filteredPosts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <FileText className="w-8 h-8 text-slate-600" />
+                        <p className="text-xs">
+                          {searchQuery
+                            ? `Không tìm thấy bài viết nào khớp với từ khóa "${searchQuery}"`
+                            : "Không có bài viết nào trong danh mục này"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPosts.map((post) => (
                   <tr key={post.id} className="hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4 font-semibold text-white max-w-xs truncate">
                       {post.title}
@@ -770,17 +965,35 @@ export default function RadarSeoAdminPage() {
                         {post.status === "published" ? "Thu hồi nháp" : "Duyệt đăng"}
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditPost(post)}
+                        className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 inline-flex items-center transition-all"
+                        title="Chỉnh sửa bài viết"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+
                       <Link
                         href={`/tin-tuc/${post.slug}`}
                         target="_blank"
-                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center"
+                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center ml-1"
                         title="Xem bài viết"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePost(post)}
+                        className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 inline-flex items-center transition-all ml-1"
+                        title="Xóa bài viết"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
