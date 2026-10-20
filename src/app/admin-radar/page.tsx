@@ -960,7 +960,7 @@ export default function RadarSeoAdminPage() {
                   <th className="py-3 px-4">Tiêu đề bài viết</th>
                   <th className="py-3 px-4">Từ khóa chính</th>
                   <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4">Thời gian tạo (giờ và ngày)</th>
+                  <th className="py-3 px-4">Thời gian tạo</th>
                   <th className="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
