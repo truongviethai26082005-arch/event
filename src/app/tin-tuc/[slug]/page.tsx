@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import {
   Calendar,
   Phone,
@@ -26,7 +27,7 @@ export async function generateStaticParams() {
   }));
 }
 
-export const dynamicParams = true;
+export const instant = false;
 
 async function getPostBySlug(slug: string) {
   if (isSupabaseConfigured) {
@@ -112,14 +113,8 @@ export default async function BlogPostDetailPage({ params }: Props) {
             </header>
 
             {/* Article Body */}
-            <div className="py-8 prose prose-slate max-w-none text-slate-700 leading-relaxed space-y-4">
-              {post.content ? (
-                <div className="whitespace-pre-line text-sm sm:text-base leading-relaxed">
-                  {post.content}
-                </div>
-              ) : (
-                <p>Nội dung đang được cập nhật...</p>
-              )}
+            <div className="py-8">
+              <ArticleContentRenderer content={post.content || ""} />
             </div>
 
             {/* Author / Company Brand Box */}
