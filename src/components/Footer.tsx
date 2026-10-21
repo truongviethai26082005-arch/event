@@ -12,8 +12,7 @@ import {
   ShieldCheck,
   Award,
   ChevronRight,
-  Radar,
-  ArrowUpRight,
+  LogIn,
 } from "lucide-react";
 
 export default function Footer() {
@@ -133,7 +132,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: Quick Links & SEO Radar */}
+          {/* Column 3: Quick Links & Admin */}
           <div>
             <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4 pb-2 border-b border-[#D4AF37]/30 flex items-center">
               <ShieldCheck className="w-4 h-4 mr-2 text-[#D4AF37]" />
@@ -160,12 +159,11 @@ export default function Footer() {
               </li>
               <li className="pt-2">
                 <Link
-                  href="/admin-radar"
+                  href="/login"
                   className="inline-flex items-center px-3 py-2 rounded-lg bg-[#0A1E5E] border border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all font-semibold text-xs"
                 >
-                  <Radar className="w-3.5 h-3.5 mr-1.5" />
-                  Radar SEO Admin
-                  <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+                  <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                  Đăng nhập Admin
                 </Link>
               </li>
             </ul>

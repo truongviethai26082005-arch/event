@@ -157,10 +157,10 @@ export default function HomePage() {
                   <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
                     <span>Hà Nội & Các tỉnh phía Bắc</span>
                     <Link
-                      href="/admin-radar"
+                      href="/login"
                       className="text-[#D4AF37] hover:underline flex items-center font-medium"
                     >
-                      Radar SEO AI
+                      Đăng nhập
                       <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                     </Link>
                   </div>
