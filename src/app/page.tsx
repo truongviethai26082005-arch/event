@@ -807,10 +807,14 @@ export default function HomePage() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
                     {/* Logo Hexagon Brand TH */}
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#D4AF37] via-[#F5E08B] to-[#997A15] p-0.5 shadow-2xl mb-3.5 group-hover:scale-105 transition-transform">
-                      <div className="w-full h-full bg-[#0A1E5E] rounded-[14px] flex items-center justify-center">
-                        <span className="font-extrabold text-2xl sm:text-3xl text-[#D4AF37] tracking-wider">
-                          TH
-                        </span>
+                      <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+                        <Image
+                          src="/images/logo.png"
+                          alt="Logo Trường Hải Event & Travel"
+                          width={160}
+                          height={160}
+                          className="w-full h-full object-contain scale-125"
+                        />
                       </div>
                     </div>
 

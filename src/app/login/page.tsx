@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Radar, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import LoginForm from "@/app/login/login-form";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 
@@ -10,8 +11,14 @@ export default function LoginPage() {
     <main className="flex min-h-[70vh] items-center justify-center bg-[#F4F6FA] px-4 py-12">
       <section className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
         <div className="bg-gradient-to-br from-[#07163D] via-[#0A1E5E] to-[#173477] px-7 py-8 text-white sm:px-9">
-          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#D4AF37] text-[#0A1E5E]">
-            <Radar className="h-6 w-6" />
+          <div className="mb-6 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg">
+            <Image
+              src="/images/logo.png"
+              alt="Logo Trường Hải Event & Travel"
+              width={128}
+              height={128}
+              className="h-full w-full scale-125 object-contain"
+            />
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
             Trường Hải Event &amp; Travel
