@@ -262,9 +262,10 @@ export default function RadarSeoAdminPage() {
     setProcessStep(1);
 
     try {
-      // Giả lập trực quan từng bước cho người dùng
-      const stepTimer1 = setTimeout(() => setProcessStep(2), 1200);
-      const stepTimer2 = setTimeout(() => setProcessStep(3), 2800);
+      // Giả lập trực quan 4 giai đoạn chuẩn Skill System v2.4.5
+      const stepTimer1 = setTimeout(() => setProcessStep(2), 900);
+      const stepTimer2 = setTimeout(() => setProcessStep(3), 2000);
+      const stepTimer3 = setTimeout(() => setProcessStep(4), 3200);
 
       const res = await fetch("/api/radar", {
         method: "POST",
@@ -278,6 +279,7 @@ export default function RadarSeoAdminPage() {
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
 
       const data = await res.json();
 
@@ -627,44 +629,57 @@ export default function RadarSeoAdminPage() {
                   <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
                   Tiến trình Radar SEO:
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 transition-all ${
                       processStep >= 1
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       1
                     </span>
-                    <span>Cào dữ liệu (Jina Reader)</span>
+                    <span className="truncate">Cào dữ liệu & Intent</span>
                   </div>
 
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 transition-all ${
                       processStep >= 2
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       2
                     </span>
-                    <span>Bóc tách lỗ hổng và thế mạnh</span>
+                    <span className="truncate">Ma trận lỗ hổng (Gap)</span>
                   </div>
 
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 transition-all ${
                       processStep >= 3
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       3
                     </span>
-                    <span>Khắc chế bằng bài viết Trường Hải</span>
+                    <span className="truncate">Specificity & Rule Lock</span>
+                  </div>
+
+                  <div
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 transition-all ${
+                      processStep >= 4
+                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-slate-400"
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                      4
+                    </span>
+                    <span className="truncate">Đóng gói bài viết chuẩn SEO</span>
                   </div>
                 </div>
               </div>

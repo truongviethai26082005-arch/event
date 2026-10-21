@@ -370,12 +370,14 @@ function generateTruongHaiSeoArticle(
   // Chuẩn hóa từ khóa viết thường để ghép vào câu chuẩn ngữ pháp tiếng Việt
   const lowerKeyword = keyword.toLowerCase();
 
-  // Tiêu đề bài viết: chỉ viết hoa chữ cái đầu và danh từ riêng
+  // Tiêu đề bài viết: chỉ viết hoa chữ cái đầu và danh từ riêng (Sentence Case chuẩn)
   const title = toSentenceCase(`Cẩm nang ${lowerKeyword} trọn gói từ A-Z: bí quyết tối ưu 25% chi phí và tạo dấu ấn độc bản`);
-  const metaDescription = `Cẩm nang ${lowerKeyword} từ Trường Hải Event & Travel. Trực tiếp sở hữu kho thiết bị âm thanh, ánh sáng, cam kết không phát sinh chi phí. Hotline 24/7: 0844 198 333.`;
+  const metaDescription = `Cẩm nang ${lowerKeyword} từ Trường Hải Event & Travel. Trực tiếp sở hữu kho thiết bị âm thanh Line Array, LED P3.91, cam kết không phát sinh chi phí. Hotline 24/7: 0844 198 333.`;
 
   const content = `
 # ${title}
+
+> 📌 **Tóm tắt nhanh (Quick Answer):** Chi phí ${eventTypeCategory} trọn gói hiện dao động từ **15.000.000đ - 75.000.000đ** (quy mô 50 - 500 khách) tùy thuộc vào diện tích sân khấu và gói thiết bị. Trường Hải Event & Travel trực tiếp sở hữu tổng kho âm thanh Line Array, màn hình LED P2.5/P3.91 nhập khẩu và đội xe du lịch 16-45 chỗ, cam kết bảo lãnh hợp đồng 'không phát sinh thêm một đồng'. Nhận dự toán bóc tách chi tiết theo mặt bằng trong 30 phút qua hotline 24/7: **0844 198 333**.
 
 Trong bối cảnh cạnh tranh kinh doanh hiện đại, một chương trình ${eventTypeCategory} không đơn thuần chỉ là buổi lễ gặp gỡ giao lưu thông thường. Đây chính là **chiến dịch truyền thông trực tiếp khẳng định vị thế, tầm vóc và uy tín của doanh nghiệp** đối với đối tác, khách hàng và toàn thể cán bộ nhân viên.
 
@@ -424,7 +426,38 @@ Là đơn vị hiếm hoi sở hữu cả giấy phép lữ hành và đội xe 
 
 ---
 
-## 3. Bảng dự toán khung ngân sách tham khảo (không phát sinh chi phí)
+## 3. Phân tích chiều sâu kỹ thuật và các điều kiện then chốt
+
+Nhằm đảm bảo sự kiện diễn ra thành công không một tì vết, đội ngũ kỹ thuật Trường Hải chia sẻ 4 khía cạnh thực tế mà mọi doanh nghiệp cần nắm rõ:
+
+### 3.1. Điều kiện ngầm về nguồn điện và mặt bằng tổ chức
+- **Yêu cầu điện lưới:** Màn hình LED diện tích trên 15m² kết hợp dàn đèn Moving Beam bắt buộc phải cấp nguồn điện 3 pha ổn định (công suất từ 25kW - 45kW) hoặc có máy phát điện dự phòng độc lập để tránh sập atomat tòa nhà giữa chương trình.
+- **Chiều cao trần và góc nhìn:** Với hội trường trần thấp dưới 3.8m, tuyệt đối không treo cụm loa Line Array trên cao vì sóng âm sẽ bị dội trần gây hú rít; thay vào đó, kỹ thuật viên sẽ bố trí hệ thống loa cột Column Array đặt sàn phân tán đều theo chiều dọc khán phòng.
+- **Pháp lý sự kiện:** Với sự kiện ngoài trời quy mô từ 200 khách trở lên, doanh nghiệp cần chuẩn bị hồ sơ thông báo hoặc xin giấy phép biểu diễn với cơ quan quản lý văn hóa địa phương trước ngày diễn ra tối thiểu 10 ngày làm việc.
+
+### 3.2. Tiêu chí chọn gói theo quy mô và đối tượng khách mời
+- **Quy mô dưới 100 khách (nội bộ, tiệc thân mật):** Ưu tiên gói tinh gọn dùng hệ thống 2 - 4 loa Full chuyên dụng, backdrop bạt Hiflex de hit chống xuyên sáng hoặc màn hình LED mini dưới 12m², tập trung ngân sách cho menu tiệc và quà tặng tri ân.
+- **Quy mô 100 - 300 khách (hội nghị, tất niên chuẩn):** Bắt buộc sử dụng tối thiểu 4 cụm loa Line Array để âm thanh phủ đều đến hàng ghế cuối cùng mà người ngồi bàn đầu không bị chói tai, kết hợp màn hình LED P3.91 kích thước tối thiểu 15m² - 20m².
+- **Quy mô 300 - 1.000+ khách VIP (đại lễ, khánh thành tập đoàn):** Cần hệ thống Line Array công suất lớn, visual LED 3D mapping, đạo diễn điều phối hiện trường qua bộ đàm chuyên dụng và đội ngũ trực chiến 100%.
+
+### 3.3. Bảng so sánh đánh đổi giữa các phương án kỹ thuật
+
+| Hạng mục thiết bị | Phương án phổ thông | Phương án tối ưu tại Trường Hải | Đánh đổi thực tế cần lưu ý |
+| :--- | :--- | :--- | :--- |
+| **Hệ thống âm thanh** | Cụm loa thùng Full đặt sàn | Dàn Line Array nhập khẩu treo khung Truss | Loa Full rẻ hơn nhưng âm thanh dễ méo tiếng và không đều; Line Array phủ âm mượt mà toàn hội trường |
+| **Màn hình LED** | Màn LED P3.91 đa năng | Màn LED P2.5 trong nhà siêu mịn | Màn P3.91 tối ưu chi phí hơn; màn P2.5 có độ sắc nét cực cao, không bị sọc nhiễu khi ghi hình máy ảnh chuyên nghiệp |
+| **Kết cấu che mưa nắng** | Ô dù bạt dù tròn | Nhà bạt không gian hợp kim nhôm khẩu độ lớn | Ô dù giá rẻ nhưng dễ bị lật khi có gió lốc; nhà bạt nhôm khẩu độ lớn chống chịu được giông bão cấp 6-7 |
+
+### 3.4. Cảnh báo thực chiến chống bẫy phát sinh chi phí
+Nhiều agency trung gian thường báo giá ban đầu rất thấp để ký hợp đồng, sau đó liên tục phụ thu các khoản:
+- Phụ phí vận chuyển và bốc dỡ vào ban đêm hoặc tòa nhà không có thang máy hàng.
+- Phụ phí kỹ thuật viên trực ngoài giờ sau 21h00.
+- Phí thuê thêm micro không dây và pin dự phòng.
+Tại Trường Hải Event & Travel, mọi điều khoản chi phí đều được niêm yết trọn gói bằng hợp đồng pháp lý, **cam kết không phát sinh thêm một đồng phụ phí**.
+
+---
+
+## 4. Bảng dự toán khung ngân sách tham khảo (không phát sinh chi phí)
 
 | Quy mô khách mời | Hạng mục cung cấp trọn gói | Thời gian chuẩn bị | Dự toán tham khảo |
 | :--- | :--- | :--- | :--- |
@@ -436,7 +469,7 @@ Là đơn vị hiếm hoi sở hữu cả giấy phép lữ hành và đội xe 
 
 ---
 
-## 4. Quy trình làm việc chuyên nghiệp 5 bước
+## 5. Quy trình làm việc chuyên nghiệp 5 bước
 
 1. **Bước 1 (tiếp nhận và khảo sát):** Khảo sát thực tế hiện trường trong ngày, đo đạc mặt bằng miễn phí.
 2. **Bước 2 (lên maquette và kịch bản):** Gửi kịch bản chi tiết và phối cảnh 2D/3D sân khấu trong 24 giờ.
@@ -446,7 +479,7 @@ Là đơn vị hiếm hoi sở hữu cả giấy phép lữ hành và đội xe 
 
 ---
 
-## 5. Liên hệ nhận báo giá chi tiết trong 30 phút
+## 6. Nhận tư vấn kịch bản độc bản và dự toán chi tiết trong 30 phút
 
 Đừng để sự kiện trọng đại của doanh nghiệp bạn gặp phải những rủi ro kỹ thuật hay chi phí đội lên từ các đơn vị trung gian. Hãy liên hệ ngay với Trường Hải Event & Travel để được phục vụ với chất lượng tốt nhất:
 
@@ -511,6 +544,7 @@ export async function POST(req: NextRequest) {
 
     // ------------------------------------------------------------------------
     // BƯỚC 2: Phân tích SEO theo Ma Trận Lỗ Hổng Thị Trường & Điểm Mạnh Trường Hải
+    // Áp dụng chuẩn Skill System Content v2.4.5: Answer-First, Specificity Planning & Rule Lock
     // ------------------------------------------------------------------------
     let analysisResult: CompetitorAnalysis | null = null;
     let newPostResult: GeneratedPost | null = null;
@@ -529,28 +563,34 @@ export async function POST(req: NextRequest) {
         });
 
         const prompt = `
-Bạn là Giám đốc Chiến lược & Chuyên gia SEO của Công ty TNHH Sự kiện và Du lịch Trường Hải (Hotline 0844 198 333).
-Thế mạnh cốt lõi của Trường Hải Event:
-1. Trực tiếp sở hữu kho thiết bị âm thanh Line Array, màn hình LED P2.5/P3.91, Moving Beam (không qua trung gian môi giới, tiết kiệm 15-25% ngân sách).
-2. Báo giá minh bạch, bóc tách theo quy mô, cam kết tuyệt đối 'không phát sinh chi phí'.
-3. Uy tín từng làm với Bộ GTVT (thông xe cầu Thăng Long), Nhà máy Damsan, Vinpearl Nam Hội An, LocknLock, Vietcombank, ĐH Bách Khoa...
-4. Quy trình an toàn 100%, có phương án dự phòng thời tiết (nhà bạt không gian chống bão) và hỗ trợ xin giấy phép nhanh gọn.
-5. Mô hình độc nhất: sự kiện kết hợp du lịch (Event & Travel), có đội xe 16-45 chỗ riêng.
+Bạn là Giám đốc Chiến lược & Chuyên gia SEO cao cấp của Công ty TNHH Sự kiện và Du lịch Trường Hải (Hotline 24/7: 0844 198 333, MST: 0111601327, Giám đốc: Nguyễn Thị Thu Hằng).
+Thế mạnh cốt lõi (Vũ khí Trường Hải):
+1. Trực tiếp sở hữu kho thiết bị âm thanh Line Array nhập khẩu, màn hình LED P2.5/P3.91, đèn Moving Beam (không qua trung gian, tiết kiệm 15-25% ngân sách).
+2. Báo giá minh bạch, bóc tách theo quy mô, cam kết hợp đồng tuyệt đối 'không phát sinh thêm một đồng'.
+3. Uy tín từng đồng hành cùng Bộ GTVT (thông xe cầu Thăng Long), Nhà máy Damsan, Vinpearl Nam Hội An, LocknLock, Vietcombank, VPBank, ĐH Bách Khoa...
+4. An toàn 100%, có nhà bạt nhôm không gian khẩu độ lớn chống giông bão, trực chiến trước giờ G 6-12 tiếng.
+5. Mô hình hybrid độc nhất: Sự kiện kết hợp Du lịch (Event & Travel), có đội xe 16-45 chỗ riêng.
 
 Dưới đây là nội dung bài viết cào từ đối thủ:
 ---
 ${truncatedContent}
 ---
 Từ khóa mục tiêu: "${targetKeyword || "tổ chức sự kiện chuyên nghiệp"}"
-Yêu cầu biên tập: "${customPrompt || "Tập trung phân tích lỗ hổng đối thủ và dùng vũ khí Trường Hải khắc chế"}"
+Yêu cầu biên tập: "${customPrompt || "Áp dụng Skill System v2.4.5: Answer-First, Specificity Planning và giải quyết lỗ hổng đối thủ bằng vũ khí Trường Hải"}"
 
-QUY TẮC VIẾT HOA BẮT BUỘC (RẤT QUAN TRỌNG):
-- Chỉ viết hoa chữ cái đầu dòng/đầu câu và các danh từ riêng (như: Trường Hải, Vinpearl, Damsan, LocknLock, Vietcombank, Hà Nội, Việt Nam...).
-- Tất cả các tiêu đề bài viết và các heading (H1, H2, H3), tên mục, bảng biểu TUYỆT ĐỐI KHÔNG viết hoa từng từ theo kiểu Title Case của tiếng Anh. Ví dụ ĐÚNG: "Quy trình tổ chức sự kiện chuyên nghiệp đạt chuẩn", SAI: "Quy Trình Tổ Chức Sự Kiện Chuyên Nghiệp Đạt Chuẩn".
+QUY TẮC CỐT LÕI (RULE LOCK BẮT BUỘC):
+1. CHIẾN LƯỢC ANSWER-FIRST: Ngay dưới H1, mở đầu bài bằng 1 trích dẫn callout (block quote >) tóm tắt nhanh (Quick Answer) về khung giá, thời gian triển khai, hotline và cam kết không phát sinh chi phí để tối ưu cho Google AI Overview và Featured Snippet.
+2. SPECIFICITY PLANNING: Bài viết bắt buộc phải có mục phân tích chiều sâu gồm:
+   - Điều kiện ngầm về nguồn điện 3 pha cho LED, chiều cao trần hội trường, pháp lý ngoài trời (hidden condition).
+   - Phân nhóm ai nên chọn gói nào và ai không nên chọn theo số lượng khách (fit not fit).
+   - Bảng Markdown so sánh đánh đổi giữa các thiết bị: Loa Full vs Line Array, LED P3.91 vs P2.5 (trade-off).
+   - Cảnh báo bẫy phát sinh chi phí của agency trung gian (practical warning).
+3. TUYỆT ĐỐI CẤM DÙNG HEADING "KẾT LUẬN" HOẶC "LỜI KẾT": Thay bằng heading kêu gọi hành động thực tế: "Nhận tư vấn kịch bản độc bản và dự toán chi tiết trong 30 phút" kèm thông tin công ty, giám đốc, MST, slogan và hotline.
+4. QUY TẮC SENTENCE CASE: Chỉ viết hoa chữ cái đầu và danh từ riêng (Trường Hải, Vinpearl, Damsan, LocknLock, Hà Nội, Việt Nam...). Tuyệt đối không viết hoa từng từ theo Title Case tiếng Anh ở bất kỳ heading nào.
 
 Hãy thực hiện:
 1. Phân tích đối thủ: Chỉ rõ H1, các H2-H3, từ khóa, và đặc biệt là 3-5 LỖ HỔNG THỊ TRƯỜNG mà đối thủ bỏ sót, kèm giải pháp vũ khí của Trường Hải Event.
-2. Viết lại bài viết mới hoàn chỉnh chuẩn SEO độc bản, tuân thủ nghiêm ngặt quy tắc viết hoa nêu trên.
+2. Viết bài viết mới chuẩn SEO độc bản đáp ứng đầy đủ 4 quy tắc cốt lõi trên.
 
 Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 {
@@ -569,7 +609,7 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
     "slug": "duong-dan-url-chuan-seo-viet-khong-dau",
     "meta_description": "Meta description 150-160 ký tự kèm hotline 0844 198 333",
     "focus_keyword": "${targetKeyword || "tổ chức sự kiện chuyên nghiệp"}",
-    "content": "Nội dung bài viết mới hoàn chỉnh chuẩn Markdown (chỉ viết hoa đầu dòng và danh từ riêng ở mọi heading và câu văn)"
+    "content": "Nội dung bài viết mới hoàn chỉnh chuẩn Markdown (tuân thủ Answer-First, Specificity Planning và không dùng heading Kết luận)"
   }
 }
 `;
