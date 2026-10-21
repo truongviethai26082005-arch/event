@@ -34,7 +34,7 @@ export default function Footer() {
                 </div>
               </div>
               <div>
-                <h3 className="font-black text-white text-base tracking-tight leading-tight">
+                <h3 className="font-bold text-white text-base tracking-tight leading-tight">
                   TRƯỜNG HẢI EVENT
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-semibold">
@@ -143,6 +143,12 @@ export default function Footer() {
                 <Link href="/" className="hover:text-[#D4AF37] transition-colors flex items-center">
                   <ChevronRight className="w-3.5 h-3.5 mr-1 text-[#D4AF37]" />
                   Trang chủ & Dự án tiêu biểu
+                </Link>
+              </li>
+              <li>
+                <Link href="/ve-chung-toi" className="hover:text-[#D4AF37] transition-colors flex items-center">
+                  <ChevronRight className="w-3.5 h-3.5 mr-1 text-[#D4AF37]" />
+                  Giới thiệu & Hồ sơ năng lực
                 </Link>
               </li>
               <li>

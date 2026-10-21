@@ -264,7 +264,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     client_name: "Tổng cục Đường bộ Việt Nam & Bộ GTVT",
     description:
       "Sự kiện quy mô quốc gia chào mừng công trình giao thông trọng điểm huyết mạch của Thủ đô Hà Nội. Trường Hải Event đảm nhận toàn bộ sân khấu, thiết bị âm thanh ánh sáng và điều phối nghi thức cắt băng thông xe.",
-    image_url: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?auto=format&fit=crop&w=800&q=80",
+    image_url: "/images/projects/cau-thang-long.jpg",
     year: "2021",
     location: "Hà Nội",
   },
@@ -275,7 +275,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     client_name: "Công ty Cổ phần DAMSAN",
     description:
       "Tổ chức lễ khánh thành nhà máy điện mặt trời công nghệ xanh với hơn 500 khách mời là lãnh đạo các sở ban ngành tỉnh Thái Bình và các đối tác tài chính quốc tế.",
-    image_url: "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80",
+    image_url: "/images/projects/nha-may-eiffel.jpg",
     year: "2022",
     location: "Thái Bình",
   },

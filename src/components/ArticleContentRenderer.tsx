@@ -10,7 +10,7 @@ interface ArticleRendererProps {
 }
 
 // Hàm format text inline: parse **bold**, *italic*, và gỡ bỏ các ký tự thừa
-function renderInlineFormatting(text: string): React.ReactNode[] {
+function renderInlineFormatting(text: string, isDark: boolean = false): React.ReactNode[] {
   // Thay thế icon thừa hoặc vụn vặt nếu có
   let cleanText = text
     .replace(/👉\s*/g, "")
@@ -32,13 +32,19 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
     const token = match[0];
     if (token.startsWith("**") && token.endsWith("**")) {
       parts.push(
-        <strong key={match.index} className="font-bold text-[#0A1E5E]">
+        <strong
+          key={match.index}
+          className={`font-bold ${isDark ? "text-[#D4AF37]" : "text-[#0A1E5E]"}`}
+        >
           {token.slice(2, -2)}
         </strong>
       );
     } else if (token.startsWith("*") && token.endsWith("*")) {
       parts.push(
-        <em key={match.index} className="italic text-slate-600">
+        <em
+          key={match.index}
+          className={`italic ${isDark ? "text-amber-200/90" : "text-slate-600"}`}
+        >
           {token.slice(1, -1)}
         </em>
       );
@@ -285,11 +291,13 @@ export default function ArticleContentRenderer({ content, className = "" }: Arti
                 CÔNG TY TNHH SỰ KIỆN VÀ DU LỊCH TRƯỜNG HẢI
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm pt-2 text-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm pt-2 text-slate-100">
                 {bullets.map((b, bIdx) => (
-                  <div key={bIdx} className="flex items-start space-x-2">
-                    <span className="text-[#D4AF37] font-bold shrink-0">✦</span>
-                    <span>{renderInlineFormatting(b)}</span>
+                  <div key={bIdx} className="flex items-start space-x-2.5">
+                    <span className="text-[#D4AF37] font-bold text-sm shrink-0 mt-0.5">✦</span>
+                    <span className="text-white/95 leading-relaxed font-normal">
+                      {renderInlineFormatting(b, true)}
+                    </span>
                   </div>
                 ))}
               </div>
