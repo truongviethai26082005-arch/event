@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import {
@@ -224,8 +225,14 @@ export default function AboutUsPage() {
                   <div className="flex items-center justify-between pb-3 border-b border-white/10">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#997A15] p-0.5">
-                        <div className="w-full h-full bg-[#0A1E5E] rounded-[9px] flex items-center justify-center font-bold text-[#D4AF37] text-sm">
-                          TH
+                        <div className="w-full h-full bg-white rounded-[9px] flex items-center justify-center overflow-hidden">
+                          <Image
+                            src="/images/logo.png"
+                            alt="Logo Trường Hải Event & Travel"
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-contain scale-125"
+                          />
                         </div>
                       </div>
                       <div>

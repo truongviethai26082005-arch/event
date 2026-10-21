@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
@@ -10,7 +11,6 @@ import {
   LogOut,
   Package,
   Radar,
-  ShieldCheck,
 } from "lucide-react";
 import { signOut } from "@/app/admin-radar/actions";
 
@@ -33,8 +33,14 @@ export default function AdminShell({
     <div className="min-h-[75vh] bg-slate-100 lg:flex">
       <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:h-[calc(100vh-9.75rem)] lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A1E5E] text-[#D4AF37]">
-            <ShieldCheck className="h-5 w-5" />
+          <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <Image
+              src="/images/logo.png"
+              alt="Logo Trường Hải Event & Travel"
+              width={80}
+              height={80}
+              className="h-full w-full scale-125 object-contain"
+            />
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-extrabold text-slate-900">
