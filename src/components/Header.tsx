@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { COMPANY_INFO } from "@/lib/company-data";
 import {
   Phone,
-  Radar,
   Menu,
   X,
   Sparkles,
@@ -14,6 +13,8 @@ import {
   Compass,
   FileText,
   ChevronRight,
+  LogIn,
+  Radar,
   Users,
 } from "lucide-react";
 
@@ -104,7 +105,7 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Action CTAs: Hotline + Radar SEO */}
+          {/* Action CTAs */}
           <div className="hidden md:flex items-center space-x-3">
             {/* Radar SEO internal tool link */}
             <Link
@@ -117,7 +118,7 @@ export default function Header() {
               <Radar className="w-4 h-4 mr-1.5 text-[#D4AF37] animate-spin [animation-duration:6s]" />
               Radar SEO AI
             </Link>
-
+            {/* Quote Request CTA */}
             {/* Quote Request CTA */}
             <Link
               href="/dich-vu#bao-gia"
@@ -126,17 +127,17 @@ export default function Header() {
               <span>Nhận Báo Giá</span>
               <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
+            <Link
+              href="/login"
+              className="flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold tracking-wide border border-white/20 bg-white/5 text-slate-200 transition-all duration-200 hover:border-[#D4AF37] hover:text-[#D4AF37]"
+            >
+              <LogIn className="w-4 h-4 mr-1.5" />
+              Đăng nhập
+            </Link>
           </div>
 
           {/* Mobile menu button */}
           <div className="flex md:hidden items-center space-x-2">
-            <Link
-              href="/admin-radar"
-              className="p-2 rounded-lg bg-white/5 text-[#D4AF37] border border-[#D4AF37]/40"
-              title="Radar SEO"
-            >
-              <Radar className="w-5 h-5" />
-            </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg text-slate-200 hover:text-white hover:bg-white/10"
@@ -144,6 +145,14 @@ export default function Header() {
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
+            <Link
+              href="/login"
+              className="p-2 rounded-lg bg-white/5 text-[#D4AF37] border border-[#D4AF37]/40"
+              title="Đăng nhập"
+              aria-label="Đăng nhập quản trị"
+            >
+              <LogIn className="w-5 h-5" />
+            </Link>
           </div>
         </div>
       </div>
@@ -176,12 +185,12 @@ export default function Header() {
           })}
 
           <Link
-            href="/admin-radar"
+            href="/login"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center px-3 py-2.5 rounded-lg text-base font-semibold text-[#D4AF37] bg-white/5 border border-[#D4AF37]/30"
           >
-            <Radar className="w-5 h-5 mr-3 text-[#D4AF37]" />
-            Công cụ Nội bộ Radar SEO
+            <LogIn className="w-5 h-5 mr-3 text-[#D4AF37]" />
+            Đăng nhập
           </Link>
 
           <div className="pt-3 border-t border-white/10 space-y-2">
