@@ -262,9 +262,12 @@ export default function RadarSeoAdminPage() {
     setProcessStep(1);
 
     try {
-      // Giả lập trực quan từng bước cho người dùng
-      const stepTimer1 = setTimeout(() => setProcessStep(2), 1200);
-      const stepTimer2 = setTimeout(() => setProcessStep(3), 2800);
+      // Giả lập trực quan các giai đoạn chuẩn Skill System Content v2.4.5 (13 Bước Workflow)
+      const stepTimer1 = setTimeout(() => setProcessStep(2), 600);
+      const stepTimer2 = setTimeout(() => setProcessStep(3), 1300);
+      const stepTimer3 = setTimeout(() => setProcessStep(4), 2100);
+      const stepTimer4 = setTimeout(() => setProcessStep(5), 2900);
+      const stepTimer5 = setTimeout(() => setProcessStep(6), 3700);
 
       const res = await fetch("/api/radar", {
         method: "POST",
@@ -278,6 +281,9 @@ export default function RadarSeoAdminPage() {
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
+      clearTimeout(stepTimer4);
+      clearTimeout(stepTimer5);
 
       const data = await res.json();
 
@@ -512,21 +518,21 @@ export default function RadarSeoAdminPage() {
                 </h2>
               </div>
 
-              {/* Sample Buttons */}
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="text-slate-400 text-[11px]">Mẫu thử nghiệm:</span>
+              {/* Sample Buttons theo từng Search Intent */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-slate-400 text-[11px] font-medium mr-1">Mẫu test v2.4.5:</span>
                 <button
                   type="button"
                   onClick={() =>
                     fillSample(
                       "https://hoabinhevents.com/chi-phi-to-chuc-le-khanh-thanh-nha-may-la-bao-nhieu",
                       "báo giá tổ chức lễ khánh thành nhà máy",
-                      "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan và kho thiết bị Line Array nhập khẩu trực tiếp."
+                      "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan, múa lân sư rồng và kho thiết bị Line Array nhập khẩu trực tiếp."
                     )
                   }
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[#D4AF37] border border-[#D4AF37]/30 text-[11px]"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition"
                 >
-                  Mẫu khai trương
+                  🎉 Lễ Khai trương
                 </button>
                 <button
                   type="button"
@@ -534,12 +540,51 @@ export default function RadarSeoAdminPage() {
                     fillSample(
                       "https://vietnamevents.com/to-chuc-year-end-party",
                       "tổ chức year end party công ty",
-                      "Tập trung vào concept Gala Dinner bùng nổ, âm thanh Line Array không hú rít, hotline 0844 198 333."
+                      "Tập trung vào concept Gatsby / Oscar, visual 3D mapping, kịch bản vinh danh 3 cung bậc cảm xúc, hotline 0844 198 333."
                     )
                   }
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 border border-white/10 text-[11px]"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition"
                 >
-                  Mẫu Year End Party
+                  🥂 Year End Party
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    fillSample(
+                      "https://vietranstour.com/tour-team-building-doanh-nghiep",
+                      "tour team building kết hợp gala dinner",
+                      "Nhấn mạnh mô hình Hybrid Event & Travel một đầu mối, sở hữu đội xe 16-45 chỗ đời mới, bao trọn khâu đưa đón và sân khấu gala bãi biển."
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition"
+                >
+                  🏖️ Team Building
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    fillSample(
+                      "https://marcom.com.vn/to-chuc-hoi-nghi-hoi-thao-chuyen-nghiep",
+                      "tổ chức hội thảo chuyên đề doanh nghiệp",
+                      "Tập trung vào hệ thống micro cổ ngỗng UHF 16 kênh chống nhiễu, màn hình LED P2.5 trong nhà độ mịn cao không lóa mắt, teabreak VIP."
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] transition"
+                >
+                  🎤 Hội nghị / Tọa đàm
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    fillSample(
+                      "https://chothueamthanhas.com/bang-gia-thue-am-thanh-anh-sang-ha-noi",
+                      "báo giá thuê âm thanh ánh sáng màn hình led hà nội",
+                      "Báo giá gốc từ kho, không qua trung gian, thông số loa Line Array nhập khẩu, màn LED P2.5/P3.91, kỹ thuật trực chiến 100%."
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition"
+                >
+                  🔊 Thuê thiết bị kho
                 </button>
               </div>
             </div>
@@ -620,51 +665,95 @@ export default function RadarSeoAdminPage() {
               </div>
             </form>
 
-            {/* Visual Step Progress Indicator */}
+            {/* Visual Step Progress Indicator chuẩn Skill System Content v2.4.5 (13 Bước Workflow Tự Động) */}
             {isAnalyzing && (
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 animate-in fade-in duration-300">
-                <div className="text-xs font-semibold text-[#D4AF37] flex items-center">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
-                  Tiến trình Radar SEO:
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold text-[#D4AF37] flex items-center">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
+                    Skill System Content v2.4.5 — 13 Bước Workflow Tự Động:
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Bước {processStep}/6: Đang thực thi
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
                       processStep >= 1
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       1
                     </span>
-                    <span>Cào dữ liệu (Jina Reader)</span>
+                    <span className="truncate text-[11px]">Intent & SERP</span>
                   </div>
 
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
                       processStep >= 2
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       2
                     </span>
-                    <span>Bóc tách lỗ hổng và thế mạnh</span>
+                    <span className="truncate text-[11px]">Gap Analysis</span>
                   </div>
 
                   <div
-                    className={`p-2.5 rounded-xl border flex items-center space-x-2 ${
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
                       processStep >= 3
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white"
+                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm ring-1 ring-[#D4AF37]/50"
                         : "bg-white/5 border-white/5 text-slate-400"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       3
                     </span>
-                    <span>Khắc chế bằng bài viết Trường Hải</span>
+                    <span className="truncate text-[11px] font-medium text-[#D4AF37]">Outline Planning</span>
+                  </div>
+
+                  <div
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
+                      processStep >= 4
+                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-slate-400"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                      4
+                    </span>
+                    <span className="truncate text-[11px]">Specificity Deep</span>
+                  </div>
+
+                  <div
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
+                      processStep >= 5
+                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-slate-400"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                      5
+                    </span>
+                    <span className="truncate text-[11px]">Extractability & AI</span>
+                  </div>
+
+                  <div
+                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
+                      processStep >= 6
+                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-slate-400"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                      6
+                    </span>
+                    <span className="truncate text-[11px]">QA & Final Output</span>
                   </div>
                 </div>
               </div>
