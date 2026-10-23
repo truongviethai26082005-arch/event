@@ -46,6 +46,11 @@ import {
   CheckCheck,
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
+import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
+import {
+  CompetitorPreset,
+  saveCustomCompetitor,
+} from "./competitor-presets";
 
 // Hàm định dạng ngày giờ chi tiết: Giờ:Phút:Giây - Ngày/Tháng/Năm
 function formatFullDateTime(dateString?: string): string {
@@ -84,7 +89,7 @@ export default function RadarSeoAdminPage() {
       title: string;
       isScraped: boolean;
       lastMod?: string;
-      status?: "idle" | "processing" | "success" | "error";
+      status?: "idle" | "waiting" | "scraping" | "generating" | "success" | "error";
       error?: string;
     }[];
   } | null>(null);
@@ -351,9 +356,17 @@ export default function RadarSeoAdminPage() {
   };
 
   // QUÉT TỰ ĐỘNG DOMAIN ĐỐI THỦ
-  const handleScanDomain = async (e?: React.FormEvent) => {
+  const handleScanDomain = async (
+    e?: React.FormEvent,
+    overrideDomain?: string
+  ) => {
     if (e) e.preventDefault();
-    if (!domainInput.trim()) return;
+    const targetDomain = (overrideDomain || domainInput).trim();
+    if (!targetDomain) return;
+
+    if (overrideDomain) {
+      setDomainInput(overrideDomain);
+    }
 
     setIsScanningDomain(true);
     setErrorMsg(null);
@@ -363,7 +376,7 @@ export default function RadarSeoAdminPage() {
       const res = await fetch("/api/radar/scan-domain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domainInput.trim() }),
+        body: JSON.stringify({ domain: targetDomain }),
       });
 
       const data = await res.json();
@@ -402,6 +415,20 @@ export default function RadarSeoAdminPage() {
     }
   };
 
+  // Xử lý khi chọn đối thủ từ Danh bạ nạp sẵn
+  const handleSelectCompetitorPreset = (
+    competitor: CompetitorPreset,
+    autoScan: boolean = false
+  ) => {
+    setDomainInput(competitor.domain);
+    if (competitor.suggestedPrompt && !customPrompt.trim()) {
+      setCustomPrompt(competitor.suggestedPrompt);
+    }
+    if (autoScan) {
+      handleScanDomain(undefined, competitor.domain);
+    }
+  };
+
   // Chọn / bỏ chọn 1 URL trong danh sách
   const handleToggleSelectUrl = (url: string) => {
     setSelectedUrls((prev) =>
@@ -419,7 +446,7 @@ export default function RadarSeoAdminPage() {
     setSelectedUrls([]);
   };
 
-  // CHẠY RADAR HÀNG LOẠT CHO CÁC BÀI ĐÃ CHỌN
+  // CHẠY RADAR HÀNG LOẠT CHO CÁC BÀI ĐÃ CHỌN (QUEUE RUNNER TUẦN TỰ)
   const handleRunBatchRadar = async () => {
     if (!scannedResult || selectedUrls.length === 0 || isBatchRunning) return;
 
@@ -431,6 +458,19 @@ export default function RadarSeoAdminPage() {
     const total = targets.length;
     let successCount = 0;
     let errorCount = 0;
+
+    // Đặt tất cả các bài được chọn vào trạng thái 'waiting' (Chờ xử lý)
+    setScannedResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        urls: prev.urls.map((u) =>
+          selectedUrls.includes(u.url) && u.status !== "success"
+            ? { ...u, status: "waiting" }
+            : u
+        ),
+      };
+    });
 
     setBatchProgress({
       current: 0,
@@ -448,16 +488,31 @@ export default function RadarSeoAdminPage() {
         currentTitle: target.title,
       }));
 
-      // Cập nhật trạng thái item đang chạy
+      // Bước 1: Đang cào & phân tích đối thủ
       setScannedResult((prev) => {
         if (!prev) return null;
         return {
           ...prev,
           urls: prev.urls.map((u) =>
-            u.url === target.url ? { ...u, status: "processing" } : u
+            u.url === target.url ? { ...u, status: "scraping" } : u
           ),
         };
       });
+
+      // Hiệu ứng visual chuyển sang 'generating' sau 2.5s
+      const genTimer = setTimeout(() => {
+        setScannedResult((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            urls: prev.urls.map((u) =>
+              u.url === target.url && u.status === "scraping"
+                ? { ...u, status: "generating" }
+                : u
+            ),
+          };
+        });
+      }, 2500);
 
       try {
         const res = await fetch("/api/radar", {
@@ -470,13 +525,14 @@ export default function RadarSeoAdminPage() {
           }),
         });
 
+        clearTimeout(genTimer);
         const data = await res.json();
         if (!res.ok || !data.success) {
           throw new Error(data.error || "Lỗi xử lý bài viết.");
         }
 
         successCount++;
-        // Cập nhật trạng thái thành công
+        // Cập nhật trạng thái hoàn thành (Đã lưu nháp)
         setScannedResult((prev) => {
           if (!prev) return null;
           return {
@@ -489,12 +545,10 @@ export default function RadarSeoAdminPage() {
           };
         });
 
-        // Đưa kết quả bài viết mới nhất lên tab Preview
-        if (data.generatedPost) {
-          setEditablePost(data.generatedPost);
-          setAnalysisResult(data.analysis);
-        }
+        // Tự động reload danh sách bài viết từ Supabase sau mỗi bài
+        await fetchPosts();
       } catch (itemErr: any) {
+        clearTimeout(genTimer);
         errorCount++;
         console.warn(`Lỗi khi cào bài ${target.url}:`, itemErr);
         setScannedResult((prev) => {
@@ -515,9 +569,6 @@ export default function RadarSeoAdminPage() {
         successCount,
         errorCount,
       }));
-
-      // Tự động reload danh sách bài viết từ Supabase sau mỗi bài
-      await fetchPosts();
     }
 
     setIsBatchRunning(false);
@@ -526,11 +577,81 @@ export default function RadarSeoAdminPage() {
     );
   };
 
-  // Chuyển nhanh 1 bài sang chế độ đơn lẻ và chạy ngay
-  const handleQuickRunSingleFromScanned = (targetUrl: string, targetTitle: string) => {
-    setCompetitorUrl(targetUrl);
-    setTargetKeyword(targetTitle);
-    setScanMode("single");
+  // CHẠY NGẦM RIÊNG 1 BÀI TẠI CHỖ (KHÔNG CHUYỂN TAB)
+  const handleRunSingleInPlace = async (targetUrl: string, targetTitle: string) => {
+    // Đặt trạng thái đang cào & phân tích
+    setScannedResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        urls: prev.urls.map((u) =>
+          u.url === targetUrl ? { ...u, status: "scraping" } : u
+        ),
+      };
+    });
+
+    const genTimer = setTimeout(() => {
+      setScannedResult((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          urls: prev.urls.map((u) =>
+            u.url === targetUrl && u.status === "scraping"
+              ? { ...u, status: "generating" }
+              : u
+          ),
+        };
+      });
+    }, 2500);
+
+    try {
+      const res = await fetch("/api/radar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          competitorUrl: targetUrl,
+          targetKeyword: targetTitle,
+          customPrompt: customPrompt.trim(),
+        }),
+      });
+
+      clearTimeout(genTimer);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Lỗi xử lý bài viết.");
+      }
+
+      // Đánh dấu hoàn tất
+      setScannedResult((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          urls: prev.urls.map((u) =>
+            u.url === targetUrl
+              ? { ...u, status: "success", isScraped: true }
+              : u
+          ),
+        };
+      });
+
+      // Cập nhật bảng bài viết bên dưới
+      await fetchPosts();
+      setSaveStatus(`Đã tạo nháp thành công bài viết: "${targetTitle.slice(0, 35)}..."`);
+    } catch (err: any) {
+      clearTimeout(genTimer);
+      setScannedResult((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          urls: prev.urls.map((u) =>
+            u.url === targetUrl
+              ? { ...u, status: "error", error: err.message || "Lỗi xử lý" }
+              : u
+          ),
+        };
+      });
+      setErrorMsg(`Lỗi khi chạy bài "${targetTitle.slice(0, 30)}...": ${err.message}`);
+    }
   };
 
   // Lưu vào Supabase với trạng thái tùy chọn
@@ -782,39 +903,38 @@ export default function RadarSeoAdminPage() {
             ===================================================================== */}
             {scanMode === "domain" && (
               <div className="space-y-6">
+                {/* DANH BẠ ĐỐI THỦ MẪU NẠP SẴN (PRESET DIRECTORY) */}
+                <CompetitorPresetDirectory
+                  currentDomain={domainInput}
+                  onSelectCompetitor={handleSelectCompetitorPreset}
+                  isScanning={isScanningDomain}
+                />
+
                 {/* Domain Input Form */}
                 <form onSubmit={handleScanDomain} className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <label className="block text-xs font-semibold text-slate-300">
-                        Tên miền hoặc Website đối thủ cần quét <span className="text-[#D4AF37]">*</span>
+                        Hoặc nhập tên miền / website đối thủ tùy ý <span className="text-[#D4AF37]">*</span>
                       </label>
 
-                      {/* Domain Samples */}
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="text-slate-400 text-[11px] font-medium mr-1">Domain mẫu:</span>
+                      {domainInput.trim() && (
                         <button
                           type="button"
-                          onClick={() => setDomainInput("https://viet-power.vn")}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition cursor-pointer"
+                          onClick={() => {
+                            saveCustomCompetitor({
+                              name: "",
+                              domain: domainInput,
+                              badge: "Đã lưu nhanh",
+                              description: `Đối thủ lưu từ ô nhập: ${domainInput}`,
+                            });
+                            alert("Đã lưu đối thủ này vào danh bạ riêng!");
+                          }}
+                          className="text-[11px] font-semibold text-[#D4AF37] hover:underline flex items-center space-x-1 cursor-pointer"
                         >
-                          viet-power.vn
+                          <span>⭐ Lưu domain này vào danh bạ riêng</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setDomainInput("https://hoabinhevents.com")}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition cursor-pointer"
-                        >
-                          hoabinhevents.com
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDomainInput("https://vietnamevents.com")}
-                          className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition cursor-pointer"
-                        >
-                          vietnamevents.com
-                        </button>
-                      </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -902,99 +1022,126 @@ export default function RadarSeoAdminPage() {
                 {/* KẾT QUẢ QUÉT SITEMAP & DANH SÁCH BÀI VIẾT */}
                 {scannedResult && (
                   <div className="space-y-4 pt-2 border-t border-white/10 animate-in fade-in">
-                    {/* Header thống kê kết quả */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span className="text-sm font-bold text-white">
-                            Tìm thấy {scannedResult.totalFound} bài viết từ {scannedResult.domain}
-                          </span>
+                    {/* =========================================================
+                        BATCH ACTION BAR: THANH CÔNG CỤ CHẠY HÀNG LOẠT TRÊN CÙNG
+                    ========================================================= */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-white/[0.08] border border-white/15 shadow-xl space-y-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                            <h3 className="text-sm font-bold text-white tracking-wide">
+                              Tìm thấy {scannedResult.totalFound} bài viết chi tiết từ {scannedResult.domain}
+                            </h3>
+                          </div>
+                          <p className="text-xs text-slate-300">
+                            {scannedResult.sitemapFound
+                              ? `Nguồn: ${scannedResult.sitemapFound}`
+                              : "Đã lọc qua Recursive Sitemap & Category Crawler"} •{" "}
+                            <span className="text-emerald-400 font-bold">{scannedResult.unscrapedCount} bài mới</span> chưa cào •{" "}
+                            Đã chọn <span className="text-[#D4AF37] font-extrabold text-sm">{selectedUrls.length}</span> / {scannedResult.totalFound} bài
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-400">
-                          {scannedResult.sitemapFound
-                            ? `Nguồn sitemap: ${scannedResult.sitemapFound}`
-                            : "Dò tìm trực tiếp từ cấu trúc website"} •{" "}
-                          <span className="text-emerald-400 font-semibold">{scannedResult.unscrapedCount} bài mới</span> chưa từng cào •{" "}
-                          Đã chọn <span className="text-[#D4AF37] font-bold">{selectedUrls.length}</span> bài
-                        </p>
+
+                        {/* NÚT LỚN NỔI BẬT: CHẠY RADAR HÀNG LOẠT */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button
+                            type="button"
+                            disabled={isBatchRunning || selectedUrls.length === 0}
+                            onClick={handleRunBatchRadar}
+                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] hover:from-amber-300 hover:to-[#D4AF37] text-[#0A1E5E] font-black text-xs shadow-xl shadow-[#D4AF37]/30 flex items-center justify-center space-x-2.5 disabled:opacity-40 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            {isBatchRunning ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin text-[#0A1E5E]" />
+                                <span>ĐANG CHẠY HÀNG ĐỢI ({batchProgress.current}/{batchProgress.total})...</span>
+                              </>
+                            ) : (
+                              <>
+                                <PlayCircle className="w-4 h-4 text-[#0A1E5E]" />
+                                <span>🚀 CHẠY RADAR HÀNG LOẠT ({selectedUrls.length} BÀI ĐÃ CHỌN)</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Nút hành động chính */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const list = scannedResult.urls
-                              .filter((u) => domainFilter === "all" || !u.isScraped)
-                              .map((u) => u.url);
-                            handleSelectAllUrls(list);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-medium transition cursor-pointer flex items-center space-x-1"
-                        >
-                          <CheckSquare className="w-3.5 h-3.5 text-[#D4AF37]" />
-                          <span>Chọn tất cả</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDeselectAllUrls}
-                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-400 text-xs font-medium transition cursor-pointer flex items-center space-x-1"
-                        >
-                          <Square className="w-3.5 h-3.5" />
-                          <span>Bỏ chọn</span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBatchRunning || selectedUrls.length === 0}
-                          onClick={handleRunBatchRadar}
-                          className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center space-x-2 disabled:opacity-50 cursor-pointer transition-all"
-                        >
-                          {isBatchRunning ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Đang chạy Radar ({selectedUrls.length} bài)...</span>
-                            </>
-                          ) : (
-                            <>
-                              <PlayCircle className="w-4 h-4" />
-                              <span>Bắt đầu chạy Radar ({selectedUrls.length} bài)</span>
-                            </>
-                          )}
-                        </button>
+                      {/* THANH ĐIỀU KHIỂN CHỌN BÀI & BỘ LỌC */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10 text-xs">
+                        {/* Checkbox Chọn tất cả */}
+                        <div className="flex items-center space-x-3">
+                          <label className="flex items-center space-x-2 cursor-pointer font-semibold text-slate-200 hover:text-white select-none">
+                            <input
+                              type="checkbox"
+                              checked={
+                                selectedUrls.length > 0 &&
+                                selectedUrls.length ===
+                                  scannedResult.urls.filter(
+                                    (u) => domainFilter === "all" || !u.isScraped
+                                  ).length
+                              }
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const list = scannedResult.urls
+                                    .filter((u) => domainFilter === "all" || !u.isScraped)
+                                    .map((u) => u.url);
+                                  handleSelectAllUrls(list);
+                                } else {
+                                  handleDeselectAllUrls();
+                                }
+                              }}
+                              className="w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
+                            />
+                            <span>Chọn tất cả danh sách đang hiển thị</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const unscraped = scannedResult.urls
+                                .filter((u) => !u.isScraped)
+                                .map((u) => u.url);
+                              handleSelectAllUrls(unscraped);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 text-[11px] transition cursor-pointer"
+                          >
+                            Chỉ chọn bài chưa cào ({scannedResult.unscrapedCount})
+                          </button>
+                        </div>
+
+                        {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-slate-400 font-medium flex items-center mr-1">
+                            <ListFilter className="w-3.5 h-3.5 mr-1 text-slate-400" /> Xem:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setDomainFilter("all")}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                              domainFilter === "all"
+                                ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow"
+                                : "bg-white/5 text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            Tất cả ({scannedResult.totalFound})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDomainFilter("unscraped")}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                              domainFilter === "unscraped"
+                                ? "bg-emerald-500 text-white font-bold shadow"
+                                : "bg-white/5 text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            Chưa cào ({scannedResult.unscrapedCount})
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
-                    <div className="flex items-center space-x-2 text-xs">
-                      <span className="text-slate-400 font-medium flex items-center">
-                        <ListFilter className="w-3.5 h-3.5 mr-1" /> Lọc:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setDomainFilter("all")}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                          domainFilter === "all"
-                            ? "bg-[#D4AF37] text-[#0A1E5E] font-bold"
-                            : "bg-white/5 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        Tất cả ({scannedResult.totalFound})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDomainFilter("unscraped")}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                          domainFilter === "unscraped"
-                            ? "bg-emerald-500 text-white font-bold"
-                            : "bg-white/5 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        Chỉ bài chưa cào ({scannedResult.unscrapedCount})
-                      </button>
-                    </div>
-
-                    {/* Danh sách bài viết dạng bảng / thẻ */}
-                    <div className="max-h-96 overflow-y-auto space-y-2 pr-1 rounded-2xl border border-white/10 p-2 bg-black/20">
+                    {/* DANH SÁCH BÀI VIẾT VỚI TRẠNG THÁI TIẾN TRÌNH THỜI GIAN THỰC */}
+                    <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-white/10 p-2.5 bg-black/30">
                       {scannedResult.urls
                         .filter((item) => domainFilter === "all" || !item.isScraped)
                         .map((item, idx) => {
@@ -1002,16 +1149,21 @@ export default function RadarSeoAdminPage() {
                           return (
                             <div
                               key={item.url}
-                              className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
-                                item.status === "processing"
-                                  ? "bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30"
+                              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                                item.status === "scraping"
+                                  ? "bg-sky-500/15 border-sky-400/50 ring-1 ring-sky-400/40"
+                                  : item.status === "generating"
+                                  ? "bg-amber-500/15 border-amber-400/50 ring-1 ring-amber-400/40"
+                                  : item.status === "waiting"
+                                  ? "bg-white/10 border-white/20 opacity-80"
                                   : item.status === "success"
-                                  ? "bg-emerald-500/10 border-emerald-500/30"
+                                  ? "bg-emerald-500/15 border-emerald-500/40"
                                   : isSelected
                                   ? "bg-white/10 border-[#D4AF37]/50"
                                   : "bg-white/5 border-white/5 hover:bg-white/10"
                               }`}
                             >
+                              {/* Cột Trái: Checkbox + Tiêu đề + Link */}
                               <div className="flex items-start space-x-3 min-w-0 flex-1">
                                 <input
                                   type="checkbox"
@@ -1041,22 +1193,36 @@ export default function RadarSeoAdminPage() {
                                 </div>
                               </div>
 
+                              {/* Cột Phải: Badge Trạng thái + Nút Chạy riêng tại chỗ */}
                               <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                                {/* Trạng thái */}
-                                {item.status === "processing" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    <span>Đang viết...</span>
+                                {/* Trạng thái Queue Runner chi tiết */}
+                                {item.status === "waiting" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
+                                    <Clock className="w-3 h-3 text-amber-400" />
+                                    <span>Chờ xử lý...</span>
+                                  </span>
+                                ) : item.status === "scraping" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center space-x-1.5 animate-pulse">
+                                    <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
+                                    <span>Đang cào & phân tích</span>
+                                  </span>
+                                ) : item.status === "generating" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center space-x-1.5 animate-pulse">
+                                    <Sparkles className="w-3 h-3 animate-spin text-[#D4AF37]" />
+                                    <span>Đang sinh bài (AI)</span>
                                   </span>
                                 ) : item.status === "success" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1.5 shadow-sm">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                    <span>Đã tạo nháp</span>
+                                    <span>Hoàn thành (Đã lưu nháp)</span>
                                   </span>
                                 ) : item.status === "error" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center space-x-1">
+                                  <span
+                                    className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center space-x-1.5"
+                                    title={item.error}
+                                  >
                                     <AlertCircle className="w-3 h-3 text-rose-400" />
-                                    <span>Lỗi</span>
+                                    <span>Lỗi xử lý</span>
                                   </span>
                                 ) : item.isScraped ? (
                                   <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
@@ -1068,16 +1234,44 @@ export default function RadarSeoAdminPage() {
                                   </span>
                                 )}
 
-                                {/* Nút cào nhanh riêng bài này */}
-                                <button
-                                  type="button"
-                                  disabled={isBatchRunning || isAnalyzing}
-                                  onClick={() => handleQuickRunSingleFromScanned(item.url, item.title)}
-                                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A1E5E] text-slate-300 text-[11px] font-medium transition cursor-pointer"
-                                  title="Chuyển sang chế độ đơn lẻ để chạy riêng bài này"
-                                >
-                                  Chạy riêng bài này
-                                </button>
+                                {/* NÚT CHẠY RIÊNG TẠI CHỖ (KHÔNG CHUYỂN TAB) */}
+                                {item.status === "success" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Tìm bài viết trong postsList hoặc chuyển sang xem kết quả nếu muốn
+                                      const foundPost = postsList.find(
+                                        (p) =>
+                                          p.competitor_source_url === item.url ||
+                                          p.title === item.title
+                                      );
+                                      if (foundPost) {
+                                        handleStartEditPost(foundPost);
+                                      } else {
+                                        setActiveResultTab("article");
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-bold transition cursor-pointer flex items-center space-x-1"
+                                    title="Xem bản nháp đã lưu trong Database"
+                                  >
+                                    <span>Xem nháp</span>
+                                    <Eye className="w-3 h-3" />
+                                  </button>
+                                ) : item.status === "scraping" || item.status === "generating" ? (
+                                  <span className="text-[11px] text-amber-300 italic px-2 py-1">
+                                    Đang xử lý ngầm...
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={isBatchRunning || isAnalyzing}
+                                    onClick={() => handleRunSingleInPlace(item.url, item.title)}
+                                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A1E5E] text-slate-200 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                                    title="Chạy ngầm bài này ngay tại đây và lưu bản nháp"
+                                  >
+                                    <span>Chạy riêng bài này</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );

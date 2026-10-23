@@ -118,8 +118,18 @@ export async function scrapeAndCleanCompetitor(url: string, keyword: string): Pr
 
       if (directRes.ok) {
         const html = await directRes.text();
+        const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+        const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const pageTitle = (
+          h1Match ? h1Match[1] : (ogTitleMatch ? ogTitleMatch[1] : (titleMatch ? titleMatch[1] : ""))
+        )
+          .replace(/<[^>]+>/g, "")
+          .replace(/&nbsp;/g, " ")
+          .trim();
+
         // Gọt sạch HTML đơn giản sang text
-        rawText = html
+        const cleanedBody = html
           .replace(/<header[\s\S]*?<\/header>/gi, "")
           .replace(/<nav[\s\S]*?<\/nav>/gi, "")
           .replace(/<footer[\s\S]*?<\/footer>/gi, "")
@@ -127,6 +137,8 @@ export async function scrapeAndCleanCompetitor(url: string, keyword: string): Pr
           .replace(/<[^>]+>/g, " ")
           .replace(/&nbsp;/g, " ")
           .replace(/\s+/g, " ");
+
+        rawText = pageTitle ? `# ${pageTitle}\n\n${cleanedBody}` : cleanedBody;
       }
     } catch (directErr: any) {
       console.warn("[Scraper] Direct fetch failed:", directErr?.message);

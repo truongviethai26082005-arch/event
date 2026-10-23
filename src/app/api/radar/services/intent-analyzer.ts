@@ -308,6 +308,8 @@ function buildDeterministicOutlineAndFaq(
   };
 }
 
+import { ensureAccentedKeyword } from "./vietnamese-diacritics";
+
 /**
  * Service chính: Phân loại Search Intent và xây dựng Outline động
  * (AI Call 1 khi có Gemini API Key, hoặc Fallback Deterministic khi không có key)
@@ -318,7 +320,9 @@ export async function analyzeIntentAndBuildOutline(
   customPrompt?: string
 ): Promise<IntentAnalysisResult> {
   const geminiApiKey = process.env.GEMINI_API_KEY || "";
-  const detectedIntent = classifySearchIntent(keyword);
+  // Luôn khôi phục dấu tiếng Việt chuẩn xác cho từ khóa trước khi phân tích
+  const safeKeyword = ensureAccentedKeyword(keyword, scrapedData.title, scrapedData.cleanText);
+  const detectedIntent = classifySearchIntent(safeKeyword);
 
   if (geminiApiKey) {
     try {
@@ -336,18 +340,22 @@ Bạn là Chuyên gia Chiến lược SEO & Content Architecture cấp cao.
 Nhiệm vụ của bạn là phân tích Search Intent của từ khóa và dữ liệu đối thủ cào được, sau đó thiết kế một OUTLINE ĐỘNG ĐỘC BẢN và DANH SÁCH FAQ chuẩn SEO.
 
 THÔNG TIN ĐẦU VÀO:
-- Từ khóa mục tiêu: "${keyword}"
+- Từ khóa mục tiêu: "${safeKeyword}"
 - Tiêu đề đối thủ: "${scrapedData.title}"
 - Cấu trúc heading đối thủ: ${JSON.stringify(scrapedData.headings)}
 - Tóm tắt nội dung đối thủ: "${scrapedData.cleanText.slice(0, 3000)}"
 
-QUY TẮC PHÂN LOẠI SEARCH INTENT & DỰNG OUTLINE (BẮT BUỘC TUÂN THỦ):
-1. PHÂN LOẠI SEARCH INTENT:
+QUY TẮC BẮT BUỘC:
+1. TỪ KHÓA CÓ DẤU TIẾNG VIỆT (FOCUS KEYWORD):
+   - Bạn PHẢI trả về trường "focus_keyword" là từ khóa chính có đầy đủ dấu tiếng Việt chuẩn xác (ví dụ: 'tổ chức lễ khai trương', 'báo giá thuê âm thanh ánh sáng').
+   - TUYỆT ĐỐI KHÔNG trả về từ khóa không dấu hoặc mất dấu!
+
+2. PHÂN LOẠI SEARCH INTENT:
    - "informational": Dành cho các từ khóa tìm hiểu kiến thức, kịch bản MC, cẩm nang, mẹo, hướng dẫn, checklist, lời dẫn.
    - "commercial": Dành cho các từ khóa thuê thiết bị, báo giá, đặt dịch vụ sự kiện, công ty tổ chức trọn gói.
    - "listicle": Dành cho các từ khóa Top ý tưởng, danh sách concept, gợi ý mẫu.
 
-2. RÀNG BUỘC CHẶT CHẼ THEO INTENT (ANTI-TEMPLATE RULE):
+3. RÀNG BUỘC CHẶT CHẼ THEO INTENT (ANTI-TEMPLATE RULE):
    - NẾU LÀ "informational" (Ví dụ: Kịch bản MC, hướng dẫn):
      * Outline và FAQ PHẢI tập trung 100% vào: Cấu trúc timeline, mẫu lời dẫn chi tiết, kỹ năng ứng biến sự cố sân khấu, checklist chuẩn bị.
      * TUYỆT ĐỐI CẤM đưa các heading về bảng giá thiết bị, kho bãi, xe cộ, chi phí thuê đồ vào bài!
@@ -356,13 +364,14 @@ QUY TẮC PHÂN LOẠI SEARCH INTENT & DỰNG OUTLINE (BẮT BUỘC TUÂN THỦ)
    - NẾU LÀ "listicle":
      * Outline tập trung vào các concept độc bản, cách dàn dựng và bảng so sánh các concept.
 
-3. FAQ LIST:
+4. FAQ LIST:
    - Gồm 3 - 5 câu hỏi thực tế mà người dùng tìm kiếm từ khóa này thắc mắc nhiều nhất.
    - Mỗi câu hỏi phải có định hướng câu trả lời ngắn gọn, trực diện (dưới 60 từ).
 
 Trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc Schema sau:
 {
   "search_intent": "informational" | "commercial" | "listicle",
+  "focus_keyword": "từ khóa chính có đầy đủ dấu tiếng Việt",
   "content_angle": "Góc tiếp cận bài viết",
   "content_gap": "Những điểm đối thủ thiếu mà bài mình sẽ bổ sung vượt trội",
   "outline": [
@@ -386,6 +395,11 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc Sche
       const parsed: IntentAnalysisResult = JSON.parse(text);
 
       if (parsed.search_intent && parsed.outline && Array.isArray(parsed.outline)) {
+        parsed.focus_keyword = ensureAccentedKeyword(
+          parsed.focus_keyword || safeKeyword,
+          scrapedData.title,
+          scrapedData.cleanText
+        );
         return parsed;
       }
     } catch (aiErr: any) {
@@ -394,5 +408,7 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc Sche
   }
 
   // Fallback: Sử dụng Deterministic Semantic Engine để đảm bảo 100% không bao giờ crash
-  return buildDeterministicOutlineAndFaq(keyword, detectedIntent, scrapedData);
+  const fallbackResult = buildDeterministicOutlineAndFaq(safeKeyword, detectedIntent, scrapedData);
+  fallbackResult.focus_keyword = safeKeyword;
+  return fallbackResult;
 }

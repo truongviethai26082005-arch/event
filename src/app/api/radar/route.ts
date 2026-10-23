@@ -7,6 +7,7 @@ import {
   toSentenceCase,
   cleanMarkdownHeadings,
   formatHeadingSentenceCase,
+  ensureAccentedKeyword,
 } from "./services";
 
 /**
@@ -33,12 +34,19 @@ export async function POST(req: NextRequest) {
     }
 
     const sanitizedUrl = competitorUrl.trim();
-    const keyword = targetKeyword.trim() || "tổ chức sự kiện chuyên nghiệp";
+    const rawKeyword = targetKeyword.trim() || "tổ chức sự kiện chuyên nghiệp";
 
     // ------------------------------------------------------------------------
     // BƯỚC 1: CÀO & LÀM SẠCH DỮ LIỆU ĐỐI THỦ (Scraper Service)
     // ------------------------------------------------------------------------
-    const scrapedData = await scrapeAndCleanCompetitor(sanitizedUrl, keyword);
+    const scrapedData = await scrapeAndCleanCompetitor(sanitizedUrl, rawKeyword);
+
+    // Tự động khôi phục dấu tiếng Việt chuẩn xác cho từ khóa dựa trên tiêu đề & nội dung đối thủ
+    const resolvedKeyword = ensureAccentedKeyword(
+      rawKeyword,
+      scrapedData.title,
+      scrapedData.cleanText
+    );
 
     // ------------------------------------------------------------------------
     // BƯỚC 2: PHÂN LOẠI SEARCH INTENT & DỰNG OUTLINE ĐỘNG (AI Call 1 - Analyzer)
@@ -47,7 +55,8 @@ export async function POST(req: NextRequest) {
     //   CẤM ĐƯA BẢNG GIÁ THIẾT BỊ, KHO BÃI, XE CỘ VÀO BÀI!
     // - Commercial (Thuê đồ, đặt dịch vụ): Outline tập trung vào báo giá bóc tách, thông số kỹ thuật, kho bãi.
     // ------------------------------------------------------------------------
-    const intentAnalysis = await analyzeIntentAndBuildOutline(scrapedData, keyword, customPrompt);
+    const intentAnalysis = await analyzeIntentAndBuildOutline(scrapedData, resolvedKeyword, customPrompt);
+    const finalKeyword = intentAnalysis.focus_keyword || resolvedKeyword;
 
     // ------------------------------------------------------------------------
     // BƯỚC 3: SINH NỘI DUNG TOÀN DIỆN & RENDER SCHEMA (AI Call 2 - Generator)
@@ -56,7 +65,7 @@ export async function POST(req: NextRequest) {
     // - Render FAQ dạng H3 với câu trả lời ngắn gọn <60 từ
     // - Tự động xuất chuỗi Schema.org/FAQPage JSON-LD ở cuối bài
     // ------------------------------------------------------------------------
-    const generatedArticle = await generateFullContentAndSchema(keyword, intentAnalysis, customPrompt);
+    const generatedArticle = await generateFullContentAndSchema(finalKeyword, intentAnalysis, customPrompt);
 
     // ------------------------------------------------------------------------
     // QUALITY GATE: Kiểm duyệt và chuẩn hóa Sentence Case toàn diện
@@ -66,10 +75,10 @@ export async function POST(req: NextRequest) {
 
     // Chuẩn hóa dữ liệu trả về cho giao diện Admin Radar
     const analysisResponse = {
-      h1: scrapedData.title ? formatHeadingSentenceCase(scrapedData.title) : `Bài viết phân tích: ${keyword}`,
+      h1: scrapedData.title ? formatHeadingSentenceCase(scrapedData.title) : `Bài viết phân tích: ${finalKeyword}`,
       headings: scrapedData.headings.map(formatHeadingSentenceCase),
       targetKeywords: [
-        keyword,
+        finalKeyword,
         "báo giá tổ chức sự kiện trọn gói",
         "công ty sự kiện uy tín hà nội",
         "kịch bản sự kiện độc bản",
@@ -133,7 +142,7 @@ export async function POST(req: NextRequest) {
               competitor_url: sanitizedUrl,
               raw_content: scrapedData.cleanText,
               ai_analysis: analysisResponse,
-              target_keyword: keyword,
+              target_keyword: finalKeyword,
             },
           ])
           .select("id")

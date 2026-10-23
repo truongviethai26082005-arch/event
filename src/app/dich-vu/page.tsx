@@ -87,52 +87,52 @@ export default function ServicesPage() {
       {/* =========================================================================
           1. HERO BANNER: ĐẲNG CẤP & UY TÍN DOANH NGHIỆP
       ========================================================================= */}
-      <section className="relative bg-[#0A1E5E] text-white py-16 sm:py-20 md:py-24 border-b border-[#D4AF37]/30 overflow-hidden">
+      <section className="relative bg-[#0A1E5E] text-white py-8 sm:py-10 border-b border-[#D4AF37]/30 overflow-hidden">
         {/* Visual background lights */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#142a6d] opacity-95" />
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-blue-600/8 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-xs font-bold text-[#D4AF37] border border-[#D4AF37]/40 shadow-sm backdrop-blur-sm">
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[11px] font-bold text-[#D4AF37] border border-[#D4AF37]/40 shadow-sm backdrop-blur-sm">
+            <Sparkles className="w-3 h-3 text-[#D4AF37] animate-pulse" />
             <span>HỆ SINH THÁI TỔ CHỨC SỰ KIỆN & DU LỊCH TRỌN GÓI</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight max-w-3xl mx-auto">
             Giải Pháp Sự Kiện Độc Bản & Du Lịch Trải Nghiệm Đẳng Cấp
           </h1>
 
-          <p className="text-xs sm:text-sm md:text-base text-slate-300 max-w-3xl mx-auto font-light leading-relaxed">
+          <p className="text-[11px] sm:text-xs text-slate-300 max-w-3xl mx-auto font-light leading-relaxed">
             Trực tiếp sở hữu kho thiết bị hơn 1.000m² tại Hà Nội, dàn âm thanh Line Array công suất khủng, màn LED P2.5 siêu nét cùng đội ngũ đạo diễn chuyên nghiệp. Cam kết tối ưu <strong>20% - 25% ngân sách</strong> và không phát sinh chi phí.
           </p>
 
           {/* Key Value Badges */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-slate-200">
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
-              <Warehouse className="w-4 h-4 text-[#D4AF37]" />
+          <div className="pt-1 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[11px] text-slate-200">
+            <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-xl border border-white/10">
+              <Warehouse className="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>Kho Thiết Bị Giá Gốc 100%</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
-              <Headphones className="w-4 h-4 text-[#D4AF37]" />
+            <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-xl border border-white/10">
+              <Headphones className="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>Báo Giá Nhanh Trong 30 Phút</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
-              <FileCheck className="w-4 h-4 text-[#D4AF37]" />
+            <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-xl border border-white/10">
+              <FileCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>Ký Hợp Đồng & Xuất VAT Chuẩn</span>
             </div>
           </div>
 
           {/* Quick CTA Actions */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+          <div className="pt-1 flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={() => {
                 const el = document.getElementById("khuyen-mai");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#b89528] text-[#0A1E5E] font-black text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#b89528] text-[#0A1E5E] font-black text-xs shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Flame className="w-4 h-4 text-[#0A1E5E]" />
+              <Flame className="w-3.5 h-3.5 text-[#0A1E5E]" />
               <span>Săn Combo Ưu Đãi Mùa Này</span>
             </button>
 
@@ -141,10 +141,10 @@ export default function ServicesPage() {
                 const el = document.getElementById("bao-gia");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span>Nhận Dự Toán Báo Giá Nhanh</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -258,17 +258,6 @@ export default function ServicesPage() {
                   </span>
                 </div>
 
-                {/* Price tag bottom */}
-                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white">
-                  <span className="text-xs font-semibold text-[#D4AF37] bg-black/50 px-2.5 py-1 rounded-lg backdrop-blur-sm">
-                    {service.priceNote}
-                  </span>
-                  {service.badge && (
-                    <span className="text-[11px] font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-400/30">
-                      {service.badge}
-                    </span>
-                  )}
-                </div>
               </div>
 
               {/* Card Body */}
@@ -366,23 +355,9 @@ export default function ServicesPage() {
                       {tier.name}
                     </h3>
                   </div>
-                  <span className={`text-xs block font-semibold mb-4 ${tier.isFeatured ? "text-slate-300" : "text-slate-500"}`}>
+                  <span className={`text-xs block font-semibold mb-6 ${tier.isFeatured ? "text-slate-300" : "text-slate-500"}`}>
                     {tier.scale}
                   </span>
-
-                  <div className="mb-6 pb-6 border-b border-slate-200/40">
-                    <div className="flex items-baseline gap-1">
-                      <span className={`text-3xl sm:text-4xl font-black ${tier.isFeatured ? "text-[#D4AF37]" : "text-[#0A1E5E]"}`}>
-                        {tier.priceDisplay}
-                      </span>
-                      <span className={`text-xs ${tier.isFeatured ? "text-slate-300" : "text-slate-500"}`}>
-                        {tier.unit}
-                      </span>
-                    </div>
-                    <p className={`text-xs mt-2 font-light leading-relaxed ${tier.isFeatured ? "text-slate-300" : "text-slate-600"}`}>
-                      {tier.description}
-                    </p>
-                  </div>
 
                   {/* Included Features */}
                   <div className="space-y-3 mb-6">

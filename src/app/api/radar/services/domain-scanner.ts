@@ -4,8 +4,8 @@ import { ScannedArticleUrl, DomainScanResult } from "./types";
 
 /**
  * =========================================================================
- * DOMAIN & SITEMAP SCANNER SERVICE
- * Tự động quét sitemap và dò tìm danh sách bài viết từ domain đối thủ
+ * DOMAIN & SITEMAP SCANNER SERVICE v2.0
+ * Tự động quét đệ quy Sitemap Index & Category Crawler bóc tách bài viết chi tiết
  * =========================================================================
  */
 
@@ -43,23 +43,65 @@ const EXCLUDED_URL_PATTERNS = [
   /\/dang-nhap/i,
   /\/register/i,
   /\/dang-ky/i,
-  /\/category\//i,
-  /\/chuyen-muc\//i,
-  /\/danh-muc\//i,
-  /\/tag\//i,
-  /\/the\//i,
-  /\/author\//i,
-  /\/tac-gia\//i,
-  /\/page\/\d+/i,
   /\/wp-json/i,
   /\/wp-content\/plugins/i,
+  /\/wp-includes/i,
+  /\/xmlrpc\.php/i,
   /\/feed\/?$/i,
   /\/rss\/?$/i,
-  /\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|rar|docx?|xlsx?|mp4|mp3)$/i,
+  /\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|rar|docx?|xlsx?|mp4|mp3|css|js|ico|xml|xsl)$/i,
 ];
 
+// Tên danh mục / trang tĩnh cấp 1 cần loại bỏ khỏi danh sách bài viết
+const CATEGORY_NAMES = new Set([
+  "tin-tuc",
+  "kien-thuc",
+  "blog",
+  "blogs",
+  "su-kien",
+  "du-an",
+  "dich-vu",
+  "gioi-thieu",
+  "ve-chung-toi",
+  "lien-he",
+  "contact",
+  "about",
+  "about-us",
+  "tuyen-dung",
+  "career",
+  "careers",
+  "chinh-sach",
+  "quy-dinh",
+  "dieu-khoan",
+  "privacy",
+  "terms",
+  "bao-gia",
+  "khuyen-mai",
+  "bang-gia",
+  "thiet-bi",
+  "san-pham",
+  "shop",
+  "news",
+  "articles",
+  "posts",
+  "projects",
+  "services",
+  "category",
+  "categories",
+  "tag",
+  "tags",
+  "author",
+  "tac-gia",
+  "chuyen-muc",
+  "danh-muc",
+  "trang-chu",
+  "home",
+]);
+
+import { restoreDiacriticsFromDictionary } from "./vietnamese-diacritics";
+
 /**
- * Tạo tiêu đề bài viết dễ đọc từ URL slug nếu không có title từ sitemap
+ * Tạo tiêu đề bài viết dễ đọc và có dấu tiếng Việt từ URL slug nếu không có title từ sitemap
  */
 export function formatTitleFromSlug(urlStr: string): string {
   try {
@@ -69,12 +111,13 @@ export function formatTitleFromSlug(urlStr: string): string {
     const cleanSlug = lastPart.replace(/\.html?$/i, "");
     if (!cleanSlug) return urlObj.hostname;
 
-    // Chuyển dấu gạch ngang thành dấu cách và viết hoa chữ cái đầu
     const words = cleanSlug.split("-").filter(Boolean);
     if (words.length === 0) return urlObj.pathname;
 
     const sentence = words.join(" ");
-    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+    // Khôi phục dấu tiếng Việt chuẩn xác theo từ điển sự kiện
+    const accented = restoreDiacriticsFromDictionary(sentence);
+    return accented.charAt(0).toUpperCase() + accented.slice(1);
   } catch {
     return urlStr;
   }
@@ -96,7 +139,7 @@ export function normalizeDomain(rawDomain: string): { origin: string; fullUrl: s
 }
 
 /**
- * Helper fetch an toàn với User-Agent và Timeout 8s
+ * Helper fetch an toàn với User-Agent và Timeout
  */
 async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response | null> {
   const controller = new AbortController();
@@ -112,7 +155,7 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response
       },
     });
     return res;
-  } catch (err: any) {
+  } catch {
     return null;
   } finally {
     clearTimeout(timer);
@@ -120,38 +163,224 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response
 }
 
 /**
- * Bóc tách danh sách URL từ nội dung XML (hỗ trợ urlset, sitemapindex, rss)
+ * Kiểm tra xem sitemap con có phải là sitemap rác không (danh mục, tag, tác giả, ảnh)
  */
-function parseSitemapXml(
-  xmlText: string,
-  origin: string
-): { articleUrls: { url: string; lastMod?: string; title?: string }[]; childSitemaps: string[] } {
+function isLikelyNonArticleSitemap(sitemapUrl: string): boolean {
+  const lower = sitemapUrl.toLowerCase();
+  return /categor|taxonom|tag|author|pages\.xml|page-sitemap|attachment|media|gallery|galleries|portfolio-category/i.test(
+    lower
+  );
+}
+
+/**
+ * Chấm điểm ưu tiên sitemap bài viết (post, blog, tin-tuc, article)
+ */
+function getSitemapPriority(url: string): number {
+  const lower = url.toLowerCase();
+  if (
+    lower.includes("post") ||
+    lower.includes("blog") ||
+    lower.includes("tin-tuc") ||
+    lower.includes("article") ||
+    lower.includes("news")
+  ) {
+    return 10;
+  }
+  if (lower.includes("project")) return 5;
+  return 1;
+}
+
+/**
+ * KIỂM TRA CHÍNH XÁC: URL có phải là bài viết chi tiết thực thụ không?
+ * Loại bỏ triệt để các link danh mục gốc (/tin-tuc, /tin-tuc/, /danh-muc/, /category/, /page/2)
+ */
+export function isDetailedArticleUrl(urlStr: string, origin: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const parsedOrigin = new URL(origin);
+
+    // Bắt buộc cùng hostname
+    if (u.hostname !== parsedOrigin.hostname) return false;
+
+    const path = u.pathname.trim();
+    if (!path || path === "/" || path === "") return false;
+
+    // 1. Loại bỏ các file tĩnh, ảnh, media
+    if (
+      /\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|rar|docx?|xlsx?|mp4|mp3|css|js|ico|xml|xsl)$/i.test(
+        path
+      )
+    ) {
+      return false;
+    }
+
+    // 2. Loại bỏ phân trang /page/2, /p/2
+    if (/\/page\/\d+/i.test(path) || /\/p\/\d+/i.test(path)) {
+      return false;
+    }
+
+    // 3. Loại bỏ các URL kỹ thuật
+    if (
+      /\/wp-json/i.test(path) ||
+      /\/wp-content/i.test(path) ||
+      /\/wp-includes/i.test(path) ||
+      /\/feed\/?$/i.test(path) ||
+      /\/rss\/?$/i.test(path)
+    ) {
+      return false;
+    }
+
+    const pathParts = path.split("/").filter(Boolean);
+    if (pathParts.length === 0) return false;
+
+    // 4. Nếu chỉ có 1 cấp (VD: /tin-tuc, /gioi-thieu, /dich-vu, /lien-he)
+    if (pathParts.length === 1) {
+      const singleSlug = pathParts[0].toLowerCase().replace(/\.html?$/i, "");
+      // Nếu slug này thuộc danh mục hoặc trang tĩnh thì chắc chắn KHÔNG phải bài viết chi tiết
+      if (CATEGORY_NAMES.has(singleSlug)) return false;
+      // Slug bài viết phải có dấu gạch ngang hoặc dài >= 10 ký tự
+      if (!singleSlug.includes("-") && singleSlug.length < 10) return false;
+    }
+
+    // 5. Nếu có nhiều cấp và cấp đầu là tiền tố danh mục (category, chuyen-muc, danh-muc, tag)
+    const firstPart = pathParts[0].toLowerCase();
+    if (
+      firstPart === "category" ||
+      firstPart === "chuyen-muc" ||
+      firstPart === "danh-muc" ||
+      firstPart === "tag" ||
+      firstPart === "the" ||
+      firstPart === "author"
+    ) {
+      // Nếu chỉ có 1-2 cấp (VD: /category/tin-tuc) thì là trang danh mục, không phải bài viết chi tiết
+      if (pathParts.length <= 2) return false;
+    }
+
+    // 6. Kiểm tra danh sách loại trừ tĩnh
+    for (const pattern of EXCLUDED_URL_PATTERNS) {
+      if (pattern.test(path)) {
+        return false;
+      }
+    }
+
+    // 7. Kiểm tra slug cuối cùng
+    const lastSlug = pathParts[pathParts.length - 1].toLowerCase().replace(/\.html?$/i, "");
+    if (CATEGORY_NAMES.has(lastSlug)) return false;
+    if (!lastSlug.includes("-") && lastSlug.length < 8) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Kiểm tra xem URL có phải là trang danh mục không (để đưa vào Category Crawler)
+ */
+function isCategoryUrl(urlStr: string, origin: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const parsedOrigin = new URL(origin);
+    if (u.hostname !== parsedOrigin.hostname) return false;
+
+    const pathParts = u.pathname.split("/").filter(Boolean);
+    if (pathParts.length === 0) return false;
+
+    if (pathParts.length === 1 && CATEGORY_NAMES.has(pathParts[0].toLowerCase())) {
+      return true;
+    }
+
+    if (
+      pathParts.some((p) =>
+        ["category", "chuyen-muc", "danh-muc", "tag", "the"].includes(p.toLowerCase())
+      )
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Đọc ĐỆ QUY Sitemap Index và Sitemap con (Recursive Sitemap Parser)
+ */
+async function crawlSitemapsRecursive(
+  sitemapUrl: string,
+  origin: string,
+  depth = 0,
+  visited = new Set<string>(),
+  collectedArticles = new Map<string, { url: string; lastMod?: string; title?: string }>(),
+  discoveredCategories = new Set<string>()
+): Promise<void> {
+  if (depth > 2 || visited.has(sitemapUrl)) return;
+  visited.add(sitemapUrl);
+
+  const res = await fetchWithTimeout(sitemapUrl, 7000);
+  if (!res || !res.ok) return;
+
+  const xmlText = await res.text();
+  if (
+    !xmlText.includes("<urlset") &&
+    !xmlText.includes("<sitemapindex") &&
+    !xmlText.includes("<rss") &&
+    !xmlText.includes("<feed")
+  ) {
+    return;
+  }
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     trimValues: true,
   });
 
-  const parsed = parser.parse(xmlText);
-  const articleUrls: { url: string; lastMod?: string; title?: string }[] = [];
-  const childSitemaps: string[] = [];
+  let parsed: any;
+  try {
+    parsed = parser.parse(xmlText);
+  } catch {
+    return;
+  }
 
-  // Trường hợp 1: Sitemap Index (<sitemapindex><sitemap><loc>...</loc></sitemap></sitemapindex>)
+  // TRƯỜNG HỢP 1: SITEMAP INDEX (<sitemapindex><sitemap><loc>...</loc></sitemap></sitemapindex>)
   if (parsed.sitemapindex && parsed.sitemapindex.sitemap) {
     const rawSitemaps = Array.isArray(parsed.sitemapindex.sitemap)
       ? parsed.sitemapindex.sitemap
       : [parsed.sitemapindex.sitemap];
 
+    const childSitemaps: string[] = [];
     for (const sm of rawSitemaps) {
       const loc = typeof sm.loc === "string" ? sm.loc.trim() : "";
-      if (loc) {
+      if (loc && !isLikelyNonArticleSitemap(loc)) {
         childSitemaps.push(loc);
       }
     }
-    return { articleUrls, childSitemaps };
+
+    // Sắp xếp ưu tiên: Sitemaps bài viết lên trước, sitemap mới nhất lên đầu
+    childSitemaps.sort((a, b) => getSitemapPriority(b) - getSitemapPriority(a));
+
+    // Lấy tối đa 12 sitemap con triển vọng nhất
+    const topChildSitemaps = childSitemaps.slice(0, 12);
+
+    // Fetch đệ quy song song các sitemap con
+    await Promise.allSettled(
+      topChildSitemaps.map((childUrl) =>
+        crawlSitemapsRecursive(
+          childUrl,
+          origin,
+          depth + 1,
+          visited,
+          collectedArticles,
+          discoveredCategories
+        )
+      )
+    );
+    return;
   }
 
-  // Trường hợp 2: URL Set (<urlset><url><loc>...</loc></url></urlset>)
+  // TRƯỜNG HỢP 2: URL SET (<urlset><url><loc>...</loc></url></urlset>)
   if (parsed.urlset && parsed.urlset.url) {
     const rawUrls = Array.isArray(parsed.urlset.url) ? parsed.urlset.url : [parsed.urlset.url];
 
@@ -160,20 +389,26 @@ function parseSitemapXml(
       const lastMod = typeof u.lastmod === "string" ? u.lastmod.trim() : undefined;
       let title: string | undefined = undefined;
 
-      // Hỗ trợ trích xuất title từ image:title hoặc news:title nếu có
       if (u["image:image"] && u["image:image"]["image:title"]) {
         title = String(u["image:image"]["image:title"]).trim();
       } else if (u["news:news"] && u["news:news"]["news:title"]) {
         title = String(u["news:news"]["news:title"]).trim();
       }
 
-      if (loc && isPotentialArticleUrl(loc, origin)) {
-        articleUrls.push({ url: loc, lastMod, title });
+      if (loc) {
+        if (isDetailedArticleUrl(loc, origin)) {
+          if (!collectedArticles.has(loc)) {
+            collectedArticles.set(loc, { url: loc, lastMod, title });
+          }
+        } else if (isCategoryUrl(loc, origin)) {
+          discoveredCategories.add(loc);
+        }
       }
     }
+    return;
   }
 
-  // Trường hợp 3: RSS Feed (<rss><channel><item><link>...</link></item></channel></rss>)
+  // TRƯỜNG HỢP 3: RSS FEED (<rss><channel><item><link>...</link></item></channel></rss>)
   if (parsed.rss && parsed.rss.channel && parsed.rss.channel.item) {
     const items = Array.isArray(parsed.rss.channel.item)
       ? parsed.rss.channel.item
@@ -184,86 +419,70 @@ function parseSitemapXml(
       const title = typeof item.title === "string" ? item.title.trim() : undefined;
       const pubDate = typeof item.pubDate === "string" ? item.pubDate.trim() : undefined;
 
-      if (link && isPotentialArticleUrl(link, origin)) {
-        articleUrls.push({ url: link, lastMod: pubDate, title });
-      }
-    }
-  }
-
-  return { articleUrls, childSitemaps };
-}
-
-/**
- * Kiểm tra xem URL có phải là bài viết hợp lệ không (loại bỏ trang chủ, liên kết tĩnh, danh mục, file)
- */
-function isPotentialArticleUrl(urlStr: string, origin: string): boolean {
-  try {
-    const u = new URL(urlStr);
-    const parsedOrigin = new URL(origin);
-
-    // Cùng hostname
-    if (u.hostname !== parsedOrigin.hostname) return false;
-
-    // Loại bỏ trang chủ
-    const path = u.pathname.trim();
-    if (!path || path === "/" || path === "") return false;
-
-    // Kiểm tra danh sách loại trừ tĩnh
-    for (const pattern of EXCLUDED_URL_PATTERNS) {
-      if (pattern.test(path)) {
-        return false;
-      }
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Dò tìm bài viết trực tiếp từ HTML trang chủ nếu sitemap không tồn tại hoặc bị chặn
- */
-async function fallbackScrapeFromHtml(
-  origin: string
-): Promise<{ url: string; title: string; lastMod?: string }[]> {
-  try {
-    const res = await fetchWithTimeout(origin, 8000);
-    if (!res || !res.ok) return [];
-
-    const html = await res.text();
-    const linkRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-    const foundMap = new Map<string, { url: string; title: string }>();
-
-    let match: RegExpExecArray | null;
-    while ((match = linkRegex.exec(html)) !== null) {
-      let href = match[1]?.trim();
-      const rawAnchorText = match[2]?.replace(/<[^>]+>/g, "").trim() || "";
-
-      if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-        continue;
-      }
-
-      if (href.startsWith("/")) {
-        href = `${origin}${href}`;
-      }
-
-      if (isPotentialArticleUrl(href, origin)) {
-        // Chỉ nhận các đường link có dấu gạch ngang (slug bài viết)
-        const path = new URL(href).pathname;
-        if (path.includes("-") && !foundMap.has(href)) {
-          foundMap.set(href, {
-            url: href,
-            title: rawAnchorText && rawAnchorText.length > 10 ? rawAnchorText : formatTitleFromSlug(href),
-          });
+      if (link && isDetailedArticleUrl(link, origin)) {
+        if (!collectedArticles.has(link)) {
+          collectedArticles.set(link, { url: link, lastMod: pubDate, title });
         }
       }
     }
-
-    return Array.from(foundMap.values());
-  } catch {
-    return [];
   }
+}
+
+/**
+ * CATEGORY CRAWLER: Đào sâu vào các trang danh mục để tìm bài viết con
+ * (Áp dụng khi đối thủ không có sitemap chi tiết hoặc sitemap chỉ trả về các link danh mục)
+ */
+async function crawlCategoryPagesForArticles(
+  categoryUrls: string[],
+  origin: string,
+  collectedArticles: Map<string, { url: string; lastMod?: string; title?: string }>
+): Promise<void> {
+  const targetCategoryUrls = Array.from(new Set(categoryUrls)).slice(0, 6);
+
+  await Promise.allSettled(
+    targetCategoryUrls.map(async (catUrl) => {
+      const res = await fetchWithTimeout(catUrl, 7000);
+      if (!res || !res.ok) return;
+
+      const html = await res.text();
+      // Tìm tất cả thẻ <a href="...">text</a>
+      const linkRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+
+      let match: RegExpExecArray | null;
+      while ((match = linkRegex.exec(html)) !== null) {
+        let href = match[1]?.trim();
+        const rawAnchorText = match[2]?.replace(/<[^>]+>/g, "").trim() || "";
+
+        if (
+          !href ||
+          href.startsWith("#") ||
+          href.startsWith("javascript:") ||
+          href.startsWith("mailto:") ||
+          href.startsWith("tel:")
+        ) {
+          continue;
+        }
+
+        if (href.startsWith("/")) {
+          href = `${origin}${href}`;
+        }
+
+        if (isDetailedArticleUrl(href, origin)) {
+          if (!collectedArticles.has(href)) {
+            // Anchor text hợp lệ (> 15 ký tự và không phải nút "Xem thêm")
+            const isGoodTitle =
+              rawAnchorText.length >= 15 &&
+              !/^(xem thêm|chi tiết|read more|click|tại đây|xem tiếp)/i.test(rawAnchorText);
+
+            collectedArticles.set(href, {
+              url: href,
+              title: isGoodTitle ? rawAnchorText : formatTitleFromSlug(href),
+            });
+          }
+        }
+      }
+    })
+  );
 }
 
 /**
@@ -274,7 +493,6 @@ async function getAlreadyScrapedUrls(): Promise<Set<string>> {
   if (!isSupabaseConfigured) return scrapedSet;
 
   try {
-    // 1. Kiểm tra bảng competitor_logs
     const { data: logs } = await supabase
       .from("competitor_logs")
       .select("competitor_url")
@@ -288,7 +506,6 @@ async function getAlreadyScrapedUrls(): Promise<Set<string>> {
       }
     }
 
-    // 2. Kiểm tra bảng posts
     const { data: posts } = await supabase
       .from("posts")
       .select("competitor_source_url")
@@ -310,82 +527,70 @@ async function getAlreadyScrapedUrls(): Promise<Set<string>> {
 }
 
 /**
- * HÀM CHÍNH: Quét toàn diện Domain đối thủ và trích xuất danh sách bài viết
+ * HÀM CHÍNH: Quét toàn diện Domain đối thủ và trích xuất danh sách bài viết chi tiết
  */
 export async function scanDomainForArticles(rawDomain: string): Promise<DomainScanResult> {
   const { origin } = normalizeDomain(rawDomain);
-  const collectedUrlsMap = new Map<string, { url: string; lastMod?: string; title?: string }>();
+  const collectedArticles = new Map<string, { url: string; lastMod?: string; title?: string }>();
+  const discoveredCategories = new Set<string>();
+  const visitedSitemaps = new Set<string>();
   let successfulSitemapUrl: string | null = null;
 
   // 1. Thử duyệt qua các đường dẫn sitemap phổ biến
   for (const candidatePath of SITEMAP_CANDIDATE_PATHS) {
     const candidateUrl = `${origin}${candidatePath}`;
-    const res = await fetchWithTimeout(candidateUrl, 6000);
+    const initialSize = collectedArticles.size;
 
-    if (res && res.ok) {
-      const contentType = res.headers.get("content-type") || "";
-      const text = await res.text();
+    await crawlSitemapsRecursive(
+      candidateUrl,
+      origin,
+      0,
+      visitedSitemaps,
+      collectedArticles,
+      discoveredCategories
+    );
 
-      // Kiểm tra có phải XML / RSS không
-      if (
-        text.includes("<urlset") ||
-        text.includes("<sitemapindex") ||
-        text.includes("<rss") ||
-        text.includes("<feed")
-      ) {
-        successfulSitemapUrl = candidateUrl;
-        const { articleUrls, childSitemaps } = parseSitemapXml(text, origin);
-
-        // Lưu các URL tìm thấy trong sitemap hiện tại
-        for (const item of articleUrls) {
-          if (!collectedUrlsMap.has(item.url)) {
-            collectedUrlsMap.set(item.url, item);
-          }
-        }
-
-        // Nếu là sitemap index, đào sâu tiếp vào các sitemap con
-        if (childSitemaps.length > 0) {
-          // Ưu tiên sitemap chứa từ khóa post, tin-tuc, bai-viet, news
-          const postSitemaps = childSitemaps.filter(
-            (sm) => /post|blog|tin-tuc|bai-viet|news|article/i.test(sm)
-          );
-          const targetSitemaps = postSitemaps.length > 0 ? postSitemaps : childSitemaps.slice(0, 3);
-
-          for (const childUrl of targetSitemaps) {
-            const childRes = await fetchWithTimeout(childUrl, 6000);
-            if (childRes && childRes.ok) {
-              const childText = await childRes.text();
-              const childResult = parseSitemapXml(childText, origin);
-              for (const item of childResult.articleUrls) {
-                if (!collectedUrlsMap.has(item.url)) {
-                  collectedUrlsMap.set(item.url, item);
-                }
-              }
-            }
-          }
-        }
-
-        // Nếu đã tìm thấy đủ bài viết trong sitemap, dừng dò tìm các path khác
-        if (collectedUrlsMap.size >= 10) {
-          break;
-        }
+    if (collectedArticles.size > initialSize) {
+      successfulSitemapUrl = candidateUrl;
+      // Nếu đã thu thập được >= 15 bài viết chi tiết từ sitemap thì dừng
+      if (collectedArticles.size >= 15) {
+        break;
       }
     }
   }
 
-  // 2. Nếu sitemap không tìm thấy bài nào, kích hoạt fallback quét từ HTML trang chủ
-  if (collectedUrlsMap.size === 0) {
-    const fallbackArticles = await fallbackScrapeFromHtml(origin);
-    for (const item of fallbackArticles) {
-      collectedUrlsMap.set(item.url, item);
-    }
+  // 2. KÍCH HOẠT CATEGORY CRAWLER: Nếu sitemap không có hoặc thu được < 15 bài
+  if (collectedArticles.size < 15) {
+    // Bổ sung các đường dẫn danh mục phổ biến của website sự kiện
+    const candidateCategories = [
+      ...Array.from(discoveredCategories),
+      `${origin}/tin-tuc`,
+      `${origin}/blog`,
+      `${origin}/kien-thuc`,
+      `${origin}/su-kien`,
+      `${origin}/kinh-nghiem`,
+      `${origin}/cam-nang`,
+      `${origin}/du-an`,
+    ];
+
+    await crawlCategoryPagesForArticles(candidateCategories, origin, collectedArticles);
   }
 
-  // 3. Truy vấn Supabase để đối chiếu URL đã cào hay chưa
+  // 3. Nếu vẫn không có bài viết nào, quét trực tiếp từ HTML trang chủ
+  if (collectedArticles.size === 0) {
+    await crawlCategoryPagesForArticles([origin], origin, collectedArticles);
+  }
+
+  // 4. Lọc lại một lần nữa bằng Quality Gate: Tuyệt đối không để lọt link danh mục
+  const verifiedArticles = Array.from(collectedArticles.values()).filter((item) =>
+    isDetailedArticleUrl(item.url, origin)
+  );
+
+  // 5. Truy vấn Supabase để đối chiếu URL đã cào hay chưa
   const alreadyScrapedSet = await getAlreadyScrapedUrls();
 
-  // 4. Định dạng và phân loại danh sách trả về
-  const allList = Array.from(collectedUrlsMap.values()).map((item) => {
+  // 6. Định dạng danh sách trả về
+  const allList: ScannedArticleUrl[] = verifiedArticles.map((item) => {
     const isScraped = alreadyScrapedSet.has(item.url.toLowerCase());
     return {
       url: item.url,
@@ -406,8 +611,8 @@ export async function scanDomainForArticles(rawDomain: string): Promise<DomainSc
     return 0;
   });
 
-  // Giới hạn trả về tối đa 50 bài viết
-  const finalUrls: ScannedArticleUrl[] = allList.slice(0, 50);
+  // Giới hạn trả về tối đa 50 bài viết chi tiết
+  const finalUrls = allList.slice(0, 50);
   const unscrapedCount = finalUrls.filter((u) => !u.isScraped).length;
 
   return {

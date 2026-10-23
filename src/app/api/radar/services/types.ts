@@ -29,6 +29,7 @@ export interface IntentAnalysisResult {
   search_intent: SearchIntent;
   content_angle: string;
   content_gap: string;
+  focus_keyword?: string;
   outline: OutlineSection[];
   faq_list: FaqItem[];
   competitor_weaknesses?: string[];
