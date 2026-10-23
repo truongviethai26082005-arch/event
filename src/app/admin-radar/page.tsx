@@ -11,6 +11,9 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured, DatabasePost, DatabaseLead } from "@/lib/supabase";
+import ConversionFunnel from "./ConversionFunnel";
+import CustomerSourcesChart from "./CustomerSourcesChart";
+import EventCalendar from "./EventCalendar";
 import {
   Radar,
   Sparkles,
@@ -2246,7 +2249,19 @@ export default function RadarSeoAdminPage() {
             /* =====================================================================
                LEADS MANAGEMENT TABLE (DANH SÁCH KHÁCH HÀNG BÁO GIÁ)
             ===================================================================== */
-            <div className="space-y-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-6">
+                <ConversionFunnel leads={leadsList} showCardWrapper={true} />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 text-slate-900">
+                  <CustomerSourcesChart leads={leadsList} />
+                </div>
+              </div>
+
+              {/* LỊCH VẬN HÀNH SỰ KIỆN & ĐIỀU PHỐI (RADAR CALENDAR) */}
+              <div className="text-slate-900">
+                <EventCalendar leads={leadsList} onRefreshLeads={fetchLeads} showWrapperCard={true} />
+              </div>
+
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400">
                   Danh sách khách hàng điền form nhận báo giá từ website Trường Hải Event & Travel

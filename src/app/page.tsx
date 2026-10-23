@@ -9,6 +9,7 @@ import {
   SERVICES_DATA,
 } from "@/lib/company-data";
 import { PartnerLogoMarquee } from "@/components/PartnerLogoMarquee";
+import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 import {
   Sparkles,
   Phone,
@@ -1529,6 +1530,7 @@ export default function HomePage() {
           href="https://zalo.me/0844198333"
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => trackLandingLead("ZALO")}
           className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 hover:shadow-blue-500/50"
           title="Chat Zalo Tư Vấn Nhanh"
         >
@@ -1541,6 +1543,7 @@ export default function HomePage() {
         {/* Hotline Call Button with Pulse Ring */}
         <a
           href={`tel:${COMPANY_INFO.hotline}`}
+          onClick={() => trackLandingLead("HOTLINE")}
           className="group relative flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-[#D4AF37] text-[#050D26] font-bold text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200"
           title={`Gọi Hotline ${COMPANY_INFO.hotlineDisplay}`}
         >

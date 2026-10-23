@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured, DatabaseLead } from "@/lib/supabase";
+import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 import { PromotionCombo } from "../data/services-data";
 import {
   Send,
@@ -322,6 +323,7 @@ export default function LeadForm({
                         href={COMPANY_INFO.socials.zalo}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() => trackLandingLead("ZALO")}
                         className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
@@ -330,6 +332,7 @@ export default function LeadForm({
 
                       <a
                         href={`tel:${COMPANY_INFO.hotline}`}
+                        onClick={() => trackLandingLead("HOTLINE")}
                         className="px-4 py-2.5 rounded-xl bg-[#0A1E5E] hover:bg-[#122868] text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/40 shadow-sm flex items-center justify-center gap-1.5 transition"
                       >
                         <Phone className="w-3.5 h-3.5" />
