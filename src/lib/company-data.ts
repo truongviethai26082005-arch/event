@@ -62,9 +62,9 @@ export const COMPANY_INFO = {
     accentLight: "#F5E08B",
   },
   vision:
-    "Trở thành đơn vị uy tín, sáng tạo và tiên phong trong lĩnh vực tổ chức sự kiện và du lịch; là sự lựa chọn tin cậy và ưu tiên hàng đầu của các doanh nghiệp, tổ chức cơ quan đoàn thể trên toàn quốc.",
+    "Thỏa mãn nhu cầu trải nghiệm và mang đến những giá trị thiết thực cho khách hàng thông qua các sản phẩm, dịch vụ sự kiện và du lịch chuyên nghiệp. Trường Hải Event & Travel phấn đấu trở thành đơn vị uy tín, sáng tạo và tiên phong trong lĩnh vực tổ chức sự kiện và du lịch; xây dựng thương hiệu Trường Hải Event & Travel trở thành sự lựa chọn tin cậy và ưu tiên của khách hàng.",
   mission:
-    "Mang đến trải nghiệm thực tế, chất lượng và giàu giá trị; không ngừng sáng tạo, đổi mới ý tưởng tạo nên những chương trình chuyên nghiệp, ý nghĩa và đáng nhớ, gắn kết bền vững các mối quan hệ.",
+    "Cam kết mang đến cho khách hàng những trải nghiệm thực tế, chất lượng và giàu giá trị thông qua các sản phẩm, dịch vụ sự kiện và du lịch. Không ngừng sáng tạo, đổi mới và phát triển ý tưởng nhằm đáp ứng tốt nhất nhu cầu của khách hàng, đồng thời tạo nên những chương trình chuyên nghiệp, ý nghĩa và đáng nhớ.",
   coreValues: [
     { title: "Chuyên nghiệp", desc: "Chuẩn xác từng chi tiết, quản trị rủi ro tối đa trong từng sự kiện" },
     { title: "Sáng tạo", desc: "Ý tưởng đột phá, kịch bản độc bản cá nhân hóa theo từng khách hàng" },

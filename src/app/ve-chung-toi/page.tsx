@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
+import VisionMissionSection from "@/components/VisionMissionSection";
+import TimelineMilestonesSection from "@/components/TimelineMilestonesSection";
 import {
   COMPANY_INFO,
   PARTNER_GROUPS,
@@ -40,6 +42,7 @@ import {
   BadgeCheck,
   Tv,
 } from "lucide-react";
+import { TRAN_THU_HA_AVATAR } from "@/lib/tran-thu-ha-avatar";
 
 export const metadata: Metadata = {
   title: "Giới Thiệu Trường Hải Event & Travel | Tổ Chức Sự Kiện & Du Lịch Trọn Gói",
@@ -47,74 +50,41 @@ export const metadata: Metadata = {
     "Công ty TNHH Sự kiện và Du lịch Trường Hải - Sự kiện chuyên nghiệp, Du lịch trải nghiệm, Kết nối thành công. Thông tin pháp lý minh bạch MST 0111601327, đối tác cơ quan nhà nước, trường học và tập đoàn hàng đầu.",
 };
 
-// Cột mốc lịch sử phát triển 10+ năm
-const TIMELINE_MILESTONES = [
-  {
-    year: "2014",
-    title: "Khởi Sự & Đam Mê Phụng Sự",
-    desc: "Thành lập Trường Hải Event tại Hà Nội với đội ngũ sáng lập nòng cốt giàu nhiệt huyết. Khởi đầu từ việc tổ chức các hội nghị, hội thảo học thuật và sự kiện khánh thành vừa & nhỏ.",
-    tag: "Khởi nghiệp",
-    highlight: "100+ sự kiện đầu tiên",
-  },
-  {
-    year: "2017",
-    title: "Đột Phá Kho Thiết Bị Trực Tiếp",
-    desc: "Đầu tư bài bản kho âm thanh Line Array công suất lớn và màn hình LED P3.91 nhập khẩu trực tiếp. Cắt giảm 100% khâu trung gian, giúp khách hàng tiết kiệm 20% - 30% ngân sách.",
-    tag: "Kho thiết bị 100%",
-    highlight: "Sở hữu trực tiếp",
-  },
-  {
-    year: "2020",
-    title: "Mở Rộng Khối Lữ Hành & Tour MICE",
-    desc: "Chính thức bổ sung mảng Du Lịch & Vận Tải, đầu tư dàn xe 7 - 45 chỗ đời mới. Tiên phong mô hình kết hợp Hội nghị MICE và Team Building gắn kết quy mô trên 1.500 người.",
-    tag: "MICE & Team Building",
-    highlight: "Dàn xe đời mới",
-  },
-  {
-    year: "2023",
-    title: "Đối Tác Chiến Lược Cấp Cơ Quan & Tập Đoàn",
-    desc: "Trở thành đối tác tin cậy thường niên của các Bộ ban ngành Trung ương, Trung tâm Tình nguyện Quốc gia, hơn 20 trường đại học và các tập đoàn lớn (Vingroup, LocknLock, Toyoky...).",
-    tag: "Đối tác chiến lược",
-    highlight: "Cơ quan Trung ương",
-  },
-  {
-    year: "2025 - Nay",
-    title: "Số Hóa Sự Kiện & Phủ Sóng Toàn Quốc",
-    desc: "Ứng dụng công nghệ trình diễn ánh sáng 3D Mapping, Hologram và số hóa điều hành tour. Mở rộng mạng lưới đối tác khách sạn 4 - 5 sao và địa điểm tổ chức khắp 3 miền Bắc - Trung - Nam.",
-    tag: "Đỉnh cao công nghệ",
-    highlight: "Quy mô toàn quốc",
-  },
-];
+
 
 // Đội ngũ nhân sự nòng cốt
 const KEY_LEADERSHIP = [
   {
-    name: "Nguyễn Trường Hải",
+    name: "Nguyễn Thị Thu Hằng",
     role: "Giám Đốc Điều Hành (CEO & Founder)",
     exp: "12+ năm kinh nghiệm",
     desc: "Chỉ đạo chiến lược, trực tiếp hoạch định và đàm phán các sự kiện trọng điểm cấp cơ quan Trung ương và các đại dự án toàn quốc.",
-    avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
+    avatar: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=600&q=80",
+    commitment: "🌟 Tận tâm dẫn dắt & Trao trọn giá trị",
   },
   {
     name: "Trần Thu Hà",
     role: "Giám Đốc Nghệ Thuật (Creative Director)",
     exp: "10+ năm kinh nghiệm",
     desc: "Chuyên gia sáng tạo kịch bản, tổng đạo diễn sân khấu cho hơn 300+ đêm Gala Dinner, lễ kỷ niệm thành lập và festival nghệ thuật.",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
+    avatar: TRAN_THU_HA_AVATAR,
+    commitment: "💡 Sáng tạo đột phá & Cảm xúc trọn vẹn",
   },
   {
     name: "Lê Hoàng Nam",
     role: "Trưởng Khối Kỹ Thuật & Thiết Bị (Technical Lead)",
     exp: "9+ năm kinh nghiệm",
     desc: "Quản lý 100% kho thiết bị âm thanh ánh sáng, màn hình LED. Đảm bảo an toàn kỹ thuật và chất lượng vận hành hoàn hảo không sai sót.",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
+    avatar: "https://plus.unsplash.com/premium_photo-1661688797823-36e97735223e?auto=format&fit=crop&w=600&q=80",
+    commitment: "⚡ Chuẩn xác 100% & An toàn tuyệt đối",
   },
   {
     name: "Phạm Mai Linh",
     role: "Giám Đốc Khối Lữ Hành & Tour MICE (Tour Director)",
     exp: "8+ năm kinh nghiệm",
     desc: "Thiết kế và điều hành các tour du lịch trải nghiệm, hội nghị MICE và Team Building cao cấp cho các tập đoàn và trường đại học lớn.",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=600&q=80",
+    avatar: "https://plus.unsplash.com/premium_photo-1664474599379-d4f18f140067?auto=format&fit=crop&w=600&q=80",
+    commitment: "🤝 Trải nghiệm gắn kết & Dịch vụ chỉn chu",
   },
 ];
 
@@ -286,260 +256,14 @@ export default function AboutUsPage() {
       </section>
 
       {/* =========================================================================
-          2. TẦM NHÌN, SỨ MỆNH & 4 GIÁ TRỊ CỐT LÕI (ĐỊNH HƯỚNG CHIẾN LƯỢC)
+          2. TẦM NHÌN & SỨ MỆNH (ĐỊNH HƯỚNG CHIẾN LƯỢC THEO THIẾT KẾ MỚI)
       ========================================================================= */}
-      <section className="py-14 sm:py-16 lg:py-20 bg-slate-50 relative overflow-hidden border-b border-slate-200">
-        {/* Soft luxury ambient background glow */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[600px] h-40 bg-gradient-to-b from-amber-200/20 via-amber-100/10 to-transparent blur-3xl pointer-events-none -z-0" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          {/* SECTION HEADER: Split Left (Title) & Right (Description with amber line) */}
-          <Reveal delay={100} direction="up">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
-              {/* Left Column: Line accent + 2-line Heading */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-[2px] bg-amber-500 rounded-full" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600">
-                    Định Hướng Chiến Lược
-                  </span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl lg:text-[34px] font-bold text-[#0A1E5E] tracking-tight leading-tight">
-                  Tầm Nhìn, Sứ Mệnh <br />
-                  <span className="text-[#0A1E5E]">&amp; </span>
-                  <span className="text-[#D4AF37]">Giá Trị Cốt Lõi</span>
-                </h2>
-              </div>
-
-              {/* Right Column: Amber vertical border + Paragraph */}
-              <div className="max-w-md border-l-2 border-amber-400 pl-4 py-0.5">
-                <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal">
-                  Kim chỉ nam dẫn lối mọi hành động, chuẩn mực chất lượng và tâm huyết 
-                  mà đội ngũ Trường Hải Event &amp; Travel cam kết phụng sự đối tác trong từng dự án.
-                </p>
-              </div>
-            </div>
-          </Reveal>
-
-          {/* MAIN GRID: Asymmetrical 2-Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
-            {/* ================= LEFT COLUMN: HERO CARD TẦM NHÌN (lg:col-span-5) ================= */}
-            <div className="lg:col-span-5 flex flex-col">
-              <Reveal delay={150} direction="left" className="h-full">
-                <div className="relative h-full rounded-2xl bg-[#0A1E5E] p-6 sm:p-7 text-white shadow-xl overflow-hidden flex flex-col justify-between border border-blue-900/60 group hover:shadow-[0_20px_50px_rgba(10,30,94,0.35)] hover:-translate-y-1 transition-all duration-500">
-                  {/* Watermark 01 */}
-                  <span className="pointer-events-none absolute top-3 right-6 text-6xl sm:text-7xl font-bold text-white/[0.07] select-none font-mono group-hover:scale-105 transition-transform">
-                    01
-                  </span>
-
-                  {/* Concentric decorative ring arcs at bottom */}
-                  <div className="pointer-events-none absolute -bottom-16 -left-16 w-60 h-60 rounded-full border border-blue-400/10 group-hover:scale-110 transition-transform duration-700" />
-                  <div className="pointer-events-none absolute -bottom-10 -left-10 w-60 h-60 rounded-full border border-blue-400/15" />
-                  <div className="pointer-events-none absolute -bottom-4 -left-4 w-60 h-60 rounded-full border border-blue-400/20" />
-
-                  {/* Top Content */}
-                  <div className="relative z-10">
-                    {/* Icon container */}
-                    <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center mb-5 shadow-inner group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-950 transition-all duration-300">
-                      <Eye className="w-5 h-5 text-amber-400 group-hover:text-slate-950 transition-colors" />
-                    </div>
-
-                    {/* Sub-label */}
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-1.5">
-                      Khát Vọng Tương Lai
-                    </span>
-
-                    {/* Title */}
-                    <h3 className="text-xl sm:text-2xl font-bold text-white leading-snug mb-3">
-                      Tầm Nhìn Chiến Lược
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-xs sm:text-[13px] text-slate-200/90 leading-relaxed font-normal">
-                      {COMPANY_INFO.vision}
-                    </p>
-                  </div>
-
-                  {/* Bottom Divider & Tags */}
-                  <div className="mt-6 pt-4 border-t border-white/15 relative z-10">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-medium text-white backdrop-blur-sm group-hover:bg-white/20 transition-colors">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        Tiên phong sáng tạo
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-medium text-white backdrop-blur-sm group-hover:bg-white/20 transition-colors">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        Đối tác uy tín số 1
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            </div>
-
-            {/* ================= RIGHT COLUMN: SỨ MỆNH + DIVIDER + 4 GIÁ TRỊ (lg:col-span-7) ================= */}
-            <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
-              {/* Top: Sứ Mệnh Thương Hiệu Card */}
-              <Reveal delay={150} direction="right">
-                <div className="relative rounded-2xl bg-white p-5 sm:p-6 border border-slate-200/80 shadow-sm hover:shadow-lg hover:border-amber-300/80 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden group">
-                  {/* Soft circular decorative warm glow in background */}
-                  <div className="pointer-events-none absolute -top-8 -right-8 w-60 h-60 bg-gradient-to-br from-amber-100/40 to-transparent rounded-full blur-2xl" />
-
-                  {/* Watermark 02 */}
-                  <span className="pointer-events-none absolute top-2 right-6 text-5xl sm:text-6xl font-bold text-slate-200/60 select-none font-mono">
-                    02
-                  </span>
-
-                  <div className="relative z-10">
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1.5">
-                      Trọng Trách Phụng Sự
-                    </span>
-
-                    <h3 className="text-lg sm:text-xl font-bold text-[#0A1E5E] tracking-tight mb-2 group-hover:text-amber-600 transition-colors">
-                      Sứ Mệnh Thương Hiệu
-                    </h3>
-
-                    <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal mb-3.5 max-w-xl">
-                      {COMPANY_INFO.mission}
-                    </p>
-
-                    <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/90 text-[11px] font-medium text-slate-700">
-                        <span className="text-slate-400">✦</span> Trải nghiệm giàu giá trị
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/90 text-[11px] font-medium text-slate-700">
-                        <span className="text-slate-400">✦</span> Kết nối bền vững
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-
-              {/* Divider: 04 GIÁ TRỊ CỐT LÕI */}
-              <Reveal delay={200} direction="up">
-                <div className="flex items-center gap-2.5 py-0.5">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-700 whitespace-nowrap">
-                    04 Giá Trị Cốt Lõi
-                  </span>
-                  <div className="flex-1 h-[1.5px] bg-amber-300/60" />
-                </div>
-              </Reveal>
-
-              {/* Bottom: 2x2 Grid for 4 Core Values */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-                {COMPANY_INFO.coreValues.map((val, idx) => {
-                  const icons = [ShieldCheck, Sparkles, Heart, Users];
-                  const ValIcon = icons[idx] || Sparkles;
-
-                  return (
-                    <Reveal key={idx} delay={220 + idx * 70} direction="up" className="h-full">
-                      <div
-                        className="h-full rounded-xl bg-white p-4 border border-slate-200/90 shadow-sm hover:shadow-lg hover:border-amber-400/90 transition-all duration-300 group hover:-translate-y-1 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-[#0A1E5E] text-[#D4AF37] flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:rotate-3 group-hover:bg-gradient-to-br group-hover:from-[#0A1E5E] group-hover:to-[#16358c] transition-all shadow-sm">
-                              <ValIcon className="w-4 h-4 text-[#D4AF37]" />
-                            </div>
-                            <span className="text-[11px] font-mono font-bold text-slate-300 group-hover:text-amber-500 transition-colors">
-                              0{idx + 1}
-                            </span>
-                          </div>
-
-                          <h4 className="text-sm font-bold text-[#0A1E5E] group-hover:text-amber-600 transition-colors mb-1">
-                            {val.title}
-                          </h4>
-
-                          <p className="text-[11px] sm:text-xs text-slate-600 font-normal leading-relaxed">
-                            {val.desc}
-                          </p>
-                        </div>
-                      </div>
-                    </Reveal>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <VisionMissionSection />
 
       {/* =========================================================================
-          3. HÀNH TRÌNH LỊCH SỬ PHÁT TRIỂN (TIMELINE MILESTONES 10+ NĂM)
+          3. HÀNH TRÌNH LỊCH SỬ PHÁT TRIỂN & NHỮNG CỘT MỐC VÀNG
       ========================================================================= */}
-      <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <Reveal delay={100} direction="up">
-          <div className="text-center max-w-4xl mx-auto mb-14 space-y-2.5">
-            <span className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700">
-              <Clock className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Hành Trình Bền Bỉ 10+ Năm</span>
-            </span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0A1E5E] tracking-tight">
-              Lịch Sử Phát Triển &amp; <span className="whitespace-nowrap">Những Cột Mốc Vàng</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
-              Từ một đội ngũ trẻ giàu đam mê, Trường Hải Event & Travel đã không ngừng bứt phá 
-              để trở thành đơn vị tổ chức sự kiện & tour du lịch trọn gói uy tín hàng đầu.
-            </p>
-          </div>
-        </Reveal>
-
-        {/* Timeline Container */}
-        <div className="relative">
-          {/* Vertical Center Line for Desktop */}
-          <div className="hidden lg:block absolute left-1/2 top-4 bottom-4 -translate-x-1/2 w-0.5 bg-gradient-to-b from-[#D4AF37] via-[#0A1E5E]/30 to-[#D4AF37]" />
-
-          <div className="space-y-8 sm:space-y-12">
-            {TIMELINE_MILESTONES.map((item, idx) => {
-              const isEven = idx % 2 === 0;
-
-              return (
-                <div
-                  key={idx}
-                  className={`relative flex flex-col lg:flex-row items-center ${
-                    isEven ? "lg:flex-row-reverse" : ""
-                  }`}
-                >
-                  {/* Content Card (Left or Right) */}
-                  <div className="w-full lg:w-[46%]">
-                    <Reveal delay={120 + (idx % 3) * 60} direction={isEven ? "right" : "left"} className="w-full">
-                      <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-md hover:shadow-2xl transition-all duration-300 hover:border-[#D4AF37] hover:-translate-y-1 group relative">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-bold text-[#0A1E5E] px-3 py-1 rounded-full bg-slate-100 group-hover:bg-[#0A1E5E] group-hover:text-white transition-colors duration-300">
-                            {item.tag}
-                          </span>
-                          <span className="text-xs font-semibold text-amber-600 flex items-center gap-1 group-hover:scale-105 transition-transform">
-                            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                            {item.highlight}
-                          </span>
-                        </div>
-
-                        <h3 className="text-lg sm:text-xl font-bold text-[#0A1E5E] mb-2 leading-snug group-hover:text-amber-600 transition-colors">
-                          {item.title}
-                        </h3>
-
-                        <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
-                          {item.desc}
-                        </p>
-                      </div>
-                    </Reveal>
-                  </div>
-
-                  {/* Center Node / Year Badge */}
-                  <div className="my-4 lg:my-0 lg:w-[8%] flex flex-col items-center justify-center relative z-10 group">
-                    <div className="w-14 h-14 rounded-full bg-[#0A1E5E] text-[#D4AF37] border-4 border-white shadow-xl flex items-center justify-center font-bold text-xs group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.7)] group-hover:border-[#D4AF37] transition-all duration-300">
-                      {item.year.split(" ")[0]}
-                    </div>
-                  </div>
-
-                  {/* Empty Spacer on opposite side */}
-                  <div className="hidden lg:block lg:w-[46%]" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <TimelineMilestonesSection />
 
       {/* =========================================================================
           4. ĐỘI NGŨ NHÂN SỰ NÒNG CỐT & BAN LÃNH ĐẠO (KEY LEADERSHIP)
@@ -573,7 +297,7 @@ export default function AboutUsPage() {
                     <img
                       src={leader.avatar}
                       alt={leader.name}
-                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+                      className="w-full h-full object-cover object-top group-hover:scale-108 transition-transform duration-700 ease-out"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A1E5E]/90 via-[#0A1E5E]/20 to-transparent opacity-60 group-hover:opacity-85 transition-opacity" />
                     
@@ -600,9 +324,8 @@ export default function AboutUsPage() {
                       </p>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 flex items-center text-[11px] text-slate-500 font-medium">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 mr-1.5 shrink-0" />
-                      <span>Cam kết chuẩn mực & đồng hành</span>
+                    <div className="pt-3 border-t border-slate-100 flex items-center text-[11px] text-slate-700 font-medium">
+                      <span>{leader.commitment}</span>
                     </div>
                   </div>
                 </div>
