@@ -82,3 +82,18 @@ export const TRUONG_HAI_BRAND: BrandProfile = {
     "Hội nghị & Ngày hội việc làm Trường Đại học Bách Khoa Hà Nội",
   ],
 };
+
+export interface ScannedArticleUrl {
+  url: string;
+  title: string;
+  isScraped: boolean;
+  lastMod?: string;
+}
+
+export interface DomainScanResult {
+  domain: string;
+  sitemapFound: string | null;
+  totalFound: number;
+  unscrapedCount: number;
+  urls: ScannedArticleUrl[];
+}

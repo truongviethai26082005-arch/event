@@ -38,6 +38,12 @@ import {
   PhoneCall,
   Mail,
   MessageSquare,
+  CheckSquare,
+  Square,
+  PlayCircle,
+  Loader2,
+  ListFilter,
+  CheckCheck,
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 
@@ -61,6 +67,41 @@ export default function RadarSeoAdminPage() {
   const [competitorUrl, setCompetitorUrl] = useState("");
   const [targetKeyword, setTargetKeyword] = useState("");
   const [customPrompt, setCustomPrompt] = useState("");
+
+  // Chế độ quét: "domain" (Quét tự động toàn bộ domain/sitemap) hoặc "single" (URL bài viết đơn lẻ)
+  const [scanMode, setScanMode] = useState<"domain" | "single">("domain");
+
+  // Domain Scan state
+  const [domainInput, setDomainInput] = useState("");
+  const [isScanningDomain, setIsScanningDomain] = useState(false);
+  const [scannedResult, setScannedResult] = useState<{
+    domain: string;
+    sitemapFound: string | null;
+    totalFound: number;
+    unscrapedCount: number;
+    urls: {
+      url: string;
+      title: string;
+      isScraped: boolean;
+      lastMod?: string;
+      status?: "idle" | "processing" | "success" | "error";
+      error?: string;
+    }[];
+  } | null>(null);
+
+  // Danh sách các URL được tick chọn trong Domain Scanner
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  const [domainFilter, setDomainFilter] = useState<"all" | "unscraped">("all");
+
+  // Batch execution progress cho Radar hàng loạt
+  const [isBatchRunning, setIsBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    current: number;
+    total: number;
+    currentTitle: string;
+    successCount: number;
+    errorCount: number;
+  }>({ current: 0, total: 0, currentTitle: "", successCount: 0, errorCount: 0 });
 
   // Processing state & step tracker
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -309,6 +350,189 @@ export default function RadarSeoAdminPage() {
     }
   };
 
+  // QUÉT TỰ ĐỘNG DOMAIN ĐỐI THỦ
+  const handleScanDomain = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!domainInput.trim()) return;
+
+    setIsScanningDomain(true);
+    setErrorMsg(null);
+    setSelectedUrls([]);
+
+    try {
+      const res = await fetch("/api/radar/scan-domain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domainInput.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Không thể quét sitemap từ tên miền đối thủ.");
+      }
+
+      const formattedUrls = (data.urls || []).map((u: any) => ({
+        ...u,
+        status: "idle",
+      }));
+
+      setScannedResult({
+        domain: data.domain,
+        sitemapFound: data.sitemapFound,
+        totalFound: data.totalFound,
+        unscrapedCount: data.unscrapedCount,
+        urls: formattedUrls,
+      });
+
+      // Mặc định chọn các bài chưa cào (tối đa 10 bài đầu tiên)
+      const unscraped = formattedUrls
+        .filter((u: any) => !u.isScraped)
+        .slice(0, 10)
+        .map((u: any) => u.url);
+      setSelectedUrls(
+        unscraped.length > 0
+          ? unscraped
+          : formattedUrls.slice(0, 5).map((u: any) => u.url)
+      );
+    } catch (err: any) {
+      console.error("Scan domain error:", err);
+      setErrorMsg(err.message || "Lỗi khi quét sitemap domain đối thủ.");
+    } finally {
+      setIsScanningDomain(false);
+    }
+  };
+
+  // Chọn / bỏ chọn 1 URL trong danh sách
+  const handleToggleSelectUrl = (url: string) => {
+    setSelectedUrls((prev) =>
+      prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
+    );
+  };
+
+  // Chọn tất cả URL
+  const handleSelectAllUrls = (urlsToSelect: string[]) => {
+    setSelectedUrls(urlsToSelect);
+  };
+
+  // Bỏ chọn tất cả
+  const handleDeselectAllUrls = () => {
+    setSelectedUrls([]);
+  };
+
+  // CHẠY RADAR HÀNG LOẠT CHO CÁC BÀI ĐÃ CHỌN
+  const handleRunBatchRadar = async () => {
+    if (!scannedResult || selectedUrls.length === 0 || isBatchRunning) return;
+
+    setIsBatchRunning(true);
+    setErrorMsg(null);
+    setSaveStatus(null);
+
+    const targets = scannedResult.urls.filter((u) => selectedUrls.includes(u.url));
+    const total = targets.length;
+    let successCount = 0;
+    let errorCount = 0;
+
+    setBatchProgress({
+      current: 0,
+      total,
+      currentTitle: "Khởi tạo hàng đợi xử lý...",
+      successCount: 0,
+      errorCount: 0,
+    });
+
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
+      setBatchProgress((prev) => ({
+        ...prev,
+        current: i + 1,
+        currentTitle: target.title,
+      }));
+
+      // Cập nhật trạng thái item đang chạy
+      setScannedResult((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          urls: prev.urls.map((u) =>
+            u.url === target.url ? { ...u, status: "processing" } : u
+          ),
+        };
+      });
+
+      try {
+        const res = await fetch("/api/radar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            competitorUrl: target.url,
+            targetKeyword: target.title,
+            customPrompt: customPrompt.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Lỗi xử lý bài viết.");
+        }
+
+        successCount++;
+        // Cập nhật trạng thái thành công
+        setScannedResult((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            urls: prev.urls.map((u) =>
+              u.url === target.url
+                ? { ...u, status: "success", isScraped: true }
+                : u
+            ),
+          };
+        });
+
+        // Đưa kết quả bài viết mới nhất lên tab Preview
+        if (data.generatedPost) {
+          setEditablePost(data.generatedPost);
+          setAnalysisResult(data.analysis);
+        }
+      } catch (itemErr: any) {
+        errorCount++;
+        console.warn(`Lỗi khi cào bài ${target.url}:`, itemErr);
+        setScannedResult((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            urls: prev.urls.map((u) =>
+              u.url === target.url
+                ? { ...u, status: "error", error: itemErr.message || "Lỗi xử lý" }
+                : u
+            ),
+          };
+        });
+      }
+
+      setBatchProgress((prev) => ({
+        ...prev,
+        successCount,
+        errorCount,
+      }));
+
+      // Tự động reload danh sách bài viết từ Supabase sau mỗi bài
+      await fetchPosts();
+    }
+
+    setIsBatchRunning(false);
+    setSaveStatus(
+      `Hoàn tất Radar hàng loạt: Đã tạo thành công ${successCount}/${total} bài viết nháp trong Database!`
+    );
+  };
+
+  // Chuyển nhanh 1 bài sang chế độ đơn lẻ và chạy ngay
+  const handleQuickRunSingleFromScanned = (targetUrl: string, targetTitle: string) => {
+    setCompetitorUrl(targetUrl);
+    setTargetKeyword(targetTitle);
+    setScanMode("single");
+  };
+
   // Lưu vào Supabase với trạng thái tùy chọn
   const handleSaveToSupabase = async (status: "draft" | "published" | "scheduled") => {
     if (!editablePost) return;
@@ -510,160 +734,512 @@ export default function RadarSeoAdminPage() {
         {/* INPUT WORKSPACE */}
         <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl relative overflow-hidden">
           <div className="space-y-6">
+            {/* HEADER WORKSPACE & MODE SWITCHER */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
               <div className="flex items-center space-x-2">
                 <Search className="w-5 h-5 text-[#D4AF37]" />
                 <h2 className="text-base font-bold text-white">
-                  Nhập thông tin quét đối thủ
+                  {scanMode === "domain"
+                    ? "Chế độ 2: Quét tự động bằng Domain / Sitemap đối thủ"
+                    : "Chế độ 1: Quét bài viết đơn lẻ từ URL"}
                 </h2>
               </div>
 
-              {/* Sample Buttons theo từng Search Intent */}
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-slate-400 text-[11px] font-medium mr-1">Mẫu test v2.4.5:</span>
+              {/* Mode Switcher Buttons */}
+              <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/10 self-start sm:self-auto">
                 <button
                   type="button"
-                  onClick={() =>
-                    fillSample(
-                      "https://hoabinhevents.com/chi-phi-to-chuc-le-khanh-thanh-nha-may-la-bao-nhieu",
-                      "báo giá tổ chức lễ khánh thành nhà máy",
-                      "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan, múa lân sư rồng và kho thiết bị Line Array nhập khẩu trực tiếp."
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition"
+                  onClick={() => setScanMode("domain")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                    scanMode === "domain"
+                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
+                      : "text-slate-300 hover:text-white"
+                  }`}
                 >
-                  🎉 Lễ Khai trương
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Quét Domain / Sitemap</span>
+                  <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Khuyên dùng
+                  </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    fillSample(
-                      "https://vietnamevents.com/to-chuc-year-end-party",
-                      "tổ chức year end party công ty",
-                      "Tập trung vào concept Gatsby / Oscar, visual 3D mapping, kịch bản vinh danh 3 cung bậc cảm xúc, hotline 0844 198 333."
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition"
+                  onClick={() => setScanMode("single")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                    scanMode === "single"
+                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
+                      : "text-slate-300 hover:text-white"
+                  }`}
                 >
-                  🥂 Year End Party
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    fillSample(
-                      "https://vietranstour.com/tour-team-building-doanh-nghiep",
-                      "tour team building kết hợp gala dinner",
-                      "Nhấn mạnh mô hình Hybrid Event & Travel một đầu mối, sở hữu đội xe 16-45 chỗ đời mới, bao trọn khâu đưa đón và sân khấu gala bãi biển."
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition"
-                >
-                  🏖️ Team Building
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    fillSample(
-                      "https://marcom.com.vn/to-chuc-hoi-nghi-hoi-thao-chuyen-nghiep",
-                      "tổ chức hội thảo chuyên đề doanh nghiệp",
-                      "Tập trung vào hệ thống micro cổ ngỗng UHF 16 kênh chống nhiễu, màn hình LED P2.5 trong nhà độ mịn cao không lóa mắt, teabreak VIP."
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] transition"
-                >
-                  🎤 Hội nghị / Tọa đàm
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    fillSample(
-                      "https://chothueamthanhas.com/bang-gia-thue-am-thanh-anh-sang-ha-noi",
-                      "báo giá thuê âm thanh ánh sáng màn hình led hà nội",
-                      "Báo giá gốc từ kho, không qua trung gian, thông số loa Line Array nhập khẩu, màn LED P2.5/P3.91, kỹ thuật trực chiến 100%."
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition"
-                >
-                  🔊 Thuê thiết bị kho
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Link bài viết đơn lẻ</span>
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleScanAndGenerate} className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                {/* URL Input */}
-                <div className="lg:col-span-7">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    URL bài viết đối thủ cạnh tranh <span className="text-[#D4AF37]">*</span>
-                  </label>
-                  <div className="relative">
-                    <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://doithu.com/bai-viet-to-chuc-su-kien"
-                      value={competitorUrl}
-                      onChange={(e) => setCompetitorUrl(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+            {/* =====================================================================
+                CHẾ ĐỘ 2: QUÉT TỰ ĐỘNG THEO DOMAIN / SITEMAP
+            ===================================================================== */}
+            {scanMode === "domain" && (
+              <div className="space-y-6">
+                {/* Domain Input Form */}
+                <form onSubmit={handleScanDomain} className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <label className="block text-xs font-semibold text-slate-300">
+                        Tên miền hoặc Website đối thủ cần quét <span className="text-[#D4AF37]">*</span>
+                      </label>
+
+                      {/* Domain Samples */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-slate-400 text-[11px] font-medium mr-1">Domain mẫu:</span>
+                        <button
+                          type="button"
+                          onClick={() => setDomainInput("https://viet-power.vn")}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition cursor-pointer"
+                        >
+                          viet-power.vn
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDomainInput("https://hoabinhevents.com")}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition cursor-pointer"
+                        >
+                          hoabinhevents.com
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDomainInput("https://vietnamevents.com")}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition cursor-pointer"
+                        >
+                          vietnamevents.com
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="VD: viet-power.vn hoặc https://viet-power.vn"
+                          value={domainInput}
+                          onChange={(e) => setDomainInput(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isScanningDomain || !domainInput.trim()}
+                        className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer shrink-0"
+                      >
+                        {isScanningDomain ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Đang dò tìm Sitemap...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Radar className="w-4 h-4 text-[#0A1E5E]" />
+                            <span>Quét bài viết đối thủ</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Yêu cầu AI bổ sung dùng chung cho cả batch */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Chỉ đạo nội dung cho Gemini AI (áp dụng cho tất cả bài viết được cào)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="VD: Nhấn mạnh Trường Hải Event trực tiếp sở hữu tổng kho Line Array, LED P2.5; báo giá bóc tách theo quy mô, hotline 0844 198 333..."
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
                     />
                   </div>
+                </form>
+
+                {/* Batch Progress Bar khi đang chạy Radar hàng loạt */}
+                {isBatchRunning && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#0A1E5E]/80 border border-[#D4AF37]/40 space-y-3 animate-in fade-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center space-x-2 font-bold text-[#D4AF37]">
+                        <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                        <span>Đang chạy Radar tự động: Bài {batchProgress.current} / {batchProgress.total}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-300 truncate max-w-md">
+                        Đang xử lý: <span className="font-semibold text-white">{batchProgress.currentTitle}</span>
+                      </div>
+                    </div>
+
+                    {/* Progress Track */}
+                    <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden relative">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#D4AF37] to-emerald-400 transition-all duration-500 rounded-full"
+                        style={{
+                          width: `${Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Tiến độ: {Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%</span>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-emerald-400 font-medium">✓ Thành công: {batchProgress.successCount}</span>
+                        {batchProgress.errorCount > 0 && (
+                          <span className="text-rose-400 font-medium">✕ Lỗi: {batchProgress.errorCount}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* KẾT QUẢ QUÉT SITEMAP & DANH SÁCH BÀI VIẾT */}
+                {scannedResult && (
+                  <div className="space-y-4 pt-2 border-t border-white/10 animate-in fade-in">
+                    {/* Header thống kê kết quả */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span className="text-sm font-bold text-white">
+                            Tìm thấy {scannedResult.totalFound} bài viết từ {scannedResult.domain}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                          {scannedResult.sitemapFound
+                            ? `Nguồn sitemap: ${scannedResult.sitemapFound}`
+                            : "Dò tìm trực tiếp từ cấu trúc website"} •{" "}
+                          <span className="text-emerald-400 font-semibold">{scannedResult.unscrapedCount} bài mới</span> chưa từng cào •{" "}
+                          Đã chọn <span className="text-[#D4AF37] font-bold">{selectedUrls.length}</span> bài
+                        </p>
+                      </div>
+
+                      {/* Nút hành động chính */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const list = scannedResult.urls
+                              .filter((u) => domainFilter === "all" || !u.isScraped)
+                              .map((u) => u.url);
+                            handleSelectAllUrls(list);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-medium transition cursor-pointer flex items-center space-x-1"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span>Chọn tất cả</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeselectAllUrls}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-400 text-xs font-medium transition cursor-pointer flex items-center space-x-1"
+                        >
+                          <Square className="w-3.5 h-3.5" />
+                          <span>Bỏ chọn</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBatchRunning || selectedUrls.length === 0}
+                          onClick={handleRunBatchRadar}
+                          className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center space-x-2 disabled:opacity-50 cursor-pointer transition-all"
+                        >
+                          {isBatchRunning ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Đang chạy Radar ({selectedUrls.length} bài)...</span>
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="w-4 h-4" />
+                              <span>Bắt đầu chạy Radar ({selectedUrls.length} bài)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className="text-slate-400 font-medium flex items-center">
+                        <ListFilter className="w-3.5 h-3.5 mr-1" /> Lọc:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDomainFilter("all")}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                          domainFilter === "all"
+                            ? "bg-[#D4AF37] text-[#0A1E5E] font-bold"
+                            : "bg-white/5 text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Tất cả ({scannedResult.totalFound})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDomainFilter("unscraped")}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                          domainFilter === "unscraped"
+                            ? "bg-emerald-500 text-white font-bold"
+                            : "bg-white/5 text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Chỉ bài chưa cào ({scannedResult.unscrapedCount})
+                      </button>
+                    </div>
+
+                    {/* Danh sách bài viết dạng bảng / thẻ */}
+                    <div className="max-h-96 overflow-y-auto space-y-2 pr-1 rounded-2xl border border-white/10 p-2 bg-black/20">
+                      {scannedResult.urls
+                        .filter((item) => domainFilter === "all" || !item.isScraped)
+                        .map((item, idx) => {
+                          const isSelected = selectedUrls.includes(item.url);
+                          return (
+                            <div
+                              key={item.url}
+                              className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                                item.status === "processing"
+                                  ? "bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30"
+                                  : item.status === "success"
+                                  ? "bg-emerald-500/10 border-emerald-500/30"
+                                  : isSelected
+                                  ? "bg-white/10 border-[#D4AF37]/50"
+                                  : "bg-white/5 border-white/5 hover:bg-white/10"
+                              }`}
+                            >
+                              <div className="flex items-start space-x-3 min-w-0 flex-1">
+                                <input
+                                  type="checkbox"
+                                  id={`checkbox-${idx}`}
+                                  checked={isSelected}
+                                  onChange={() => handleToggleSelectUrl(item.url)}
+                                  disabled={isBatchRunning}
+                                  className="mt-1 w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
+                                />
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                  <label
+                                    htmlFor={`checkbox-${idx}`}
+                                    className="text-xs font-semibold text-white block truncate cursor-pointer hover:text-[#D4AF37] transition"
+                                    title={item.title}
+                                  >
+                                    {item.title}
+                                  </label>
+                                  <a
+                                    href={item.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] text-slate-400 hover:text-slate-200 truncate flex items-center space-x-1"
+                                  >
+                                    <span className="truncate">{item.url}</span>
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                  </a>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                                {/* Trạng thái */}
+                                {item.status === "processing" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Đang viết...</span>
+                                  </span>
+                                ) : item.status === "success" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                    <span>Đã tạo nháp</span>
+                                  </span>
+                                ) : item.status === "error" ? (
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center space-x-1">
+                                    <AlertCircle className="w-3 h-3 text-rose-400" />
+                                    <span>Lỗi</span>
+                                  </span>
+                                ) : item.isScraped ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                                    Đã cào trước đó
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    Chưa cào
+                                  </span>
+                                )}
+
+                                {/* Nút cào nhanh riêng bài này */}
+                                <button
+                                  type="button"
+                                  disabled={isBatchRunning || isAnalyzing}
+                                  onClick={() => handleQuickRunSingleFromScanned(item.url, item.title)}
+                                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A1E5E] text-slate-300 text-[11px] font-medium transition cursor-pointer"
+                                  title="Chuyển sang chế độ đơn lẻ để chạy riêng bài này"
+                                >
+                                  Chạy riêng bài này
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* =====================================================================
+                CHẾ ĐỘ 1: NHẬP LINK BÀI VIẾT ĐƠN LẺ (GIỮ NGUYÊN TOÀN BỘ TÍNH NĂNG)
+            ===================================================================== */}
+            {scanMode === "single" && (
+              <div className="space-y-6">
+                {/* Sample Buttons theo từng Search Intent */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs pb-3 border-b border-white/5">
+                  <span className="text-slate-400 text-[11px] font-medium mr-1">Mẫu test v2.4.5:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fillSample(
+                        "https://hoabinhevents.com/chi-phi-to-chuc-le-khanh-thanh-nha-may-la-bao-nhieu",
+                        "báo giá tổ chức lễ khánh thành nhà máy",
+                        "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan, múa lân sư rồng và kho thiết bị Line Array nhập khẩu trực tiếp."
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition cursor-pointer"
+                  >
+                    🎉 Lễ Khai trương
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fillSample(
+                        "https://vietnamevents.com/to-chuc-year-end-party",
+                        "tổ chức year end party công ty",
+                        "Tập trung vào concept Gatsby / Oscar, visual 3D mapping, kịch bản vinh danh 3 cung bậc cảm xúc, hotline 0844 198 333."
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition cursor-pointer"
+                  >
+                    🥂 Year End Party
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fillSample(
+                        "https://vietranstour.com/tour-team-building-doanh-nghiep",
+                        "tour team building kết hợp gala dinner",
+                        "Nhấn mạnh mô hình Hybrid Event & Travel một đầu mối, sở hữu đội xe 16-45 chỗ đời mới, bao trọn khâu đưa đón và sân khấu gala bãi biển."
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition cursor-pointer"
+                  >
+                    🏖️ Team Building
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fillSample(
+                        "https://marcom.com.vn/to-chuc-hoi-nghi-hoi-thao-chuyen-nghiep",
+                        "tổ chức hội thảo chuyên đề doanh nghiệp",
+                        "Tập trung vào hệ thống micro cổ ngỗng UHF 16 kênh chống nhiễu, màn hình LED P2.5 trong nhà độ mịn cao không lóa mắt, teabreak VIP."
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] transition cursor-pointer"
+                  >
+                    🎤 Hội nghị / Tọa đàm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fillSample(
+                        "https://chothueamthanhas.com/bang-gia-thue-am-thanh-anh-sang-ha-noi",
+                        "báo giá thuê âm thanh ánh sáng màn hình led hà nội",
+                        "Báo giá gốc từ kho, không qua trung gian, thông số loa Line Array nhập khẩu, màn LED P2.5/P3.91, kỹ thuật trực chiến 100%."
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition cursor-pointer"
+                  >
+                    🔊 Thuê thiết bị kho
+                  </button>
                 </div>
 
-                {/* Target Keyword */}
-                <div className="lg:col-span-5">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Từ khóa mục tiêu (Focus keyword)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: tổ chức lễ khánh thành nhà máy"
-                    value={targetKeyword}
-                    onChange={(e) => setTargetKeyword(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                  />
-                </div>
-              </div>
+                <form onSubmit={handleScanAndGenerate} className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* URL Input */}
+                    <div className="lg:col-span-7">
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        URL bài viết đối thủ cạnh tranh <span className="text-[#D4AF37]">*</span>
+                      </label>
+                      <div className="relative">
+                        <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://doithu.com/bai-viet-to-chuc-su-kien"
+                          value={competitorUrl}
+                          onChange={(e) => setCompetitorUrl(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                        />
+                      </div>
+                    </div>
 
-              {/* Custom Prompt Instructions */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="VD: Nhấn mạnh uy tín từng tổ chức sự kiện cho Vinpearl, Vietcombank, Cầu Thăng Long; lồng ghép hotline 0844 198 333..."
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                />
-              </div>
+                    {/* Target Keyword */}
+                    <div className="lg:col-span-5">
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Từ khóa mục tiêu (Focus keyword)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="VD: tổ chức lễ khánh thành nhà máy"
+                        value={targetKeyword}
+                        onChange={(e) => setTargetKeyword(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                      />
+                    </div>
+                  </div>
 
-              {/* Submit CTA */}
-              <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
-                <div className="text-xs text-slate-400 flex items-center space-x-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Quy trình tự động: Cào qua Jina ➔ Phân tích H1-H3 và lỗ hổng ➔ Tái tạo bài viết</span>
-                </div>
+                  {/* Custom Prompt Instructions */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="VD: Nhấn mạnh uy tín từng tổ chức sự kiện cho Vinpearl, Vietcombank, Cầu Thăng Long; lồng ghép hotline 0844 198 333..."
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isAnalyzing || !competitorUrl}
-                  className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Đang phân tích đối thủ...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Radar className="w-4 h-4 text-[#0A1E5E]" />
-                      <span>Quét và phân tích đối thủ ngay</span>
-                    </>
-                  )}
-                </button>
+                  {/* Submit CTA */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
+                    <div className="text-xs text-slate-400 flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>Quy trình tự động: Cào qua Jina ➔ Phân tích H1-H3 và lỗ hổng ➔ Tái tạo bài viết</span>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isAnalyzing || !competitorUrl}
+                      className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Đang phân tích đối thủ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Radar className="w-4 h-4 text-[#0A1E5E]" />
+                          <span>Quét và phân tích đối thủ ngay</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
 
             {/* Visual Step Progress Indicator chuẩn Skill System Content v2.4.5 (13 Bước Workflow Tự Động) */}
             {isAnalyzing && (
