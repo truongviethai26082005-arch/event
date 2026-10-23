@@ -18,6 +18,7 @@ import {
   Radar,
   Users,
 } from "lucide-react";
+import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 
 export default function Header() {
   const pathname = usePathname();
@@ -52,6 +53,7 @@ export default function Header() {
           <div className="flex items-center space-x-4">
             <a
               href={`tel:${COMPANY_INFO.hotline}`}
+              onClick={() => trackLandingLead("HOTLINE")}
               className="flex items-center text-[#D4AF37] hover:underline font-semibold"
             >
               <Phone className="w-3.5 h-3.5 mr-1" />
@@ -211,6 +213,7 @@ export default function Header() {
           <div className="pt-3 border-t border-white/10 space-y-2">
             <a
               href={`tel:${COMPANY_INFO.hotline}`}
+              onClick={() => trackLandingLead("HOTLINE")}
               className="flex items-center justify-center w-full py-2.5 rounded-lg bg-[#D4AF37] text-[#0A1E5E] font-bold text-sm shadow-md"
             >
               <Phone className="w-4 h-4 mr-2" />

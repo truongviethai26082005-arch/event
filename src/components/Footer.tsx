@@ -15,6 +15,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
+import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 
 export default function Footer() {
   return (
@@ -181,6 +182,7 @@ export default function Footer() {
                 <div>
                   <a
                     href={`tel:${COMPANY_INFO.hotline}`}
+                    onClick={() => trackLandingLead("HOTLINE")}
                     className="font-extrabold text-base text-[#D4AF37] hover:underline tracking-wide"
                   >
                     {COMPANY_INFO.hotlineDisplay}
@@ -212,6 +214,7 @@ export default function Footer() {
                 href={COMPANY_INFO.socials.facebook}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => trackLandingLead("FACEBOOK")}
                 className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all flex items-center justify-center text-slate-300 shadow-sm"
                 title="Facebook Trường Hải Event"
                 aria-label="Facebook"
@@ -226,6 +229,7 @@ export default function Footer() {
                 href={COMPANY_INFO.socials.zalo}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => trackLandingLead("ZALO")}
                 className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all flex items-center justify-center text-slate-300 shadow-sm text-xs font-black tracking-tight"
                 title="Zalo Trường Hải Event"
                 aria-label="Zalo"
