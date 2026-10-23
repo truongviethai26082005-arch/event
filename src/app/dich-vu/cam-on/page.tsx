@@ -58,7 +58,7 @@ function ThankYouContent() {
               </div>
               <div className="space-y-1 text-center sm:text-left">
                 <h4 className="font-bold text-sm text-[#0A1E5E]">
-                  Thời Gian Phản Hồi Cam Kết: Trong Vòng 30 Phút
+                  Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất
                 </h4>
                 <p className="text-xs text-amber-800 leading-relaxed font-light">
                   Chuyên viên tư vấn kỹ thuật sẽ liên hệ trực tiếp qua số điện thoại/Zalo:{" "}
@@ -114,40 +114,47 @@ function ThankYouContent() {
             </div>
 
             {/* Direct Consultation Box (Personalized Chat & Call) */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0A1E5E] via-[#0d236b] to-[#122868] text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-white/10 relative overflow-hidden">
+            <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0A1E5E] via-[#0d236b] to-[#122868] text-white text-center shadow-xl border border-white/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="space-y-2 text-center md:text-left relative z-10">
+              <div className="relative z-10 space-y-4">
+                {/* Badge */}
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-[#D4AF37] border border-[#D4AF37]/30">
-                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <Sparkles className="w-3.5 h-3.5" />
                   <span>KẾT NỐI TRỰC TIẾP CHUYÊN VIÊN TƯ VẤN 1-1</span>
                 </div>
-                <h4 className="text-lg sm:text-xl font-black text-white">
-                  Bạn Cần Báo Giá & Kế Hoạch Được Cá Nhân Hóa Ngay?
+
+                {/* Title */}
+                <h4 className="text-xl sm:text-2xl font-black text-white leading-snug max-w-xl mx-auto">
+                  Bạn Cần Báo Giá & Kế Hoạch<br className="hidden sm:block" /> Được Cá Nhân Hóa Ngay?
                 </h4>
-                <p className="text-xs sm:text-sm text-slate-300 font-light max-w-lg leading-relaxed">
-                  Để phương án sát nhất với địa điểm, quy mô khách mời và ngân sách thực tế của bạn, hãy nhắn tin trực tiếp với chuyên viên Trường Hải qua Zalo để được hỗ trợ bóc tách chi tiết ngay tức thì.
+
+                {/* Description */}
+                <p className="text-xs sm:text-sm text-slate-300 font-light max-w-lg mx-auto leading-relaxed">
+                  Để phương án sát nhất với địa điểm, quy mô khách mời và ngân sách thực tế của bạn, hãy nhắn tin trực tiếp với chuyên viên Trường Hải qua Zalo để được hỗ trợ bóc tách chi tiết ngay.
                 </p>
-              </div>
 
-              <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto relative z-10">
-                <a
-                  href={COMPANY_INFO.socials.zalo}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 text-center whitespace-nowrap cursor-pointer"
-                >
-                  <MessageCircle className="w-4 h-4 shrink-0" />
-                  <span>Chat Trực Tiếp Qua Zalo ({COMPANY_INFO.hotlineDisplay})</span>
-                </a>
+                {/* CTA Buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <a
+                    href={COMPANY_INFO.socials.zalo}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 shrink-0" />
+                    <span>Chat Qua Zalo ({COMPANY_INFO.hotlineDisplay})</span>
+                  </a>
 
-                <a
-                  href={`tel:${COMPANY_INFO.hotline}`}
-                  className="px-6 py-3.5 rounded-2xl bg-[#0A1E5E] hover:bg-[#16338a] text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/50 shadow-lg transition-all flex items-center justify-center gap-2 text-center whitespace-nowrap"
-                >
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <span>Gọi Hotline 24/7</span>
-                </a>
+                  <a
+                    href={`tel:${COMPANY_INFO.hotline}`}
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/50 shadow-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                  >
+                    <Phone className="w-4 h-4 shrink-0" />
+                    <span>Gọi Hotline 24/7</span>
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -155,7 +162,7 @@ function ThankYouContent() {
             <div className="pt-4 border-t border-slate-100 text-center">
               <Link
                 href="/dich-vu"
-                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#0A1E5E] transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-[#0A1E5E] bg-slate-100 hover:bg-[#0A1E5E] hover:text-[#D4AF37] border border-slate-200 hover:border-[#0A1E5E] transition-all shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Quay lại Trang Danh Mục Dịch Vụ</span>
