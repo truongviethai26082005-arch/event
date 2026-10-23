@@ -14,6 +14,8 @@ import { supabase, isSupabaseConfigured, DatabasePost, DatabaseLead } from "@/li
 import ConversionFunnel from "./ConversionFunnel";
 import CustomerSourcesChart from "./CustomerSourcesChart";
 import EventCalendar from "./EventCalendar";
+import EventProfileArchive from "./EventProfileArchive";
+import { getStoredEventProfiles, DEFAULT_EVENT_PROFILES } from "./event-profiles-data";
 import {
   Radar,
   Sparkles,
@@ -47,6 +49,7 @@ import {
   Loader2,
   ListFilter,
   CheckCheck,
+  Briefcase,
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
@@ -134,7 +137,13 @@ export default function RadarSeoAdminPage() {
   // Leads state
   const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads">("posts");
+  const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads" | "events">("posts");
+  const [eventProfilesCount, setEventProfilesCount] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      return getStoredEventProfiles().length;
+    }
+    return DEFAULT_EVENT_PROFILES.length;
+  });
 
   // Posts table state
   const [postsList, setPostsList] = useState<any[]>([]);
@@ -291,6 +300,15 @@ export default function RadarSeoAdminPage() {
   useEffect(() => {
     fetchPosts();
     fetchLeads();
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "events") {
+        setActiveAdminTab("events");
+      } else if (tabParam === "leads") {
+        setActiveAdminTab("leads");
+      }
+    }
   }, []);
 
   // Quick fill samples
@@ -298,6 +316,18 @@ export default function RadarSeoAdminPage() {
     setCompetitorUrl(url);
     setTargetKeyword(keyword);
     setCustomPrompt(promptText);
+  };
+
+  // Nạp minh chứng dự án thực tế từ Hồ sơ sự kiện vào Prompt AI
+  const injectEventProof = (
+    title: string,
+    company: string,
+    guests: number,
+    venue: string,
+    equipment: string
+  ) => {
+    const proofText = `Lồng ghép minh chứng dự án thực tế của Trường Hải Event: Dự án "${title}" tổ chức cho ${company} quy mô ${guests} khách VIP tại ${venue} (Hệ thống thiết bị: ${equipment}). Khẳng định năng lực thực chiến vượt trội so với đối thủ.`;
+    setCustomPrompt((prev) => (prev ? `${prev}\n- ${proofText}` : proofText));
   };
 
   // Main Radar Action: Call /api/radar
@@ -974,9 +1004,64 @@ export default function RadarSeoAdminPage() {
 
                   {/* Yêu cầu AI bổ sung dùng chung cho cả batch */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Chỉ đạo nội dung cho Gemini AI (áp dụng cho tất cả bài viết được cào)
-                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Chỉ đạo nội dung cho Gemini AI (áp dụng cho tất cả bài viết được cào)
+                      </label>
+                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
+                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
+                      </span>
+                    </div>
+
+                    {/* Quick inject pills from event profiles */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Lễ Khai Trương Showroom Nam Hải Auto",
+                            "Công ty Cổ phần Ô tô Nam Hải",
+                            250,
+                            "Cầu Giấy, Hà Nội",
+                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Khai trương Nam Hải (250 khách)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
+                            "Tập Đoàn Sun Group",
+                            500,
+                            "Meliá Hà Nội 5 sao",
+                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Gala Sun Group Meliá (500 khách)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Hội Nghị Thượng Đỉnh AI FPT Software",
+                            "FPT Software Toàn Cầu",
+                            400,
+                            "Trung tâm Hội nghị Quốc gia NCC",
+                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Hội Nghị FPT NCC (400 khách)
+                      </button>
+                    </div>
+
                     <textarea
                       rows={2}
                       placeholder="VD: Nhấn mạnh Trường Hải Event trực tiếp sở hữu tổng kho Line Array, LED P2.5; báo giá bóc tách theo quy mô, hotline 0844 198 333..."
@@ -1397,9 +1482,79 @@ export default function RadarSeoAdminPage() {
 
                   {/* Custom Prompt Instructions */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
-                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
+                      </label>
+                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
+                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
+                      </span>
+                    </div>
+
+                    {/* Quick inject pills from event profiles */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Lễ Khai Trương Showroom Nam Hải Auto",
+                            "Công ty Cổ phần Ô tô Nam Hải",
+                            250,
+                            "Cầu Giấy, Hà Nội",
+                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Khai trương Nam Hải (250 khách)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
+                            "Tập Đoàn Sun Group",
+                            500,
+                            "Meliá Hà Nội 5 sao",
+                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Gala Sun Group Meliá (500 khách)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Hội Nghị Thượng Đỉnh AI FPT Software",
+                            "FPT Software Toàn Cầu",
+                            400,
+                            "Trung tâm Hội nghị Quốc gia NCC",
+                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Hội Nghị FPT NCC (400 khách)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          injectEventProof(
+                            "Teambuilding Viettel Telecom",
+                            "Viettel Telecom",
+                            350,
+                            "Flamingo Đại Lải 5 sao",
+                            "Game tool liên hoàn hơi độc quyền, Âm thanh JBL ngoài trời, Flycam 4K"
+                          )
+                        }
+                        className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition"
+                      >
+                        + Teambuilding Viettel (350 khách)
+                      </button>
+                    </div>
+
                     <textarea
                       rows={2}
                       placeholder="VD: Nhấn mạnh uy tín từng tổ chức sự kiện cho Vinpearl, Vietcombank, Cầu Thăng Long; lồng ghép hotline 0844 198 333..."
@@ -2008,7 +2163,7 @@ export default function RadarSeoAdminPage() {
         <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
           {/* Main CMS Tab Switcher */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
-            <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
+            <div className="inline-flex flex-wrap p-1 rounded-xl bg-white/5 border border-white/10 gap-1">
               <button
                 type="button"
                 onClick={() => setActiveAdminTab("posts")}
@@ -2034,6 +2189,19 @@ export default function RadarSeoAdminPage() {
                 <Users className="w-3.5 h-3.5" />
                 <span>Khách Hàng Đăng Ký Tư Vấn ({leadsList.length})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminTab("events")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "events"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Hồ Sơ Sự Kiện & Lưu Trữ Dự Án ({eventProfilesCount})</span>
+              </button>
             </div>
 
             <button
@@ -2041,6 +2209,9 @@ export default function RadarSeoAdminPage() {
               onClick={() => {
                 fetchPosts();
                 fetchLeads();
+                if (typeof window !== "undefined") {
+                  setEventProfilesCount(getStoredEventProfiles().length);
+                }
               }}
               className="inline-flex items-center text-xs text-[#D4AF37] hover:underline self-end sm:self-auto"
             >
@@ -2245,7 +2416,7 @@ export default function RadarSeoAdminPage() {
             </table>
           </div>
             </div>
-          ) : (
+          ) : activeAdminTab === "leads" ? (
             /* =====================================================================
                LEADS MANAGEMENT TABLE (DANH SÁCH KHÁCH HÀNG BÁO GIÁ)
             ===================================================================== */
@@ -2357,6 +2528,25 @@ export default function RadarSeoAdminPage() {
                 </table>
               </div>
             </div>
+          ) : (
+            /* =====================================================================
+               EVENT PROFILES MANAGEMENT & ARCHIVE (HỒ SƠ SỰ KIỆN & CASE STUDIES)
+            ===================================================================== */
+            <EventProfileArchive
+              onOpenInRadarEditor={(post) => {
+                setEditablePost(post);
+                setActiveResultTab("article");
+                setArticlePreviewMode("edit");
+                setTimeout(() => {
+                  const editorEl = document.getElementById("radar-results-editor");
+                  if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              }}
+              onPostCreated={(newPost) => {
+                setPostsList((prev) => [newPost, ...prev]);
+                fetchPosts();
+              }}
+            />
           )}
         </div>
       </div>
