@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -119,8 +120,14 @@ export default async function BlogPostDetailPage({ params }: Props) {
 
             {/* Author / Company Brand Box */}
             <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-amber-50/50 border border-[#D4AF37]/30 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#0A1E5E] text-[#D4AF37] font-black text-xl flex items-center justify-center shrink-0 shadow-md">
-                TH
+              <div className="w-14 h-14 rounded-2xl bg-white border border-[#D4AF37]/40 flex items-center justify-center shrink-0 shadow-md overflow-hidden">
+                <Image
+                  src="/images/logo.png"
+                  alt="Logo Trường Hải Event & Travel"
+                  width={112}
+                  height={112}
+                  className="w-full h-full object-contain scale-125"
+                />
               </div>
               <div className="space-y-1 text-center sm:text-left">
                 <h4 className="font-bold text-[#0A1E5E] text-sm">
