@@ -11,6 +11,7 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { callGeminiWithFallback } from "./gemini-client";
 import {
   IntentAnalysisResult,
   GeneratedArticle,
@@ -482,15 +483,6 @@ export async function generateFullContentAndSchema(
 
   if (geminiApiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.7,
-        },
-      });
-
       const prompt = `
 Bạn là Giám đốc Chiến lược Nội dung & Chuyên gia SEO cao cấp của ${brand.companyName} (Hotline 24/7: ${brand.hotline}, Giám đốc: ${brand.director}, MST: ${brand.taxId}).
 Nhiệm vụ: Viết bài viết hoàn chỉnh chuẩn Markdown theo CẤU TRÚC ON-PAGE CHUYÊN NGHIỆP CỦA CÁC WEBSITE SỰ KIỆN HÀNG ĐẦU.
@@ -577,8 +569,12 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 }
 `;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await callGeminiWithFallback({
+        apiKey: geminiApiKey,
+        prompt,
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      });
       const parsed = JSON.parse(text);
 
       if (parsed.title && parsed.content) {

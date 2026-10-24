@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Award,
   Briefcase,
+  Building2,
   Calendar,
   Camera,
   CheckCircle2,
@@ -26,9 +27,12 @@ import {
   Paperclip,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Star,
+  SunMedium,
   Trash2,
   TrendingUp,
   Users,
@@ -45,6 +49,7 @@ import {
   deleteEventProfile,
   fetchAndSyncRealEventProfiles,
   setupRealtimeEventProfilesSync,
+  getEventVenueType,
 } from "./event-profiles-data";
 import {
   generateCaseStudyArticle,
@@ -84,6 +89,37 @@ export default function EventProfileArchive({
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "ongoing" | "archived">("all");
   const [originFilter, setOriginFilter] = useState<"all" | "crm" | "standard">("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  // Multi-dimensional filters (Bộ lọc đa chiều: Ngân sách, Quy mô, Không gian)
+  const [budgetFilter, setBudgetFilter] = useState<
+    "all" | "under_100m" | "100m_300m" | "300m_500m" | "over_500m"
+  >("all");
+  const [guestScaleFilter, setGuestScaleFilter] = useState<
+    "all" | "under_100" | "100_500" | "500_1000" | "over_1000"
+  >("all");
+  const [venueTypeFilter, setVenueTypeFilter] = useState<
+    "all" | "indoor" | "outdoor"
+  >("all");
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+    categoryFilter !== "all" ||
+    statusFilter !== "all" ||
+    originFilter !== "all" ||
+    budgetFilter !== "all" ||
+    guestScaleFilter !== "all" ||
+    venueTypeFilter !== "all"
+  );
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setStatusFilter("all");
+    setOriginFilter("all");
+    setBudgetFilter("all");
+    setGuestScaleFilter("all");
+    setVenueTypeFilter("all");
+  };
 
   // Modal giải thích chi tiết khi ấn vào từng thẻ chỉ số & nút chức năng
   const [activeMetricModal, setActiveMetricModal] = useState<
@@ -173,6 +209,7 @@ export default function EventProfileArchive({
   const [newVenue, setNewVenue] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [newCity, setNewCity] = useState("Hà Nội");
+  const [newVenueType, setNewVenueType] = useState<"indoor" | "outdoor">("indoor");
   const [newGuestCount, setNewGuestCount] = useState<number>(200);
   const [newBudget, setNewBudget] = useState<number>(50000000);
   const [newActualCost, setNewActualCost] = useState<number>(35000000);
@@ -203,7 +240,7 @@ export default function EventProfileArchive({
     };
   }, [profiles]);
 
-  // Danh sách hồ sơ đã lọc
+  // Danh sách hồ sơ đã lọc (Hỗ trợ lọc đa chiều: Ngân sách, Quy mô, Không gian)
   const filteredProfiles = useMemo(() => {
     return profiles.filter((p) => {
       // Filter origin (CRM vs Standard)
@@ -213,6 +250,31 @@ export default function EventProfileArchive({
       if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
       // Filter status
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
+
+      // Filter Budget (Khoảng ngân sách)
+      if (budgetFilter !== "all") {
+        const b = p.financials.totalBudget;
+        if (budgetFilter === "under_100m" && b >= 100000000) return false;
+        if (budgetFilter === "100m_300m" && (b < 100000000 || b > 300000000)) return false;
+        if (budgetFilter === "300m_500m" && (b < 300000000 || b > 500000000)) return false;
+        if (budgetFilter === "over_500m" && b < 500000000) return false;
+      }
+
+      // Filter Guest Scale (Quy mô số khách)
+      if (guestScaleFilter !== "all") {
+        const g = p.guestCount;
+        if (guestScaleFilter === "under_100" && g >= 100) return false;
+        if (guestScaleFilter === "100_500" && (g < 100 || g > 500)) return false;
+        if (guestScaleFilter === "500_1000" && (g < 500 || g > 1000)) return false;
+        if (guestScaleFilter === "over_1000" && g < 1000) return false;
+      }
+
+      // Filter Venue Type (Không gian tổ chức: Trong nhà vs Ngoài trời)
+      if (venueTypeFilter !== "all") {
+        const vType = getEventVenueType(p);
+        if (vType !== venueTypeFilter) return false;
+      }
+
       // Filter search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -228,7 +290,16 @@ export default function EventProfileArchive({
       }
       return true;
     });
-  }, [profiles, originFilter, categoryFilter, statusFilter, searchQuery]);
+  }, [
+    profiles,
+    originFilter,
+    categoryFilter,
+    statusFilter,
+    budgetFilter,
+    guestScaleFilter,
+    venueTypeFilter,
+    searchQuery,
+  ]);
 
   // Xử lý Xóa hồ sơ
   const handleDelete = (id: string, e?: React.MouseEvent) => {
@@ -345,6 +416,7 @@ export default function EventProfileArchive({
         address: newAddress.trim() || "Khu đô thị mới",
         city: newCity.trim() || "Hà Nội",
       },
+      venueType: newVenueType,
       guestCount: Number(newGuestCount) || 150,
       financials: {
         totalBudget: Number(newBudget) || 50000000,
@@ -623,92 +695,187 @@ export default function EventProfileArchive({
       </div>
 
       {/* =====================================================================
-          FILTER & SEARCH TOOLBAR: CLEAN & PROFESSIONAL
+          FILTER & SEARCH TOOLBAR: MULTI-DIMENSIONAL RADAR & ENTERPRISE STANDARD
       ===================================================================== */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Tìm theo tên sự kiện, khách hàng, địa điểm, từ khóa..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-slate-800 text-xs outline-none focus:border-[#0A1E5E] focus:ring-1 focus:ring-[#0A1E5E] placeholder:text-slate-400 transition"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
-            >
-              ✕
-            </button>
-          )}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+        {/* Row 1: Search + Result Counter + View Mode + Reset Button */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm theo tên sự kiện, khách hàng, địa điểm, từ khóa..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-slate-800 text-xs outline-none focus:border-[#0A1E5E] focus:ring-1 focus:ring-[#0A1E5E] placeholder:text-slate-400 transition"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* Result count badge */}
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+              Tìm thấy <strong className="text-[#0A1E5E] font-bold">{filteredProfiles.length}</strong> / {profiles.length} hồ sơ
+            </span>
+
+            {/* Reset Filters button */}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition shadow-xs"
+                title="Xóa tất cả bộ lọc về mặc định"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Đặt lại</span>
+              </button>
+            )}
+
+            {/* View Mode */}
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  viewMode === "grid"
+                    ? "bg-white text-[#0A1E5E] shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Lưới Card
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  viewMode === "table"
+                    ? "bg-white text-[#0A1E5E] shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Bảng Danh Sách
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Category Dropdown */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0A1E5E]"
-          >
-            <option value="all">Tất cả loại hình ({profiles.length})</option>
-            <option value="khai-truong">Lễ Khai Trương</option>
-            <option value="gala-dinner">Gala Dinner &amp; Kỷ Niệm</option>
-            <option value="hoi-nghi">Hội Nghị Quốc Tế</option>
-            <option value="teambuilding">Teambuilding &amp; Du Lịch</option>
-          </select>
+        {/* Row 2: Bộ lọc phân loại đa chiều (Ngân sách, Quy mô, Không gian, Loại hình, Nguồn) */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex items-center text-xs font-bold text-slate-500 mr-1">
+            <SlidersHorizontal className="w-3.5 h-3.5 mr-1 text-[#0A1E5E]" />
+            <span>Phân loại đa chiều:</span>
+          </div>
 
-          {/* Status Dropdown */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0A1E5E]"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="completed">Đã hoàn thành</option>
-            <option value="ongoing">Đang diễn ra</option>
-            <option value="archived">Lưu trữ</option>
-          </select>
-
-          {/* Origin Dropdown: All vs CRM vs Standard */}
-          <select
-            value={originFilter}
-            onChange={(e) => setOriginFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0A1E5E]"
-          >
-            <option value="all">Tất cả nguồn ({profiles.length})</option>
-            <option value="crm">Đồng bộ CRM ({profiles.filter((p) => p.isAutoSynced).length})</option>
-            <option value="standard">Hồ sơ nội bộ ({profiles.filter((p) => !p.isAutoSynced).length})</option>
-          </select>
-
-          {/* View Mode */}
-          <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                viewMode === "grid"
-                  ? "bg-white text-[#0A1E5E] shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
+          {/* 1. Khoảng ngân sách */}
+          <div className="relative">
+            <select
+              value={budgetFilter}
+              onChange={(e) => setBudgetFilter(e.target.value as any)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition cursor-pointer ${
+                budgetFilter !== "all"
+                  ? "border-amber-400 bg-amber-50 text-amber-900 ring-1 ring-amber-400 font-bold"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
               }`}
             >
-              Lưới Card
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                viewMode === "table"
-                  ? "bg-white text-[#0A1E5E] shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
+              <option value="all">💰 Tất cả ngân sách</option>
+              <option value="under_100m">Dưới 100 triệu (&lt; 100M)</option>
+              <option value="100m_300m">100 - 300 triệu (100M - 300M)</option>
+              <option value="300m_500m">300 - 500 triệu (300M - 500M)</option>
+              <option value="over_500m">Trên 500 triệu (&gt; 500M)</option>
+            </select>
+          </div>
+
+          {/* 2. Quy mô số khách */}
+          <div className="relative">
+            <select
+              value={guestScaleFilter}
+              onChange={(e) => setGuestScaleFilter(e.target.value as any)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition cursor-pointer ${
+                guestScaleFilter !== "all"
+                  ? "border-blue-400 bg-blue-50 text-blue-900 ring-1 ring-blue-400 font-bold"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
               }`}
             >
-              Bảng Danh Sách
-            </button>
+              <option value="all">👥 Tất cả quy mô</option>
+              <option value="under_100">&lt; 100 khách (Sự kiện nhỏ/VIP)</option>
+              <option value="100_500">100 - 500 khách (Vừa &amp; Phổ biến)</option>
+              <option value="500_1000">500 - 1.000 khách (Quy mô lớn)</option>
+              <option value="over_1000">&gt; 1.000 khách (Đại sự kiện/Festival)</option>
+            </select>
+          </div>
+
+          {/* 3. Không gian tổ chức (Trong nhà / Ngoài trời) */}
+          <div className="relative">
+            <select
+              value={venueTypeFilter}
+              onChange={(e) => setVenueTypeFilter(e.target.value as any)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition cursor-pointer ${
+                venueTypeFilter !== "all"
+                  ? "border-emerald-400 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-400 font-bold"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              <option value="all">🏛️ Tất cả không gian</option>
+              <option value="indoor">Trong nhà (Ballroom / Sảnh / Hội trường)</option>
+              <option value="outdoor">Ngoài trời (Bãi biển / Resort / Bãi cỏ)</option>
+            </select>
+          </div>
+
+          {/* 4. Category Dropdown */}
+          <div className="relative">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as any)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition cursor-pointer ${
+                categoryFilter !== "all"
+                  ? "border-purple-400 bg-purple-50 text-purple-900 ring-1 ring-purple-400 font-bold"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              <option value="all">📁 Tất cả loại hình</option>
+              <option value="khai-truong">Lễ Khai Trương</option>
+              <option value="gala-dinner">Gala Dinner &amp; Kỷ Niệm</option>
+              <option value="hoi-nghi">Hội Nghị Quốc Tế</option>
+              <option value="teambuilding">Teambuilding &amp; Du Lịch</option>
+              <option value="thiet-bi">Cho Thuê Thiết Bị AV</option>
+              <option value="le-hoi">Lễ Hội &amp; Festival</option>
+            </select>
+          </div>
+
+          {/* 5. Origin Dropdown */}
+          <div className="relative">
+            <select
+              value={originFilter}
+              onChange={(e) => setOriginFilter(e.target.value as any)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0A1E5E] cursor-pointer"
+            >
+              <option value="all">🌐 Tất cả nguồn</option>
+              <option value="crm">⚡ Đồng bộ CRM ({profiles.filter((p) => p.isAutoSynced).length})</option>
+              <option value="standard">🏛️ Hồ sơ nội bộ ({profiles.filter((p) => !p.isAutoSynced).length})</option>
+            </select>
+          </div>
+
+          {/* 6. Status Dropdown */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0A1E5E] cursor-pointer"
+            >
+              <option value="all">Trạng thái: Tất cả</option>
+              <option value="completed">Đã hoàn thành</option>
+              <option value="ongoing">Đang diễn ra</option>
+              <option value="archived">Lưu trữ</option>
+            </select>
           </div>
         </div>
       </div>
@@ -801,7 +968,20 @@ export default function EventProfileArchive({
                         <span>Quy mô: <strong>{p.guestCount} khách VIP</strong></span>
                       </div>
                       <div className="flex items-center">
-                        <Paperclip className="w-3.5 h-3.5 mr-2 text-amber-600 shrink-0" />
+                        {getEventVenueType(p) === "indoor" ? (
+                          <Building2 className="w-3.5 h-3.5 mr-2 text-indigo-500 shrink-0" />
+                        ) : (
+                          <SunMedium className="w-3.5 h-3.5 mr-2 text-amber-500 shrink-0" />
+                        )}
+                        <span>
+                          Không gian:{" "}
+                          <strong className={getEventVenueType(p) === "indoor" ? "text-indigo-700" : "text-amber-700"}>
+                            {getEventVenueType(p) === "indoor" ? "Trong nhà (Ballroom)" : "Ngoài trời (Resort/Biển)"}
+                          </strong>
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Paperclip className="w-3.5 h-3.5 mr-2 text-slate-400 shrink-0" />
                         <span>Tài liệu &amp; hợp đồng: <strong>{p.documents.length} tệp tin</strong></span>
                       </div>
                     </div>
@@ -893,8 +1073,22 @@ export default function EventProfileArchive({
 
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-800">{p.client.company}</div>
-                      <div className="text-[11px] text-slate-500 truncate max-w-xs">
-                        {p.location.venue} ({p.location.city})
+                      <div className="text-[11px] text-slate-500 truncate max-w-xs flex items-center gap-1.5 mt-0.5">
+                        <span className="truncate">{p.location.venue} ({p.location.city})</span>
+                        <span
+                          className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                            getEventVenueType(p) === "indoor"
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                          }`}
+                        >
+                          {getEventVenueType(p) === "indoor" ? (
+                            <Building2 className="w-2.5 h-2.5" />
+                          ) : (
+                            <SunMedium className="w-2.5 h-2.5" />
+                          )}
+                          {getEventVenueType(p) === "indoor" ? "Trong nhà" : "Ngoài trời"}
+                        </span>
                       </div>
                     </td>
 
@@ -1503,7 +1697,7 @@ export default function EventProfileArchive({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Địa điểm</label>
                   <input
@@ -1522,6 +1716,17 @@ export default function EventProfileArchive({
                     onChange={(e) => setNewCity(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-900 outline-none focus:border-[#0A1E5E]"
                   />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Không gian</label>
+                  <select
+                    value={newVenueType}
+                    onChange={(e) => setNewVenueType(e.target.value as "indoor" | "outdoor")}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-900 outline-none focus:border-[#0A1E5E]"
+                  >
+                    <option value="indoor">Trong nhà (Ballroom)</option>
+                    <option value="outdoor">Ngoài trời (Resort/Biển)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Số lượng khách</label>

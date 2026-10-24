@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
+import SeoScoreChecklist from "./SeoScoreChecklist";
 import {
   CompetitorPreset,
   saveCustomCompetitor,
@@ -1995,6 +1996,15 @@ export default function RadarSeoAdminPage() {
                     />
                   </div>
                 </div>
+
+                {/* Thước đo chuẩn SEO On-Page Real-time */}
+                <SeoScoreChecklist
+                  title={editablePost.title || ""}
+                  focusKeyword={editablePost.focus_keyword || ""}
+                  metaDescription={editablePost.meta_description || ""}
+                  slug={editablePost.slug || ""}
+                  content={editablePost.content || ""}
+                />
 
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-white/10 gap-2">

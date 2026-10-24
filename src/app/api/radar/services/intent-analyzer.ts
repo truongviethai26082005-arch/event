@@ -8,6 +8,7 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { callGeminiWithFallback } from "./gemini-client";
 import { ScrapedData, IntentAnalysisResult, SearchIntent, OutlineSection, FaqItem } from "./types";
 
 /**
@@ -326,15 +327,6 @@ export async function analyzeIntentAndBuildOutline(
 
   if (geminiApiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.4, // Nhiệt độ thấp để cấu trúc JSON chặt chẽ
-        },
-      });
-
       const prompt = `
 Bạn là Chuyên gia Chiến lược SEO & Content Architecture cấp cao.
 Nhiệm vụ của bạn là phân tích Search Intent của từ khóa và dữ liệu đối thủ cào được, sau đó thiết kế một OUTLINE ĐỘNG ĐỘC BẢN và DANH SÁCH FAQ chuẩn SEO.
@@ -371,7 +363,7 @@ QUY TẮC BẮT BUỘC:
 Trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc Schema sau:
 {
   "search_intent": "informational" | "commercial" | "listicle",
-  "focus_keyword": "từ khóa chính có đầy đủ dấu tiếng Việt",
+  "focus_keyword": "tổ chức sự kiện có đầy đủ dấu tiếng Việt",
   "content_angle": "Góc tiếp cận bài viết",
   "content_gap": "Những điểm đối thủ thiếu mà bài mình sẽ bổ sung vượt trội",
   "outline": [
@@ -390,8 +382,13 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc Sche
 }
 `;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await callGeminiWithFallback({
+        apiKey: geminiApiKey,
+        prompt,
+        temperature: 0.4,
+        responseMimeType: "application/json",
+      });
+
       const parsed: IntentAnalysisResult = JSON.parse(text);
 
       if (parsed.search_intent && parsed.outline && Array.isArray(parsed.outline)) {
