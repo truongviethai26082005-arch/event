@@ -431,7 +431,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
             {/* Left Column: Headline & Value Proposition */}
-            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+            <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
               <Reveal delay={200}>
                 <h1 className="text-3xl sm:text-5xl lg:text-[45px] font-bold tracking-tight leading-[1.25]">
                   <span className="text-white drop-shadow-sm">SỰ KIỆN</span>{" "}
@@ -443,9 +443,11 @@ export default function HomePage() {
                   <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-[#D4AF37] bg-clip-text text-transparent">
                     TRẢI NGHIỆM
                   </span>
-                  <br />
-                  <span className="text-xl sm:text-2xl lg:text-3xl font-semibold bg-gradient-to-r from-slate-200 via-white to-amber-200 bg-clip-text text-transparent block mt-2 tracking-wide">
-                    KẾT NỐI THÀNH CÔNG
+                  <span
+                    style={{ fontFamily: "'Careera Script', 'Careera Script PERSONAL USE', cursive" }}
+                    className="block mt-2 sm:mt-2.5 -mb-1 sm:-mb-2 font-careera text-3xl sm:text-4xl lg:text-[46px] font-normal bg-gradient-to-r from-amber-100 via-amber-300 to-[#D4AF37] bg-clip-text text-transparent leading-[1.2] tracking-normal drop-shadow-md"
+                  >
+                    Kết nối thành công
                   </span>
                 </h1>
               </Reveal>
@@ -1521,6 +1523,7 @@ export default function HomePage() {
         </div>
       </section>
 
+<<<<<<< Updated upstream
       {/* =========================================================================
           FLOATING QUICK CONTACT BUTTONS (BOFU - CHỐT ĐƠN 24/7)
       ========================================================================= */}
@@ -1556,6 +1559,8 @@ export default function HomePage() {
           </span>
         </a>
       </div>
+=======
+>>>>>>> Stashed changes
     </div>
   );
 }
