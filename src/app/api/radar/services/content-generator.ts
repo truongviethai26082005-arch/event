@@ -18,8 +18,14 @@ import {
   BrandProfile,
   TRUONG_HAI_BRAND,
   FaqItem,
+  EventProfileProof,
 } from "./types";
 import { buildFaqPageSchema } from "./schema-builder";
+import {
+  findBestMatchingProfile,
+  renderEventProofMarkdown,
+  formatVND,
+} from "./event-profile-bridge";
 
 // Hàm chuyển đổi Sentence Case tiếng Việt và giữ danh từ riêng
 export function toSentenceCase(text: string): string {
@@ -130,12 +136,25 @@ function cleanKeywordForTopic(keyword: string): string {
 function generateInformationalContent(
   keyword: string,
   analysis: IntentAnalysisResult,
-  brand: BrandProfile
+  brand: BrandProfile,
+  eventProfile?: EventProfileProof,
+  options?: {
+    includeRealImages?: boolean;
+    includeRealPricing?: boolean;
+    includeTestimonial?: boolean;
+  }
 ): GeneratedArticle {
   const safeKeyword = ensureAccentedKeyword(analysis.focus_keyword || keyword);
   const isMc = safeKeyword.toLowerCase().includes("mc") || safeKeyword.toLowerCase().includes("lời dẫn");
   let topic = cleanKeywordForTopic(safeKeyword);
   topic = topic.replace(/^mc\s+/iu, "").trim() || "sự kiện";
+
+  const profile = eventProfile || findBestMatchingProfile(safeKeyword);
+  const proofMarkdown = renderEventProofMarkdown(profile, options);
+  const imageCoverMd =
+    options?.includeRealImages !== false
+      ? `\n\n![${profile.title}](${profile.coverImage})\n*Dự án ${profile.title} do Trường Hải Event & Travel tổ chức cho ${profile.client.company}*\n`
+      : "";
 
   const title = isMc
     ? toSentenceCase(`Mẫu kịch bản MC ${topic} chuyên nghiệp: 5 phần cốt lõi, lời dẫn chi tiết và bí quyết xử lý tình huống sân khấu`)
@@ -164,10 +183,10 @@ ${f.answer || f.answer_guideline || "Đang cập nhật câu trả lời từ ch
 
 *Một kịch bản MC ${topic} đạt chuẩn chuyên nghiệp là "kim chỉ nam" giúp người dẫn chương trình làm chủ sân khấu, kết nối liền mạch cảm xúc khán giả và bảo chứng cho sự thành công trọn vẹn của sự kiện. Bài viết này chia sẻ trọn bộ kịch bản 5 phần chi tiết từng phút, lời dẫn mẫu thực chiến và bí quyết xử lý 5 tình huống phát sinh từ đạo diễn 10 năm kinh nghiệm.*
 
-> 💡 *Xem chi tiết: [Cẩm nang quy trình tổ chức sự kiện chuyên nghiệp từ A-Z](/tin-tuc/cam-nang-to-chuc-su-kien-chuyen-nghiep)*
+> Xem thêm: [Cẩm nang quy trình tổ chức sự kiện chuyên nghiệp từ A-Z](/tin-tuc/cam-nang-to-chuc-su-kien-chuyen-nghiep)
 
 > ⚡ **Nhận tư vấn kịch bản & báo giá sự kiện sau 15 phút hoặc liên hệ Hotline: [${brand.hotline}](tel:${brand.hotline.replace(/\s+/g, "")})**
-
+${imageCoverMd}
 Trong bất kỳ chương trình nào, người dẫn chương trình (MC) chính là **"linh hồn" kết nối toàn bộ mạch cảm xúc**, định hướng sự tập trung của quan khách và bảo chứng cho sự trôi chảy của toàn bộ sự kiện. Một kịch bản dẫn được chuẩn bị kỹ lưỡng sẽ giúp MC tự tin làm chủ sân khấu và xử lý mượt mà mọi tình huống phát sinh.
 
 Từng đồng hành biên soạn kịch bản và cung cấp nhân sự dẫn chương trình cho các sự kiện trang trọng của **${brand.keyProjects.slice(0, 4).join(", ")}**, Trường Hải Event & Travel xin chia sẻ trọn bộ kịch bản và kinh nghiệm thực chiến đắt giá nhất.
@@ -230,6 +249,8 @@ Sân khấu trực tiếp luôn tiềm ẩn những tình huống bất ngờ. M
 | **06** | Tín hiệu kết nối | Kiểm tra tai nghe bộ đàm nội bộ hoặc ám hiệu tay với cánh gà | MC & Trợ lý điều phối |
 | **07** | Tâm lý & Năng lượng | Uống nước ấm, khởi động thanh quản và giữ tinh thần tích cực | MC |
 
+${proofMarkdown}
+
 ---
 
 ## 5. Câu hỏi thường gặp về kịch bản và người dẫn chương trình sự kiện (FAQ)
@@ -258,10 +279,10 @@ ${schemaJsonLd}
 
 *Quy trình triển khai ${cleanKeywordForTopic(keyword)} chuyên nghiệp đòi hỏi sự phối hợp đồng bộ giữa khâu khảo sát thực tế, lập kế hoạch chi tiết, kiểm soát an toàn và điều phối nhân sự nhịp nhàng. Cẩm nang thực chiến này cung cấp lộ trình từng bước kèm bảng checklist kiểm tra giúp ban tổ chức tối ưu thời gian và chi phí.*
 
-> 💡 *Xem chi tiết: [Hồ sơ năng lực và quy trình tổ chức sự kiện chuyên nghiệp](/tin-tuc/quy-trinh-to-chuc-su-kien-chuyen-nghiep)*
+> Xem thêm: [Hồ sơ năng lực và quy trình tổ chức sự kiện chuyên nghiệp](/tin-tuc/quy-trinh-to-chuc-su-kien-chuyen-nghiep)
 
 > ⚡ **Nhận tư vấn kịch bản & báo giá sự kiện sau 15 phút hoặc liên hệ Hotline: [${brand.hotline}](tel:${brand.hotline.replace(/\s+/g, "")})**
-
+${imageCoverMd}
 Để một sự kiện hay kế hoạch đạt được hiệu quả tối ưu, ban tổ chức cần xây dựng lộ trình triển khai khoa học, rõ ràng và có tính ứng dụng cao trong thực tế.
 
 Với kinh nghiệm tổ chức thành công hàng trăm chương trình lớn nhỏ trên toàn quốc, Trường Hải Event & Travel xin chia sẻ cẩm nang chi tiết giúp bạn kiểm soát toàn diện mọi khâu tác chiến.
@@ -340,12 +361,26 @@ ${schemaJsonLd}
 function generateCommercialContent(
   keyword: string,
   analysis: IntentAnalysisResult,
-  brand: BrandProfile
+  brand: BrandProfile,
+  eventProfile?: EventProfileProof,
+  options?: {
+    includeRealImages?: boolean;
+    includeRealPricing?: boolean;
+    includeTestimonial?: boolean;
+  }
 ): GeneratedArticle {
   const safeKeyword = ensureAccentedKeyword(analysis.focus_keyword || keyword);
   const topic = cleanKeywordForTopic(safeKeyword);
   let cleanKw = safeKeyword.trim();
   cleanKw = cleanKw.replace(/^báo giá\s+/iu, "").trim();
+
+  const profile = eventProfile || findBestMatchingProfile(safeKeyword);
+  const proofMarkdown = renderEventProofMarkdown(profile, options);
+  const imageCoverMd =
+    options?.includeRealImages !== false
+      ? `\n\n![${profile.title}](${profile.coverImage})\n*Dự án ${profile.title} quy mô ${profile.guestCount} khách VIP tại ${profile.location.venue}*\n`
+      : "";
+
   const title = toSentenceCase(`Báo giá ${cleanKw} trọn gói 2026: bảng dự toán chi tiết theo quy mô và cam kết không phát sinh`);
   const slug = `${createSeoSlug(safeKeyword)}-chuyen-nghiep-truong-hai`;
   const metaDescription = `Báo giá ${safeKeyword} trọn gói uy tín từ Trường Hải Event & Travel. Sở hữu kho thiết bị Line Array, màn LED P2.5/P3.91, đội xe riêng. Hotline: ${brand.hotline}.`;
@@ -364,10 +399,10 @@ ${f.answer || f.answer_guideline || "Đang cập nhật câu trả lời từ ch
 
 *Chi phí dịch vụ ${safeKeyword} trọn gói hiện nay phụ thuộc lớn vào quy mô khách tham dự và cấu hình hệ thống thiết bị âm thanh ánh sáng. Bài viết này cung cấp bảng báo giá bóc tách chi tiết theo từng hạng mục, ma trận so sánh thiết bị và giải pháp tối ưu 15% - 25% ngân sách trực tiếp từ tổng kho Trường Hải Event & Travel.*
 
-> 💡 *Xem chi tiết: [Hồ sơ năng lực tổng kho thiết bị sự kiện và các dự án tiêu biểu](/tin-tuc/ho-so-nang-luc-kho-thiet-bi-truong-hai)*
+> Xem thêm: [Hồ sơ năng lực tổng kho thiết bị sự kiện và các dự án tiêu biểu](/tin-tuc/ho-so-nang-luc-kho-thiet-bi-truong-hai)
 
 > ⚡ **Nhận tư vấn kịch bản & báo giá sự kiện sau 15 phút hoặc liên hệ Hotline: [${brand.hotline}](tel:${brand.hotline.replace(/\s+/g, "")})**
-
+${imageCoverMd}
 Trong bối cảnh cạnh tranh kinh doanh hiện đại, một sự kiện **${topic}** thành công không chỉ là việc lắp đặt vài bộ bàn ghế hay dựng một tấm phông nền đơn giản. Đây chính là **chiến dịch truyền thông trực tiếp khẳng định uy tín thương hiệu, nâng tầm vị thế trước đối tác và kích hoạt sự gắn kết nội bộ mạnh mẽ**.
 
 Từng đồng hành tổ chức thành công các sự kiện trọng điểm cho **${brand.keyProjects.join(", ")}**, Trường Hải Event & Travel chia sẻ trọn bộ kinh nghiệm thực chiến giúp quý doanh nghiệp tối ưu chi phí và loại bỏ 100% rủi ro hiện trường.
@@ -408,9 +443,11 @@ Trường Hải không làm việc qua trung gian môi giới. Chúng tôi trự
 - **Hệ thống ánh sáng & hiệu ứng sân khấu:** Đèn Moving Beam 260/380 tạo luồng sáng sắc nét, đèn Par LED 54x3W đổi màu, máy khói lạnh và pháo điện an toàn tuyệt đối.
 - **Mô hình Hybrid độc nhất (Event & Travel):** Sở hữu đội xe du lịch 16 - 45 chỗ riêng đời mới, giải quyết trọn vẹn bài toán đưa đón nhân sự và khách VIP liên tỉnh.
 
+${proofMarkdown}
+
 ---
 
-## 4. Bảng phân tích đánh đổi kỹ thuật giữa các dòng thiết bị (Trade-off Matrix)
+## 4. Bảng phân tích và so sánh kỹ thuật giữa các dòng thiết bị
 
 Trước khi quyết định ký kết hợp đồng, ban tổ chức cần nắm rõ sự đánh đổi giữa các phương án triển khai để tối ưu hóa hiệu quả:
 
@@ -437,6 +474,7 @@ Mọi sự kiện do Trường Hải Event & Travel đảm nhận đều tuân t
 ## 6. Câu hỏi thường gặp về báo giá và dịch vụ (FAQ)
 
 ${faqSections}
+
 
 ---
 
@@ -474,15 +512,40 @@ ${schemaJsonLd}
 export async function generateFullContentAndSchema(
   keyword: string,
   analysis: IntentAnalysisResult,
-  customPrompt?: string
+  customPrompt?: string,
+  eventProfile?: EventProfileProof,
+  options?: {
+    includeRealImages?: boolean;
+    includeRealPricing?: boolean;
+    includeTestimonial?: boolean;
+  }
 ): Promise<GeneratedArticle> {
   const geminiApiKey = process.env.GEMINI_API_KEY || "";
   const brand = TRUONG_HAI_BRAND;
   // Khôi phục và đảm bảo từ khóa có đầy đủ dấu tiếng Việt chuẩn xác
   const safeKeyword = ensureAccentedKeyword(analysis.focus_keyword || keyword);
+  const activeProfile = eventProfile || findBestMatchingProfile(safeKeyword);
 
   if (geminiApiKey) {
     try {
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.7,
+        },
+      });
+
+      const costTableText = activeProfile.financials?.items
+        ?.map((it) => `  * ${it.category}: ${it.description} (${it.quantity} ${it.unit}) = ${formatVND(it.totalPrice)}`)
+        .join("\n") || "Đang cập nhật";
+
+      const galleryListText = (activeProfile.gallery || [])
+        .slice(0, 3)
+        .map((g, idx) => `${idx + 2}. ![${g.caption}](${g.url})`)
+        .join("\n");
+
       const prompt = `
 Bạn là Giám đốc Chiến lược Nội dung & Chuyên gia SEO cao cấp của ${brand.companyName} (Hotline 24/7: ${brand.hotline}, Giám đốc: ${brand.director}, MST: ${brand.taxId}).
 Nhiệm vụ: Viết bài viết hoàn chỉnh chuẩn Markdown theo CẤU TRÚC ON-PAGE CHUYÊN NGHIỆP CỦA CÁC WEBSITE SỰ KIỆN HÀNG ĐẦU.
@@ -494,6 +557,28 @@ THÔNG TIN ĐẦU VÀO:
 - Điểm vượt trội cần bổ sung: "${analysis.content_gap}"
 - Dàn ý Outline bắt buộc bám sát: ${JSON.stringify(analysis.outline)}
 - Danh sách FAQ bắt buộc giải đáp: ${JSON.stringify(analysis.faq_list)}
+${customPrompt ? `- Yêu cầu bổ sung của Admin: "${customPrompt}"` : ""}
+
+THÔNG TIN HỒ SƠ SỰ KIỆN THỰC TẾ & BẰNG CHỨNG E-E-A-T DOANH NGHIỆP (BẮT BUỘC LỒNG GHÉP VÀO BÀI):
+- Dự án thực tế tiêu biểu đã tổ chức: "${activeProfile.title}"
+- Khách hàng doanh nghiệp: ${activeProfile.client.company} (Đại diện: ${activeProfile.client.representative || "Ban Lãnh Đạo"})
+- Địa điểm & Quy mô: ${activeProfile.guestCount} khách mời VIP tại ${activeProfile.location.venue} (${activeProfile.location.address}, ${activeProfile.location.city})
+- Tổng ngân sách thực tế: ${formatVND(activeProfile.financials.totalBudget)}
+- Bảng bóc tách chi phí thực tế:
+${costTableText}
+- Hệ thống thiết bị thực tế sở hữu: ${activeProfile.equipmentList.join(", ")}
+- Đánh giá của khách hàng (Testimonial): "${activeProfile.testimonial?.quote || "Dịch vụ chỉn chu, chuyên nghiệp và uy tín."}" (${activeProfile.testimonial?.author || "Đại diện đối tác"} - ${activeProfile.testimonial?.company || activeProfile.client.company})
+
+DANH SÁCH HÌNH ẢNH THỰC TẾ TỪ HIỆN TRƯỜNG DỰ ÁN (BẮT BUỘC CHÈN 2 ĐẾN 4 HÌNH ẢNH NÀY VÀO BÀI DẠNG ![Mô tả ảnh](URL) KÈM CHÚ THÍCH IN NGHIÊNG BÊN DƯỚI):
+1. Ảnh chính sân khấu/hội trường: ![${activeProfile.title}](${activeProfile.coverImage})
+${galleryListText}
+
+QUY TẮC BẮT BUỘC KHI LỒNG GHÉP HỒ SƠ SỰ KIỆN:
+1. BẮT BUỘC chèn ít nhất 2 hình ảnh thực tế từ danh sách trên vào các vị trí phù hợp trong bài viết (ví dụ: ngay sau phần Sapo hoặc trong mục giải pháp/kỹ thuật).
+2. BẮT BUỘC có 1 phần riêng biệt phân tích dự án thực tế "${activeProfile.title}" tổ chức cho ${activeProfile.client.company} như một bài học kinh nghiệm và minh chứng thực chiến.
+3. NẾU bài viết dạng Thương mại/Báo giá: Đưa bảng bóc tách chi phí thực tế từ dự án trên vào bài viết để chứng minh báo giá minh bạch, cam kết không phát sinh.
+4. Lồng ghép khối trích dẫn đánh giá của khách hàng: > *" ${activeProfile.testimonial?.quote} "* kèm tên người đại diện.
+5. Luôn khẳng định bản sắc thương hiệu: Có kho thiết bị Line Array nhập khẩu, màn LED P2.5/P3.91 cabin đúc, đội xe riêng 16-45 chỗ, Hotline ${brand.hotline}.
 
 QUY TẮC CHÍNH TẢ TIẾNG VIỆT BẮT BUỘC (TUYỆT ĐỐI TUÂN THỦ):
 - BẮT BUỘC 100% toàn bộ tiêu đề bài viết, đoạn sapo, heading H2/H3, nội dung phân tích, từ khóa in đậm và FAQ PHẢI VIẾT BẰNG TIẾNG VIỆT CÓ ĐẦY ĐỦ DẤU CHUẨN XÁC THEO TỪ ĐIỂN TIẾNG VIỆT.
@@ -505,10 +590,6 @@ CẤU TRÚC BÀI VIẾT BẮT BUỘC (TUÂN THỦ TUYỆT ĐỐI THEO THỨ TỰ
 1. TIÊU ĐỀ (H1):
    - Sử dụng công thức thu hút (chứa con số cụ thể, từ khóa chính "${safeKeyword}", hướng dẫn hành động hoặc cẩm nang thực chiến).
    - Áp dụng Sentence Case tiếng Việt: Chỉ viết hoa chữ cái đầu và danh từ riêng (Trường Hải, Vinpearl, Damsan, Hà Nội...). Tuyệt đối không viết hoa từng từ kiểu Title Case tiếng Anh.
-   - Ví dụ:
-     * Dạng cẩm nang/hướng dẫn: "10 bước lên kế hoạch tổ chức sự kiện chuyên nghiệp: quy trình thực chiến và checklist tối ưu chi phí"
-     * Dạng kịch bản: "Mẫu kịch bản MC sự kiện chuyên nghiệp: 5 phần cốt lõi, lời dẫn chi tiết và bí quyết xử lý tình huống sân khấu"
-     * Dạng thương mại/báo giá: "Báo giá tổ chức sự kiện trọn gói 2026: bảng dự toán chi tiết theo quy mô và cam kết không phát sinh"
 
 2. ĐOẠN SAPO:
    - Đặt ngay sau H1.
@@ -517,8 +598,7 @@ CẤU TRÚC BÀI VIẾT BẮT BUỘC (TUÂN THỦ TUYỆT ĐỐI THEO THỨ TỰ
 
 3. INTERNAL CALL-OUT:
    - Tự động tạo 1 gợi ý xem thêm bài viết liên quan ngay sau Sapo:
-     > 💡 *Xem chi tiết: [Chủ đề liên quan mật thiết đến ${safeKeyword}](/tin-tuc/slug-lien-quan)*
-   - Thay [Chủ đề liên quan...] bằng dịch vụ hoặc cẩm nang liên quan và đường dẫn slug chuẩn SEO tiếng Việt không dấu.
+     > Xem thêm: [Chủ đề liên quan mật thiết đến ${safeKeyword}](/tin-tuc/slug-lien-quan)
 
 4. QUICK CONVERSION BANNER (KHỐI KÊU GỌI CHUYỂN ĐỔI NHANH):
    - Sinh một block CTA ngắn gọn đặt ngay sau Internal call-out và trước thẻ H2 đầu tiên:
@@ -526,8 +606,8 @@ CẤU TRÚC BÀI VIẾT BẮT BUỘC (TUÂN THỦ TUYỆT ĐỐI THEO THỨ TỰ
 
 5. DÀN Ý THÂN BÀI (H2, H3):
    - Sử dụng đánh số thứ tự rõ ràng cho các bài dạng cẩm nang/hướng dẫn (Ví dụ: "## 1. ...", "## 2. ...", các mục con hướng dẫn là "### 1.1. ...", "### 1.2. ...").
-   - In đậm các từ khóa quan trọng và thuật ngữ chuyên ngành trong đoạn văn một cách tự nhiên (ví dụ: **âm thanh Line Array**, **màn hình LED P2.5**, **kịch bản phân vai**, **timeline sự kiện**...).
-   - Mỗi bước/mục phải có lời khuyên thực chiến (Pro-tips) và checklist hành động được (bảng markdown hoặc danh sách 1. 2. 3.).
+   - In đậm các từ khóa quan trọng và thuật ngữ chuyên ngành trong đoạn văn một cách tự nhiên.
+   - Lồng ghép hình ảnh thực tế và case study từ hồ sơ sự kiện đã cấp ở trên.
    - BIẾN THIÊN THEO SEARCH INTENT:
      * NẾU "informational" (Kịch bản MC, hướng dẫn): Tập trung vào timeline, lời thoại mẫu, kỹ năng ứng biến, checklist. NGHIÊM CẤM đưa các heading về bảng giá thiết bị, kho bãi, xe cộ!
      * NẾU "commercial" (Thuê thiết bị, báo giá, dịch vụ): Mới tập trung vào bảng giá bóc tách theo quy mô, thông số Line Array/LED, kho bãi trực tiếp, bảng trade-off.
@@ -542,7 +622,7 @@ CẤU TRÚC BÀI VIẾT BẮT BUỘC (TUÂN THỦ TUYỆT ĐỐI THEO THỨ TỰ
    - Kèm thông tin công ty ${brand.companyName}, Giám đốc: ${brand.director}, MST: ${brand.taxId}.
 
 8. ĐÍNH KÈM SCHEMA.ORG/FAQPAGE JSON-LD:
-   - Ở cuối cùng của bài viết Markdown, bắt buộc xuất khối thẻ script sau:
+   - Ở cuối cùng của bài viết Markdown, bắt buộc xuất khối thẻ script:
    <script type="application/ld+json">
    {
      "@context": "https://schema.org",
@@ -597,9 +677,10 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 
   // Fallback: Sử dụng Deterministic Content Engine được thiết kế riêng biệt cho từng Intent
   if (analysis.search_intent === "informational") {
-    return generateInformationalContent(safeKeyword, analysis, brand);
+    return generateInformationalContent(safeKeyword, analysis, brand, activeProfile, options);
   }
 
-  return generateCommercialContent(safeKeyword, analysis, brand);
+  return generateCommercialContent(safeKeyword, analysis, brand, activeProfile, options);
 }
+
 

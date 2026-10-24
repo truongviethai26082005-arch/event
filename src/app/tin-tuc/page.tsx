@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * =========================================================================
@@ -26,6 +26,9 @@ import {
   Layers,
 } from "lucide-react";
 
+import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
+import { toSentenceCase } from "@/app/api/radar/services/content-generator";
+
 const CATEGORIES = [
   { label: "Tất Cả", value: "all" },
   { label: "Khai Trương & Khánh Thành", value: "khai trương" },
@@ -51,7 +54,14 @@ export default function BlogListPage() {
           .select("*")
           .eq("status", "published")
           .order("created_at", { ascending: false });
-        if (!error && data && data.length > 0) setPosts(data);
+        if (!error && data && data.length > 0) {
+          const sanitized = data.map((p) => ({
+            ...p,
+            title: toSentenceCase(ensureAccentedKeyword(p.title || "")),
+            focus_keyword: p.focus_keyword ? ensureAccentedKeyword(p.focus_keyword) : "Sự kiện",
+          }));
+          setPosts(sanitized);
+        }
       } catch (err) {
         console.warn("Dùng dữ liệu mẫu:", err);
       } finally {

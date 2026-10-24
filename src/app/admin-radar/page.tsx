@@ -58,6 +58,8 @@ import {
   CompetitorPreset,
   saveCustomCompetitor,
 } from "./competitor-presets";
+import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
+import { toSentenceCase } from "@/app/api/radar/services/content-generator";
 
 // Hàm định dạng ngày giờ chi tiết: Giờ:Phút:Giây - Ngày/Tháng/Năm
 function formatFullDateTime(dateString?: string): string {
@@ -145,6 +147,69 @@ export default function RadarSeoAdminPage() {
     }
     return DEFAULT_EVENT_PROFILES.length;
   });
+
+  // Hồ sơ sự kiện liên kết với Radar SEO
+  const [selectedEventId, setSelectedEventId] = useState<string>("auto");
+  const [includeRealImages, setIncludeRealImages] = useState<boolean>(true);
+  const [includeRealPricing, setIncludeRealPricing] = useState<boolean>(true);
+  const [includeTestimonial, setIncludeTestimonial] = useState<boolean>(true);
+  const [availableProfiles, setAvailableProfiles] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      return getStoredEventProfiles();
+    }
+    return DEFAULT_EVENT_PROFILES;
+  });
+
+  const activeEventProfile = React.useMemo(() => {
+    if (selectedEventId && selectedEventId !== "auto") {
+      const found = availableProfiles.find((p) => p.id === selectedEventId);
+      if (found) return found;
+    }
+    const kw = (targetKeyword || competitorUrl || "").toLowerCase();
+    if (
+      kw.includes("khai trương") ||
+      kw.includes("khai truong") ||
+      kw.includes("showroom") ||
+      kw.includes("khánh thành") ||
+      kw.includes("ra mắt")
+    ) {
+      if (kw.includes("xe") || kw.includes("ô tô") || kw.includes("vinfast")) {
+        return availableProfiles.find((p) => p.id === "ep-vinfast-launch") || availableProfiles[0];
+      }
+      return availableProfiles.find((p) => p.category === "khai-truong") || availableProfiles[0];
+    }
+    if (
+      kw.includes("gala") ||
+      kw.includes("kỷ niệm") ||
+      kw.includes("ky niem") ||
+      kw.includes("yep") ||
+      kw.includes("tất niên") ||
+      kw.includes("tri ân")
+    ) {
+      return availableProfiles.find((p) => p.category === "gala-dinner") || availableProfiles[0];
+    }
+    if (
+      kw.includes("hội nghị") ||
+      kw.includes("hoi nghi") ||
+      kw.includes("hội thảo") ||
+      kw.includes("hoi thao") ||
+      kw.includes("seminar") ||
+      kw.includes("ai") ||
+      kw.includes("diễn đàn")
+    ) {
+      return availableProfiles.find((p) => p.category === "hoi-nghi") || availableProfiles[0];
+    }
+    if (
+      kw.includes("teambuilding") ||
+      kw.includes("du lịch") ||
+      kw.includes("du lich") ||
+      kw.includes("team building") ||
+      kw.includes("nghỉ dưỡng")
+    ) {
+      return availableProfiles.find((p) => p.category === "teambuilding") || availableProfiles[0];
+    }
+    return availableProfiles[0];
+  }, [selectedEventId, availableProfiles, targetKeyword, competitorUrl]);
 
   // Posts table state
   const [postsList, setPostsList] = useState<any[]>([]);
@@ -274,7 +339,12 @@ export default function RadarSeoAdminPage() {
           .order("created_at", { ascending: false });
 
         if (!error && data) {
-          setPostsList(data);
+          const sanitized = data.map((p) => ({
+            ...p,
+            title: toSentenceCase(ensureAccentedKeyword(p.title || "")),
+            focus_keyword: p.focus_keyword ? ensureAccentedKeyword(p.focus_keyword) : "N/A",
+          }));
+          setPostsList(sanitized);
           setLoadingPosts(false);
           return;
         }
@@ -302,6 +372,7 @@ export default function RadarSeoAdminPage() {
     fetchPosts();
     fetchLeads();
     if (typeof window !== "undefined") {
+      setAvailableProfiles(getStoredEventProfiles());
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       if (tabParam === "events") {
@@ -356,6 +427,11 @@ export default function RadarSeoAdminPage() {
           competitorUrl: competitorUrl.trim(),
           targetKeyword: targetKeyword.trim(),
           customPrompt: customPrompt.trim(),
+          selectedEventId,
+          eventProfileProof: activeEventProfile,
+          includeRealImages,
+          includeRealPricing,
+          includeTestimonial,
         }),
       });
 
@@ -549,6 +625,16 @@ export default function RadarSeoAdminPage() {
       }, 2500);
 
       try {
+        const matchedForBatch =
+          availableProfiles.find((p) => {
+            const t = (target.title || "").toLowerCase();
+            if (t.includes("khai trương") || t.includes("ra mắt") || t.includes("showroom")) return p.category === "khai-truong";
+            if (t.includes("gala") || t.includes("kỷ niệm") || t.includes("yep")) return p.category === "gala-dinner";
+            if (t.includes("hội nghị") || t.includes("hội thảo") || t.includes("ai")) return p.category === "hoi-nghi";
+            if (t.includes("teambuilding") || t.includes("du lịch")) return p.category === "teambuilding";
+            return false;
+          }) || activeEventProfile;
+
         const res = await fetch("/api/radar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -556,6 +642,11 @@ export default function RadarSeoAdminPage() {
             competitorUrl: target.url,
             targetKeyword: target.title,
             customPrompt: customPrompt.trim(),
+            selectedEventId: matchedForBatch.id,
+            eventProfileProof: matchedForBatch,
+            includeRealImages,
+            includeRealPricing,
+            includeTestimonial,
           }),
         });
 
@@ -639,6 +730,16 @@ export default function RadarSeoAdminPage() {
     }, 2500);
 
     try {
+      const matchedForSingle =
+        availableProfiles.find((p) => {
+          const t = (targetTitle || "").toLowerCase();
+          if (t.includes("khai trương") || t.includes("ra mắt") || t.includes("showroom")) return p.category === "khai-truong";
+          if (t.includes("gala") || t.includes("kỷ niệm") || t.includes("yep")) return p.category === "gala-dinner";
+          if (t.includes("hội nghị") || t.includes("hội thảo") || t.includes("ai")) return p.category === "hoi-nghi";
+          if (t.includes("teambuilding") || t.includes("du lịch")) return p.category === "teambuilding";
+          return false;
+        }) || activeEventProfile;
+
       const res = await fetch("/api/radar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -646,6 +747,11 @@ export default function RadarSeoAdminPage() {
           competitorUrl: targetUrl,
           targetKeyword: targetTitle,
           customPrompt: customPrompt.trim(),
+          selectedEventId: matchedForSingle.id,
+          eventProfileProof: matchedForSingle,
+          includeRealImages,
+          includeRealPricing,
+          includeTestimonial,
         }),
       });
 
@@ -1478,6 +1584,135 @@ export default function RadarSeoAdminPage() {
                         onChange={(e) => setTargetKeyword(e.target.value)}
                         className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
                       />
+                    </div>
+                  </div>
+
+                  {/* =========================================================================
+                      BỘ KẾT NỐI HỒ SƠ SỰ KIỆN THỰC TẾ & BẰNG CHỨNG E-E-A-T DOANH NGHIỆP
+                  ========================================================================= */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.04] border border-[#D4AF37]/35 shadow-xl space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/10">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                            <span>Liên kết Hồ Sơ Sự Kiện Thực Tế</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-[#D4AF37] text-[#0A1E5E]">
+                              E-E-A-T Độc Bản
+                            </span>
+                          </h4>
+                          <p className="text-[11px] text-slate-300">
+                            Tự động lấy ảnh hiện trường, bóc tách chi phí thật và trích dẫn khách hàng vào bài viết SEO
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Dropdown Selector */}
+                      <div className="sm:w-72">
+                        <select
+                          value={selectedEventId}
+                          onChange={(e) => setSelectedEventId(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-[#0A1E5E] border border-[#D4AF37]/40 text-[#D4AF37] text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37] transition cursor-pointer"
+                        >
+                          <option value="auto">🎯 AI Tự Động Chọn Theo Từ Khóa</option>
+                          {availableProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              [{p.categoryLabel || p.category}] {p.title.slice(0, 32)}... ({p.guestCount} khách)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Active Event Preview Card */}
+                    {activeEventProfile && (
+                      <div className="p-3 sm:p-3.5 rounded-xl bg-black/25 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5">
+                        <div className="flex items-start sm:items-center space-x-3 min-w-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={activeEventProfile.coverImage}
+                            alt={activeEventProfile.title}
+                            className="w-16 h-14 sm:w-20 sm:h-16 rounded-lg object-cover border border-white/15 shrink-0 shadow-md"
+                          />
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
+                                {activeEventProfile.categoryLabel || activeEventProfile.category}
+                              </span>
+                              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Đã hoàn thành ({activeEventProfile.guestCount} khách VIP)
+                              </span>
+                            </div>
+                            <h5 className="text-xs sm:text-sm font-bold text-white truncate max-w-md">
+                              {activeEventProfile.title}
+                            </h5>
+                            <p className="text-[11px] text-slate-300 truncate">
+                              🏢 {activeEventProfile.client?.company} • 📍 {activeEventProfile.location?.venue}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Dải ảnh hiện trường & Tùy chọn */}
+                        <div className="flex flex-wrap md:flex-col items-start md:items-end gap-2 shrink-0">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-[10px] text-slate-400 mr-1 hidden sm:inline">Ảnh hiện trường:</span>
+                            {(activeEventProfile.gallery || []).slice(0, 3).map((img: any, gIdx: number) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={gIdx}
+                                src={img.url}
+                                alt={img.caption}
+                                title={img.caption}
+                                className="w-8 h-8 rounded-md object-cover border border-white/20 hover:scale-125 transition-transform cursor-pointer"
+                              />
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveAdminTab("events")}
+                            className="text-[11px] text-[#D4AF37] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                          >
+                            <span>Xem chi tiết hồ sơ sự kiện</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Checkbox Options */}
+                    <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-200">
+                      <label className="flex items-center space-x-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={includeRealImages}
+                          onChange={(e) => setIncludeRealImages(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
+                        />
+                        <span>🖼️ Nhúng ảnh thực tế hiện trường</span>
+                      </label>
+
+                      <label className="flex items-center space-x-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={includeRealPricing}
+                          onChange={(e) => setIncludeRealPricing(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
+                        />
+                        <span>💰 Bóc tách báo giá & dự toán chi phí thật</span>
+                      </label>
+
+                      <label className="flex items-center space-x-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={includeTestimonial}
+                          onChange={(e) => setIncludeTestimonial(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
+                        />
+                        <span>⭐ Đánh giá của khách hàng (Social proof)</span>
+                      </label>
                     </div>
                   </div>
 

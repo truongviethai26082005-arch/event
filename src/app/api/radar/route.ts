@@ -8,6 +8,7 @@ import {
   cleanMarkdownHeadings,
   formatHeadingSentenceCase,
   ensureAccentedKeyword,
+  findBestMatchingProfile,
 } from "./services";
 
 /**
@@ -17,13 +18,31 @@ import {
  * - BƯỚC 1: Scraper Service (Cào & làm sạch dữ liệu đối thủ)
  * - BƯỚC 2: Intent Analyzer (AI Call 1 - Phân loại Intent & Dựng Outline động)
  * - BƯỚC 3: Content Generator (AI Call 2 - Sinh bài viết toàn diện & Render Schema.org/FAQPage)
+ * - KẾT NỐI HỒ SƠ SỰ KIỆN: Lồng ghép minh chứng dự án thật, ảnh thật, bảng giá thật
  * =========================================================================
  */
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { competitorUrl, targetKeyword = "", customPrompt = "" } = body;
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Dữ liệu yêu cầu không đúng định dạng JSON hợp lệ." },
+        { status: 400 }
+      );
+    }
+    const {
+      competitorUrl,
+      targetKeyword = "",
+      customPrompt = "",
+      selectedEventId,
+      eventProfileProof,
+      includeRealImages = true,
+      includeRealPricing = true,
+      includeTestimonial = true,
+    } = body || {};
 
     // 1. Kiểm tra tính hợp lệ của URL đối thủ
     if (!competitorUrl || typeof competitorUrl !== "string" || !competitorUrl.trim().startsWith("http")) {
@@ -48,6 +67,13 @@ export async function POST(req: NextRequest) {
       scrapedData.cleanText
     );
 
+    // Tự động ghép nối hoặc lấy Hồ sơ sự kiện thực tế để làm bằng chứng E-E-A-T
+    const activeEventProfile = findBestMatchingProfile(
+      resolvedKeyword,
+      selectedEventId,
+      eventProfileProof
+    );
+
     // ------------------------------------------------------------------------
     // BƯỚC 2: PHÂN LOẠI SEARCH INTENT & DỰNG OUTLINE ĐỘNG (AI Call 1 - Analyzer)
     // Ràng buộc nghiêm ngặt:
@@ -62,16 +88,37 @@ export async function POST(req: NextRequest) {
     // BƯỚC 3: SINH NỘI DUNG TOÀN DIỆN & RENDER SCHEMA (AI Call 2 - Generator)
     // - Viết bám sát outline từ Bước 2
     // - Mở bài và Sapo biến thiên theo Search Intent (không dùng khuôn dập)
+    // - Lồng ghép minh chứng dự án thật, ảnh thật, báo giá thật từ Hồ sơ sự kiện
     // - Render FAQ dạng H3 với câu trả lời ngắn gọn <60 từ
     // - Tự động xuất chuỗi Schema.org/FAQPage JSON-LD ở cuối bài
     // ------------------------------------------------------------------------
-    const generatedArticle = await generateFullContentAndSchema(finalKeyword, intentAnalysis, customPrompt);
+    const generatedArticle = await generateFullContentAndSchema(
+      finalKeyword,
+      intentAnalysis,
+      customPrompt,
+      activeEventProfile,
+      {
+        includeRealImages,
+        includeRealPricing,
+        includeTestimonial,
+      }
+    );
 
     // ------------------------------------------------------------------------
     // QUALITY GATE: Kiểm duyệt và chuẩn hóa Sentence Case toàn diện
     // ------------------------------------------------------------------------
     generatedArticle.title = toSentenceCase(generatedArticle.title);
     generatedArticle.content = cleanMarkdownHeadings(generatedArticle.content);
+
+    const eventProofSummary = {
+      id: activeEventProfile.id,
+      title: activeEventProfile.title,
+      client: activeEventProfile.client.company,
+      venue: activeEventProfile.location.venue,
+      guestCount: activeEventProfile.guestCount,
+      totalBudget: activeEventProfile.financials.totalBudget,
+      coverImage: activeEventProfile.coverImage,
+    };
 
     // Chuẩn hóa dữ liệu trả về cho giao diện Admin Radar
     const analysisResponse = {
@@ -93,6 +140,7 @@ export async function POST(req: NextRequest) {
       content_gap: intentAnalysis.content_gap,
       outline: intentAnalysis.outline,
       faq_list: intentAnalysis.faq_list,
+      event_proof: eventProofSummary,
     };
 
     const postResponse = {
@@ -105,6 +153,7 @@ export async function POST(req: NextRequest) {
       search_intent: generatedArticle.search_intent,
       outline: generatedArticle.outline,
       faq_list: generatedArticle.faq_list,
+      event_proof: eventProofSummary,
     };
 
     // ------------------------------------------------------------------------

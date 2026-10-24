@@ -98,3 +98,68 @@ export interface DomainScanResult {
   unscrapedCount: number;
   urls: ScannedArticleUrl[];
 }
+
+// -------------------------------------------------------------------------
+// ĐỊNH NGHĨA MINH CHỨNG HỒ SƠ SỰ KIỆN THỰC TẾ & BẰNG CHỨNG E-E-A-T DOANH NGHIỆP
+// -------------------------------------------------------------------------
+
+export interface EventCostItemProof {
+  id?: string;
+  category: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface EventGalleryItemProof {
+  id?: string;
+  url: string;
+  caption: string;
+  phase?: string;
+}
+
+export interface EventTestimonialProof {
+  author: string;
+  position: string;
+  company: string;
+  quote: string;
+  rating?: number;
+}
+
+export interface EventProfileProof {
+  id: string;
+  title: string;
+  category: string;
+  categoryLabel?: string;
+  date: string;
+  client: {
+    name?: string;
+    company: string;
+    representative?: string;
+    phone?: string;
+    industry?: string;
+  };
+  location: {
+    venue: string;
+    hall?: string;
+    address: string;
+    city: string;
+  };
+  guestCount: number;
+  financials: {
+    totalBudget: number;
+    actualCost?: number;
+    profit?: number;
+    profitMargin?: number;
+    paymentStatus?: string;
+    paymentStatusLabel?: string;
+    items: EventCostItemProof[];
+  };
+  keyHighlights: string[];
+  equipmentList: string[];
+  coverImage: string;
+  gallery: EventGalleryItemProof[];
+  testimonial?: EventTestimonialProof;
+}

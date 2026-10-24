@@ -248,20 +248,14 @@ export const DEFAULT_EVENT_PROFILES: EventProfile[] = [
     gallery: [
       {
         id: "gal-1",
-        url: "/images/blog/khai-truong-showroom.jpg",
-        caption: "Toàn cảnh sân khấu chính Lễ Khai Trương Showroom Nam Hải Auto",
-        phase: "main",
-      },
-      {
-        id: "gal-2",
         url: "/images/blog/stage-setup.jpg",
         caption: "Công tác set-up âm thanh ánh sáng và căn chỉnh mixer lúc 06:00 sáng",
         phase: "setup",
       },
       {
-        id: "gal-3",
+        id: "gal-2",
         url: "/images/blog/key-moment.jpg",
-        caption: "Nghi thức cắt băng khánh thành và kích hoạt pháo kim tuyến",
+        caption: "Nghi thức cắt băng khánh thành và kích hoạt pháo kim tuyến bùng nổ",
         phase: "moment",
       },
     ],
