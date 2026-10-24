@@ -88,6 +88,7 @@ export interface EventProfile {
     address: string;
     city: string;
   };
+  venueType?: "indoor" | "outdoor";
   guestCount: number;
 
   // Tài chính & Báo giá
@@ -813,6 +814,21 @@ export const DEFAULT_EVENT_PROFILES: EventProfile[] = [
     created_at: "2026-08-25T11:00:00Z",
   },
 ];
+
+/**
+ * Phân loại không gian tổ chức: Trong nhà (Ballroom/Sảnh) hoặc Ngoài trời (Bãi biển/Resort)
+ */
+export function getEventVenueType(profile: EventProfile): "indoor" | "outdoor" {
+  if (profile.venueType) return profile.venueType;
+  const combined = `${profile.location.venue} ${profile.location.hall || ""} ${profile.location.address} ${profile.title} ${profile.keyHighlights?.join(" ") || ""}`.toLowerCase();
+  const outdoorTerms = [
+    "ngoài trời", "outdoor", "bãi biển", "bãi cỏ", "resort", "bến du thuyền",
+    "sân vận động", "khu du lịch", "dã ngoại", "cắm trại", "lửa trại", "biển", "sinh thái"
+  ];
+  if (profile.category === "teambuilding") return "outdoor";
+  if (outdoorTerms.some((t) => combined.includes(t))) return "outdoor";
+  return "indoor";
+}
 
 const LOCAL_STORAGE_KEY = "truonghai_admin_event_profiles_v1";
 
