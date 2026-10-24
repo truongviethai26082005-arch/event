@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -17,6 +18,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
+import { toSentenceCase } from "@/app/api/radar/services/content-generator";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -26,8 +30,6 @@ export async function generateStaticParams() {
     slug: post.slug,
   }));
 }
-
-export const instant = false;
 
 async function getPostBySlug(slug: string) {
   if (isSupabaseConfigured) {
@@ -57,6 +59,11 @@ export default async function BlogPostDetailPage({ params }: Props) {
     notFound();
   }
 
+  const rawTitle = post.title || "";
+  const displayTitle = toSentenceCase(ensureAccentedKeyword(rawTitle));
+  const rawKeyword = post.focus_keyword || "";
+  const displayKeyword = rawKeyword ? ensureAccentedKeyword(rawKeyword) : "Cẩm nang sự kiện";
+
   const relatedPosts = MOCK_BLOG_POSTS.filter((p) => p.slug !== slug).slice(0, 3);
 
   return (
@@ -73,7 +80,7 @@ export default async function BlogPostDetailPage({ params }: Props) {
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-slate-800 font-medium truncate max-w-xs sm:max-w-md">
-            {post.title}
+            {displayTitle}
           </span>
         </nav>
 
@@ -85,7 +92,7 @@ export default async function BlogPostDetailPage({ params }: Props) {
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-[#0A1E5E] font-bold border border-blue-200">
                   <Tag className="w-3 h-3 mr-1 text-[#D4AF37]" />
-                  {post.focus_keyword || "Cẩm nang sự kiện"}
+                  {displayKeyword}
                 </span>
                 <span className="text-slate-400">•</span>
                 <span className="flex items-center text-slate-500">
@@ -102,14 +109,8 @@ export default async function BlogPostDetailPage({ params }: Props) {
               </div>
 
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A1E5E] leading-tight">
-                {post.title}
+                {displayTitle}
               </h1>
-
-              {post.meta_description && (
-                <p className="text-sm sm:text-base text-slate-600 italic bg-slate-50 p-4 rounded-xl border-l-4 border-[#D4AF37]">
-                  "{post.meta_description}"
-                </p>
-              )}
             </header>
 
             {/* Article Body */}
@@ -119,8 +120,14 @@ export default async function BlogPostDetailPage({ params }: Props) {
 
             {/* Author / Company Brand Box */}
             <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-amber-50/50 border border-[#D4AF37]/30 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#0A1E5E] text-[#D4AF37] font-black text-xl flex items-center justify-center shrink-0 shadow-md">
-                TH
+              <div className="w-14 h-14 rounded-2xl bg-white border border-[#D4AF37]/40 flex items-center justify-center shrink-0 shadow-md overflow-hidden">
+                <Image
+                  src="/images/logo.png"
+                  alt="Logo Trường Hải Event & Travel"
+                  width={112}
+                  height={112}
+                  className="w-full h-full object-contain scale-125"
+                />
               </div>
               <div className="space-y-1 text-center sm:text-left">
                 <h4 className="font-bold text-[#0A1E5E] text-sm">

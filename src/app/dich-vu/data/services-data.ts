@@ -65,7 +65,7 @@ export const CORE_SERVICES: ServiceDetail[] = [
     category: "su-kien",
     tag: "Khai trương & Khánh thành",
     badge: "Dịch Vụ Mũi Nhọn",
-    priceNote: "Gói tiêu chuẩn từ 18.000.000 VNĐ",
+    priceNote: "Liên hệ nhận báo giá ngay",
     shortDesc:
       "Giải pháp khởi đầu hanh thông, thu hút truyền thông và định vị thương hiệu với nghi thức cắt băng, múa lân sư rồng khai quang điểm nhãn trang trọng.",
     description:
@@ -124,7 +124,7 @@ export const CORE_SERVICES: ServiceDetail[] = [
     category: "su-kien",
     tag: "Year End Party & Gala",
     badge: "Mùa Cao Điểm",
-    priceNote: "Trọn gói từ 25.000.000 VNĐ",
+    priceNote: "Liên hệ nhận báo giá trọn gói",
     shortDesc:
       "Chương trình vinh danh thăng hoa cảm xúc, bùng nổ nhiệt huyết với concept độc bản kể câu chuyện văn hóa doanh nghiệp sau một năm cống hiến.",
     description:
@@ -238,7 +238,7 @@ export const CORE_SERVICES: ServiceDetail[] = [
     category: "du-lich",
     tag: "Team Building & MICE",
     badge: "Gắn Kết Đội Ngũ",
-    priceNote: "Chỉ từ 750.000 VNĐ/khách",
+    priceNote: "Liên hệ nhận báo giá theo đầu người",
     shortDesc:
       "Hành trình du lịch kết hợp thử thách bứt phá giới hạn, thắt chặt tình đồng đội tại các thiên đường du lịch Hạ Long, Sapa, Đà Nẵng, Quy Nhơn, Phú Quốc.",
     description:
@@ -359,10 +359,10 @@ export const PROMOTION_COMBOS: PromotionCombo[] = [
     subtitle: "Dành cho Lễ Khai trương, Khánh thành, Khởi công xây dựng",
     category: "su-kien",
     serviceGroup: "Tổ chức Sự kiện Khai trương",
-    originalPrice: "32.000.000 VNĐ",
-    comboPrice: "24.900.000 VNĐ",
-    discountBadge: "Tiết kiệm 22%",
-    savings: "7.100.000 VNĐ",
+    originalPrice: "Giá gốc",
+    comboPrice: "Giá combo",
+    discountBadge: "Tiết kiệm đặc biệt",
+    savings: "Tiết kiệm ngay",
     validUntil: "Áp dụng đến hết tháng này",
     isPopular: true,
     giftItems: [
@@ -384,10 +384,10 @@ export const PROMOTION_COMBOS: PromotionCombo[] = [
     subtitle: "Dành cho Year End Party, Gala Dinner, Tiệc Kỷ Niệm Thành Lập",
     category: "su-kien",
     serviceGroup: "Tiệc Tất Niên & Gala Dinner",
-    originalPrice: "48.000.000 VNĐ",
-    comboPrice: "37.500.000 VNĐ",
+    originalPrice: "Giá gốc",
+    comboPrice: "Giá combo",
     discountBadge: "Ưu Đãi Vàng",
-    savings: "10.500.000 VNĐ",
+    savings: "Tiết kiệm ngay",
     validUntil: "Ưu tiên 10 doanh nghiệp đăng ký sớm",
     giftItems: [
       "TẶNG Gói Quay Phim Highlight Sự Kiện 4K + Chụp Ảnh Toàn Đoàn (Trị giá 8.000.000đ)",
@@ -408,10 +408,10 @@ export const PROMOTION_COMBOS: PromotionCombo[] = [
     subtitle: "Dành cho Hội thảo chuyên đề, ĐHĐCĐ, Ra mắt & Mở bán BĐS",
     category: "su-kien",
     serviceGroup: "Hội nghị, Hội thảo & Mở bán BĐS",
-    originalPrice: "55.000.000 VNĐ",
-    comboPrice: "42.000.000 VNĐ",
-    discountBadge: "Tiết kiệm 24%",
-    savings: "13.000.000 VNĐ",
+    originalPrice: "Giá gốc",
+    comboPrice: "Giá combo",
+    discountBadge: "Tiết kiệm đặc biệt",
+    savings: "Tiết kiệm ngay",
     validUntil: "Có hạn theo slot thiết bị",
     giftItems: [
       "NÂNG CẤP MIỄN PHÍ Màn Hình LED P2.5 Siêu Nét (Độ phân giải hiển thị văn bản cực nét)",
@@ -432,10 +432,10 @@ export const PROMOTION_COMBOS: PromotionCombo[] = [
     subtitle: "Dành cho Tour Du Lịch, Team Building Bãi Biển, Du Lịch Thiện Nguyện",
     category: "du-lich",
     serviceGroup: "Du lịch Doanh nghiệp & MICE",
-    originalPrice: "980.000 VNĐ/khách",
-    comboPrice: "790.000 VNĐ/khách",
+    originalPrice: "Giá gốc",
+    comboPrice: "Giá combo",
     discountBadge: "Hot Nhất Mùa Hè",
-    savings: "190.000 VNĐ/khách",
+    savings: "Tiết kiệm ngay",
     validUntil: "Áp dụng cho đoàn từ 40 khách",
     isPopular: true,
     giftItems: [
@@ -458,8 +458,8 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "economy",
     name: "Gói Khởi Điểm (Basic)",
     scale: "Quy mô 30 - 80 khách",
-    priceDisplay: "12.500.000",
-    unit: "VNĐ / sự kiện",
+    priceDisplay: "Liên hệ báo giá",
+    unit: "theo quy mô sự kiện",
     description: "Phù hợp cho sự kiện quy mô vừa và nhỏ, khai trương cửa hàng, tiệc nội bộ ấm cúng.",
     features: [
       "Dàn âm thanh tiêu chuẩn 4 loa Full + 2 Micro không dây",
@@ -480,8 +480,8 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "standard",
     name: "Gói Tiêu Chuẩn (Chuyên Nghiệp)",
     scale: "Quy mô 100 - 300 khách",
-    priceDisplay: "28.500.000",
-    unit: "VNĐ / sự kiện",
+    priceDisplay: "Liên hệ báo giá",
+    unit: "theo quy mô sự kiện",
     description: "Lựa chọn được hơn 70% doanh nghiệp tin dùng, đáp ứng hoàn hảo yêu cầu nghe nhìn cao cấp.",
     isFeatured: true,
     features: [
