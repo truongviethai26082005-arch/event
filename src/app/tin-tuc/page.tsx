@@ -60,7 +60,10 @@ export default function BlogListPage() {
             title: toSentenceCase(ensureAccentedKeyword(p.title || "")),
             focus_keyword: p.focus_keyword ? ensureAccentedKeyword(p.focus_keyword) : "Sự kiện",
           }));
-          setPosts(sanitized);
+          // Ưu tiên hiển thị bài viết vừa xuất bản từ Supabase lên đầu, bổ sung mock posts không trùng slug
+          const existingSlugs = new Set(sanitized.map((p) => p.slug));
+          const remainingMocks = MOCK_BLOG_POSTS.filter((m) => !existingSlugs.has(m.slug));
+          setPosts([...sanitized, ...remainingMocks]);
         }
       } catch (err) {
         console.warn("Dùng dữ liệu mẫu:", err);

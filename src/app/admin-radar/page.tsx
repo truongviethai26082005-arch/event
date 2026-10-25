@@ -141,24 +141,14 @@ export default function RadarSeoAdminPage() {
   const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads" | "events">("posts");
-  const [eventProfilesCount, setEventProfilesCount] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      return getStoredEventProfiles().length;
-    }
-    return DEFAULT_EVENT_PROFILES.length;
-  });
+  const [eventProfilesCount, setEventProfilesCount] = useState<number>(DEFAULT_EVENT_PROFILES.length);
 
   // Hồ sơ sự kiện liên kết với Radar SEO
   const [selectedEventId, setSelectedEventId] = useState<string>("auto");
   const [includeRealImages, setIncludeRealImages] = useState<boolean>(true);
   const [includeRealPricing, setIncludeRealPricing] = useState<boolean>(true);
   const [includeTestimonial, setIncludeTestimonial] = useState<boolean>(true);
-  const [availableProfiles, setAvailableProfiles] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      return getStoredEventProfiles();
-    }
-    return DEFAULT_EVENT_PROFILES;
-  });
+  const [availableProfiles, setAvailableProfiles] = useState<any[]>(DEFAULT_EVENT_PROFILES);
 
   const activeEventProfile = React.useMemo(() => {
     if (selectedEventId && selectedEventId !== "auto") {
@@ -211,11 +201,15 @@ export default function RadarSeoAdminPage() {
     return availableProfiles[0];
   }, [selectedEventId, availableProfiles, targetKeyword, competitorUrl]);
 
-  // Posts table state
   const [postsList, setPostsList] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
+  const [postNotice, setPostNotice] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+    slug?: string | null;
+  } | null>(null);
 
   const filteredPosts = postsList.filter((post) => {
     const query = searchQuery.toLowerCase().trim();
@@ -449,6 +443,9 @@ export default function RadarSeoAdminPage() {
 
       setAnalysisResult(data.analysis);
       setEditablePost(data.generatedPost);
+      if (data.savedPostId) {
+        setEditingPostId(data.savedPostId);
+      }
       // ƯU TIÊN MỞ TAB "analysis" ĐỂ ADMIN NẮM ĐƯỢC BỐI CẢNH VÀ LỖ HỔNG
       setActiveResultTab("analysis");
 
@@ -819,31 +816,44 @@ export default function RadarSeoAdminPage() {
       };
 
       if (isSupabaseConfigured) {
-        if (editingPostId) {
-          const { error } = await supabase
+        let saveQuery;
+        const isValidUuid =
+          editingPostId &&
+          !String(editingPostId).startsWith("post-") &&
+          !String(editingPostId).startsWith("case-study-");
+
+        if (isValidUuid) {
+          saveQuery = supabase
             .from("posts")
             .update(payload)
             .eq("id", editingPostId);
-          if (error) throw error;
-          setSaveStatus(
-            status === "published"
-              ? "Đã cập nhật & xuất bản bài viết thành công!"
-              : "Đã cập nhật bài viết thành công!"
-          );
-          setEditingPostId(null);
-          fetchPosts();
         } else {
-          const { error } = await supabase.from("posts").insert([payload]);
-          if (error) throw error;
-          setSaveStatus(
-            status === "published"
-              ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
-              : status === "scheduled"
-              ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
-              : "Đã lưu bản nháp vào bảng 'posts' thành công!"
-          );
-          fetchPosts();
+          saveQuery = supabase
+            .from("posts")
+            .upsert([payload], { onConflict: "slug" });
         }
+
+        const { error } = await saveQuery;
+        if (error) throw error;
+
+        setSaveStatus(
+          status === "published"
+            ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
+            : status === "scheduled"
+            ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
+            : "Đã lưu bản nháp vào bảng 'posts' thành công!"
+        );
+
+        if (status === "published") {
+          setPostNotice({
+            type: "success",
+            text: `Đã xuất bản bài viết "${editablePost.title.slice(0, 45)}..." lên website thành công!`,
+            slug: editablePost.slug,
+          });
+        }
+
+        setEditingPostId(null);
+        fetchPosts();
       } else {
         if (editingPostId) {
           setPostsList(
@@ -892,17 +902,54 @@ export default function RadarSeoAdminPage() {
 
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase
-          .from("posts")
-          .update({ status: nextStatus })
-          .eq("id", post.id);
+        let updateQuery;
+        const isValidUuid =
+          post.id &&
+          !String(post.id).startsWith("post-") &&
+          !String(post.id).startsWith("case-study-");
+
+        if (isValidUuid) {
+          updateQuery = supabase
+            .from("posts")
+            .update({ status: nextStatus })
+            .eq("id", post.id);
+        } else if (post.slug) {
+          updateQuery = supabase
+            .from("posts")
+            .update({ status: nextStatus })
+            .eq("slug", post.slug);
+        } else {
+          throw new Error("Không xác định được ID hoặc slug của bài viết.");
+        }
+
+        const { error } = await updateQuery;
 
         if (!error) {
-          fetchPosts();
+          await fetchPosts();
+          setPostNotice({
+            type: "success",
+            text:
+              nextStatus === "published"
+                ? `Đã duyệt và xuất bản bài viết "${post.title.slice(0, 45)}..." lên website thành công!`
+                : `Đã thu hồi bài viết "${post.title.slice(0, 45)}..." về trạng thái nháp!`,
+            slug: post.slug,
+          });
           return;
+        } else {
+          console.error("Lỗi cập nhật trạng thái bài viết:", error);
+          setPostNotice({
+            type: "error",
+            text: `Không thể cập nhật trạng thái: ${error.message}`,
+            slug: null,
+          });
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("Toggle status error:", e);
+        setPostNotice({
+          type: "error",
+          text: `Lỗi kết nối cơ sở dữ liệu: ${e?.message || e}`,
+          slug: null,
+        });
       }
     }
 
@@ -911,6 +958,14 @@ export default function RadarSeoAdminPage() {
         p.id === post.id ? { ...p, status: nextStatus } : p
       )
     );
+    setPostNotice({
+      type: "success",
+      text:
+        nextStatus === "published"
+          ? `Đã duyệt đăng bài viết (chế độ demo/offline)!`
+          : `Đã chuyển về bản nháp!`,
+      slug: post.slug,
+    });
   };
 
   // THAO TÁC XÓA BẢN NHÁP / BÀI VIẾT
@@ -2467,6 +2522,43 @@ export default function RadarSeoAdminPage() {
 
           {activeAdminTab === "posts" ? (
             <div className="space-y-4">
+              {/* Notice Banner khi Duyệt / Xuất bản bài viết */}
+              {postNotice && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-md transition-all ${
+                    postNotice.type === "success"
+                      ? "bg-emerald-950/70 border-emerald-500/40 text-emerald-300"
+                      : postNotice.type === "error"
+                      ? "bg-rose-950/70 border-rose-500/40 text-rose-300"
+                      : "bg-blue-950/70 border-blue-500/40 text-blue-300"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <span className="font-medium">{postNotice.text}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 self-end sm:self-auto">
+                    {postNotice.slug && (
+                      <Link
+                        href={`/tin-tuc/${postNotice.slug}`}
+                        target="_blank"
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-400 text-[#0A1E5E] font-black text-xs inline-flex items-center space-x-1.5 shadow hover:brightness-110 transition shrink-0"
+                      >
+                        <span>Xem bài viết trên web</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPostNotice(null)}
+                      className="text-slate-400 hover:text-white text-xs px-2 py-1"
+                      title="Đóng thông báo"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Search & Filter Toolbar */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
                 {/* Search Input */}

@@ -25,30 +25,126 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+// Bật cho phép blocking route trên Next.js 16 (Cache Components) để tải dữ liệu bài viết động từ Supabase
+export const instant = false;
+
 export async function generateStaticParams() {
-  return MOCK_BLOG_POSTS.map((post) => ({
+  const slugs: { slug: string }[] = MOCK_BLOG_POSTS.map((post) => ({
     slug: post.slug,
   }));
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data } = await supabase
+        .from("posts")
+        .select("slug")
+        .eq("status", "published")
+        .limit(20);
+
+      if (data && data.length > 0) {
+        data.forEach((p) => {
+          if (p.slug && !slugs.some((s) => s.slug === p.slug)) {
+            slugs.push({ slug: p.slug });
+          }
+        });
+      }
+    } catch {
+      // Ignore during static evaluation
+    }
+  }
+
+  return slugs;
 }
 
 async function getPostBySlug(slug: string) {
+  const cleanSlug = decodeURIComponent(slug).trim();
+
   if (isSupabaseConfigured) {
     try {
+      // 1. Thử tìm với cleanSlug
       const { data, error } = await supabase
         .from("posts")
         .select("*")
-        .eq("slug", slug)
-        .single();
+        .eq("slug", cleanSlug)
+        .maybeSingle();
 
       if (!error && data) return data;
+
+      // 2. Thử tìm với slug gốc nếu khác cleanSlug
+      if (slug !== cleanSlug) {
+        const resOriginal = await supabase
+          .from("posts")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (!resOriginal.error && resOriginal.data) return resOriginal.data;
+      }
     } catch (e) {
       console.warn("Supabase query error:", e);
     }
   }
 
   // Fallback to mock data
-  const found = MOCK_BLOG_POSTS.find((p) => p.slug === slug);
+  const found =
+    MOCK_BLOG_POSTS.find((p) => p.slug === cleanSlug) ||
+    MOCK_BLOG_POSTS.find((p) => p.slug === slug);
   return found || null;
+}
+
+async function getRelatedPosts(currentSlug: string) {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, title, slug, focus_keyword, created_at")
+        .neq("slug", currentSlug)
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      if (!error && data && data.length > 0) {
+        return data.map((item) => ({
+          ...item,
+          title: toSentenceCase(ensureAccentedKeyword(item.title || "")),
+          focus_keyword: item.focus_keyword
+            ? ensureAccentedKeyword(item.focus_keyword)
+            : "Sự kiện",
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return MOCK_BLOG_POSTS.filter((p) => p.slug !== currentSlug).slice(0, 3);
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
+
+  if (!post) {
+    return {
+      title: "Bài viết không tìm thấy | Trường Hải Event & Travel",
+      description: "Bài viết bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ.",
+    };
+  }
+
+  const title = toSentenceCase(ensureAccentedKeyword(post.title || ""));
+  const description =
+    post.meta_description ||
+    `Tìm hiểu chi tiết về ${post.title} từ Trường Hải Event & Travel. Hotline tư vấn: ${COMPANY_INFO.hotlineDisplay}`;
+
+  return {
+    title: `${title} | Trường Hải Event & Travel`,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      publishedTime: post.created_at,
+    },
+  };
 }
 
 export default async function BlogPostDetailPage({ params }: Props) {
@@ -64,7 +160,7 @@ export default async function BlogPostDetailPage({ params }: Props) {
   const rawKeyword = post.focus_keyword || "";
   const displayKeyword = rawKeyword ? ensureAccentedKeyword(rawKeyword) : "Cẩm nang sự kiện";
 
-  const relatedPosts = MOCK_BLOG_POSTS.filter((p) => p.slug !== slug).slice(0, 3);
+  const relatedPosts = await getRelatedPosts(slug);
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
