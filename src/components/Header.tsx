@@ -10,21 +10,8 @@ import {
   Menu,
   X,
   Sparkles,
-  Calendar,
-  Compass,
-  FileText,
   ChevronRight,
   ChevronDown,
-  Users,
-  Building2,
-  PartyPopper,
-  Mic2,
-  Bus,
-  ShieldCheck,
-  Eye,
-  History,
-  Flame,
-  BookOpen,
 } from "lucide-react";
 import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 
@@ -32,7 +19,6 @@ interface SubItem {
   href: string;
   label: string;
   desc?: string;
-  icon: any;
   badge?: string;
 }
 
@@ -40,13 +26,11 @@ interface NavItem {
   id: string;
   href: string;
   label: string;
-  icon: any;
   isMega?: boolean;
   dropdown?: {
     simple?: SubItem[];
     columns?: {
       title: string;
-      icon: any;
       items: SubItem[];
     }[];
   };
@@ -77,50 +61,64 @@ export default function Header() {
     setOpenMobileSubmenu(openMobileSubmenu === id ? null : id);
   };
 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    setActiveDropdown(null);
+    setMobileMenuOpen(false);
+
+    if (href.includes("#")) {
+      const [targetPath, targetHash] = href.split("#");
+      const currentPath = pathname;
+      const isSamePage = targetPath === "" || targetPath === currentPath;
+
+      if (isSamePage && targetHash) {
+        e.preventDefault();
+        window.history.pushState(null, "", `#${targetHash}`);
+        window.dispatchEvent(new Event("hashchange"));
+        const element = document.getElementById(targetHash);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    }
+  };
+
   // Cấu trúc Menu & Menu thả xuống (Dropdown / Megamenu)
   const navItems: NavItem[] = [
     {
       id: "trang-chu",
       href: "/",
       label: "Trang Chủ",
-      icon: Calendar,
     },
     {
       id: "gioi-thieu",
       href: "/ve-chung-toi",
       label: "Giới Thiệu",
-      icon: Users,
       dropdown: {
         simple: [
           {
             href: "/ve-chung-toi",
             label: "Về Trường Hải Event & Travel",
             desc: "Hồ sơ năng lực & vị thế đơn vị tổ chức 10+ năm",
-            icon: Building2,
           },
           {
             href: "/ve-chung-toi#tam-nhin",
             label: "Tầm Nhìn & Sứ Mệnh",
             desc: "Giá trị cốt lõi kiến tạo thành công bền vững",
-            icon: Eye,
           },
           {
             href: "/ve-chung-toi#lich-su",
             label: "Hành Trình & Cột Mốc",
             desc: "Lịch sử hơn 500+ đại lễ thành công",
-            icon: History,
           },
           {
             href: "/ve-chung-toi#lanh-dao",
             label: "Ban Lãnh Đạo & Chuyên Gia",
             desc: "Đội ngũ đạo diễn, kỹ thuật nòng cốt",
-            icon: Users,
           },
           {
             href: "/ve-chung-toi#phap-ly",
             label: "Pháp Lý & 100+ Đối Tác",
             desc: "MST 0111601327 minh bạch & đối tác trọng điểm",
-            icon: ShieldCheck,
           },
         ],
       },
@@ -129,79 +127,101 @@ export default function Header() {
       id: "dich-vu",
       href: "/dich-vu",
       label: "Dịch Vụ Sự Kiện & Tour",
-      icon: Compass,
       isMega: true,
       dropdown: {
         columns: [
           {
             title: "MẢNG TỔ CHỨC SỰ KIỆN",
-            icon: PartyPopper,
             items: [
               {
-                href: "/dich-vu#su-kien",
+                href: "/dich-vu#khai-truong-khanh-thanh",
                 label: "Khai Trương, Khánh Thành & Khởi Công",
                 desc: "Quy trình chuẩn chỉ, lân sư rồng, cắt băng trang trọng",
-                icon: Building2,
                 badge: "Hot",
               },
               {
-                href: "/dich-vu#su-kien",
+                href: "/dich-vu#tiec-tat-nien-yep",
                 label: "Year End Party & Gala Dinner",
                 desc: "Ý tưởng độc bản, âm thanh ánh sáng bùng nổ cảm xúc",
-                icon: PartyPopper,
                 badge: "Mùa YEP",
               },
               {
-                href: "/dich-vu#su-kien",
+                href: "/dich-vu#hoi-nghi-hoi-thao-bds",
                 label: "Hội Nghị, Hội Thảo & Mở Bán BĐS",
                 desc: "Hệ thống check-in QR, visual LED P2.5 chuyên nghiệp",
-                icon: Mic2,
               },
               {
                 href: "/dich-vu#su-kien",
                 label: "Trung Thu, Ngày Hội Gia Đình & Họp Lớp",
                 desc: "Gian hàng trò chơi dân gian, xiếc ảo thuật ấm cúng",
-                icon: Sparkles,
               },
               {
-                href: "/dich-vu#su-kien",
+                href: "/dich-vu#cho-thue-trang-thiet-bi",
                 label: "Cho Thuê Âm Thanh, Ánh Sáng & Màn LED",
                 desc: "Loa Line Array công suất lớn, Moving Beam nhập khẩu",
-                icon: Mic2,
               },
             ],
           },
           {
             title: "MẢNG DU LỊCH & BÁO GIÁ",
-            icon: Compass,
             items: [
               {
-                href: "/dich-vu#du-lich",
+                href: "/dich-vu#team-building-tour-mice",
                 label: "Tour Doanh Nghiệp & Team Building",
                 desc: "Hạ Long, Đà Nẵng, Phú Quốc - may đo theo ngân sách",
-                icon: Compass,
                 badge: "Trọn gói",
               },
               {
                 href: "/dich-vu#du-lich",
                 label: "Cho Thuê Xe Du Lịch Đời Mới",
                 desc: "Dàn xe 16 - 45 chỗ hiện đại, tài xế chuyên nghiệp",
-                icon: Bus,
               },
               {
                 href: "/dich-vu#khuyen-mai",
                 label: "Combo Ưu Đãi Sự Kiện 2024",
                 desc: "Tiết kiệm đến 30% khi đặt trọn gói âm thanh ánh sáng",
-                icon: Flame,
                 badge: "Tiết kiệm 30%",
               },
               {
                 href: "/dich-vu#bao-gia",
                 label: "Dự Toán Báo Giá Trực Tuyến",
                 desc: "Tính toán chi phí & nhận tư vấn chuyên viên 1-1",
-                icon: FileText,
               },
             ],
+          },
+        ],
+      },
+    },
+    {
+      id: "ho-so-nang-luc",
+      href: "/ho-so-nang-luc",
+      label: "Hồ Sơ Năng Lực",
+      dropdown: {
+        simple: [
+          {
+            href: "/ho-so-nang-luc",
+            label: "Toàn Bộ E-Profile Năng Lực",
+            desc: "Bản slide deck & báo cáo tổng quan chuẩn B2B",
+          },
+          {
+            href: "/ho-so-nang-luc#thiet-bi",
+            label: "Kho Thiết Bị 1.000m² & Specs",
+            desc: "Tra cứu loa Line Array, màn LED, Moving Beam và đội xe",
+          },
+          {
+            href: "/ho-so-nang-luc#phap-ly",
+            label: "Pháp Lý, ĐKKD & Hồ Sơ Dự Thầu",
+            desc: "MST 0111601327, chứng chỉ an toàn TCVN, bảo hiểm sự kiện",
+          },
+          {
+            href: "/ho-so-nang-luc#nhan-su",
+            label: "Sơ Đồ Nhân Sự & Đạo Diễn Sân Khấu",
+            desc: "Cơ cấu tổ chức và đạo diễn nghệ thuật 10+ năm",
+          },
+          {
+            href: "/ho-so-nang-luc#tai-profile",
+            label: "Tải Hồ Sơ PDF & Nhận Bản In",
+            desc: "Xuất bản PDF 300DPI hoặc nhận bản in chuyển phát tận nơi",
           },
         ],
       },
@@ -210,38 +230,32 @@ export default function Header() {
       id: "tin-tuc",
       href: "/tin-tuc",
       label: "Tin Tức & Cẩm Nang",
-      icon: FileText,
       dropdown: {
         simple: [
           {
             href: "/tin-tuc",
             label: "Tất Cả Bài Viết Mới Nhất",
             desc: "Cập nhật hoạt động sự kiện & cẩm nang hữu ích",
-            icon: BookOpen,
           },
           {
             href: "/tin-tuc?cat=khai-truong",
             label: "Cẩm Nang Khai Trương & Khánh Thành",
             desc: "Kịch bản, quy trình, văn khấn & kinh nghiệm tổ chức",
-            icon: Building2,
           },
           {
             href: "/tin-tuc?cat=year-end-party",
             label: "Ý Tưởng Year End Party & Gala",
             desc: "Tổng hợp concept độc đáo và kịch bản tiệc cuối năm",
-            icon: PartyPopper,
           },
           {
             href: "/tin-tuc?cat=team-building",
             label: "Kinh Nghiệm Team Building & Tour",
             desc: "Địa điểm hot và trò chơi gắn kết nội bộ hiệu quả",
-            icon: Compass,
           },
           {
             href: "/tin-tuc?cat=hoi-nghi",
             label: "Tổ Chức Hội Nghị & Hội Thảo",
             desc: "Checklist chi tiết quản trị rủi ro sự kiện hội nghị",
-            icon: Mic2,
           },
         ],
       },
@@ -313,7 +327,6 @@ export default function Header() {
           <nav className="hidden lg:flex items-center space-x-1">
             {navItems.map((item) => {
               const active = isActive(item.href);
-              const Icon = item.icon;
               const hasDropdown = Boolean(item.dropdown);
               const isOpen = activeDropdown === item.id;
 
@@ -326,13 +339,13 @@ export default function Header() {
                 >
                   <Link
                     href={item.href}
+                    onClick={(e) => handleNavClick(e, item.href)}
                     className={`flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                       active
-                        ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow-md shadow-[#D4AF37]/30"
+                        ? "bg-[#0A1E5E] text-[#D4AF37] font-bold shadow-sm"
                         : "text-slate-700 hover:text-[#0A1E5E] hover:bg-slate-100"
                     }`}
                   >
-                    <Icon className="w-4 h-4 mr-1.5 opacity-80" />
                     <span>{item.label}</span>
                     {hasDropdown && (
                       <ChevronDown
@@ -348,8 +361,8 @@ export default function Header() {
                     <div
                       className={`absolute top-full pt-2 z-50 animate-in fade-in-0 zoom-in-95 duration-150 ${
                         item.isMega
-                          ? "w-[580px] -left-16 xl:-left-12"
-                          : "w-72 left-0"
+                          ? "w-[560px] -left-16 xl:-left-12"
+                          : "w-80 left-0"
                       }`}
                     >
                       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 border-t-2 border-t-[#D4AF37] p-2.5 text-slate-800">
@@ -357,22 +370,18 @@ export default function Header() {
                         {item.dropdown?.simple && (
                           <div className="space-y-0.5">
                             {item.dropdown.simple.map((sub) => {
-                              const SubIcon = sub.icon;
                               return (
                                 <Link
                                   key={`${sub.href}-${sub.label}`}
                                   href={sub.href}
-                                  onClick={() => setActiveDropdown(null)}
-                                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50/80 group/item transition-colors duration-150"
+                                  onClick={(e) => handleNavClick(e, sub.href)}
+                                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-amber-50/80 group/item transition-colors duration-150"
                                 >
-                                  <div className="w-8 h-8 rounded-lg bg-amber-100/70 text-[#0A1E5E] flex items-center justify-center shrink-0 group-hover/item:bg-[#D4AF37] group-hover/item:text-white transition-colors">
-                                    <SubIcon className="w-4 h-4" />
-                                  </div>
                                   <span className="text-sm font-semibold text-slate-700 group-hover/item:text-[#0A1E5E] transition-colors truncate flex-1 min-w-0">
                                     {sub.label}
                                   </span>
                                   {sub.badge && (
-                                    <span className="ml-auto px-1.5 py-0.5 text-[10px] font-extrabold bg-[#D4AF37] text-[#0A1E5E] rounded shrink-0">
+                                    <span className="ml-2 px-1.5 py-0.5 text-[10px] font-extrabold bg-[#D4AF37] text-[#0A1E5E] rounded shrink-0">
                                       {sub.badge}
                                     </span>
                                   )}
@@ -387,30 +396,24 @@ export default function Header() {
                           <div>
                             <div className="grid grid-cols-2 gap-3 p-1">
                               {item.dropdown.columns.map((col, idx) => {
-                                const ColIcon = col.icon;
                                 return (
                                   <div key={idx} className="space-y-0.5">
-                                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-extrabold text-[#0A1E5E] border-b border-slate-100 uppercase tracking-wider mb-1">
-                                      <ColIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                    <div className="px-2.5 py-1.5 text-xs font-extrabold text-[#0A1E5E] border-b border-slate-100 uppercase tracking-wider mb-1">
                                       <span>{col.title}</span>
                                     </div>
                                     {col.items.map((sub) => {
-                                      const SubIcon = sub.icon;
                                       return (
                                         <Link
                                           key={`${sub.href}-${sub.label}`}
                                           href={sub.href}
-                                          onClick={() => setActiveDropdown(null)}
-                                          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-amber-50/80 group/sub transition-colors duration-150"
+                                          onClick={(e) => handleNavClick(e, sub.href)}
+                                          className="flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-amber-50/80 group/sub transition-colors duration-150"
                                         >
-                                          <div className="w-7 h-7 rounded-lg bg-amber-100/60 text-[#0A1E5E] flex items-center justify-center shrink-0 group-hover/sub:bg-[#D4AF37] group-hover/sub:text-white transition-colors">
-                                            <SubIcon className="w-3.5 h-3.5" />
-                                          </div>
                                           <span className="text-xs font-semibold text-slate-700 group-hover/sub:text-[#0A1E5E] transition-colors flex-1 min-w-0 truncate">
                                             {sub.label}
                                           </span>
                                           {sub.badge && (
-                                            <span className="ml-auto px-1.5 py-0.5 text-[9px] font-extrabold bg-gradient-to-r from-amber-400 to-[#D4AF37] text-[#0A1E5E] rounded-full shrink-0">
+                                            <span className="ml-2 px-1.5 py-0.5 text-[9px] font-extrabold bg-gradient-to-r from-amber-400 to-[#D4AF37] text-[#0A1E5E] rounded-full shrink-0">
                                               {sub.badge}
                                             </span>
                                           )}
@@ -424,8 +427,7 @@ export default function Header() {
 
                             {/* Bottom CTA Bar in Mega Menu */}
                             <div className="mt-2 pt-2 border-t border-slate-100 px-2 flex items-center justify-between text-xs text-slate-600 bg-slate-50/80 rounded-xl p-2">
-                              <span className="flex items-center font-medium">
-                                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
+                              <span className="font-medium">
                                 Tư vấn kịch bản & báo giá riêng cho doanh nghiệp:
                               </span>
                               <a
@@ -451,10 +453,10 @@ export default function Header() {
             {/* Quote Request CTA */}
             <Link
               href="/dich-vu#bao-gia"
-              className="flex items-center px-4 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-[#D4AF37] to-[#e5c053] hover:from-[#e5c053] hover:to-[#D4AF37] text-[#0A1E5E] shadow-md shadow-[#D4AF37]/30 hover:shadow-lg hover:scale-105 transition-all duration-200"
+              onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
+              className="relative px-5 py-2.5 rounded-xl font-extrabold text-sm text-white bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] animate-cta-glow hover:scale-105 active:scale-95 transition-all duration-200 shadow-md flex items-center justify-center tracking-wide"
             >
               <span>Nhận Báo Giá</span>
-              <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
 
@@ -481,7 +483,6 @@ export default function Header() {
 
           {navItems.map((item) => {
             const active = isActive(item.href);
-            const Icon = item.icon;
             const hasDropdown = Boolean(item.dropdown);
             const isSubOpen = openMobileSubmenu === item.id;
 
@@ -490,14 +491,13 @@ export default function Header() {
                 <div className="flex items-center justify-between">
                   <Link
                     href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={(e) => handleNavClick(e, item.href)}
                     className={`flex items-center flex-1 py-2.5 px-3 rounded-lg text-base font-semibold ${
                       active
                         ? "bg-[#D4AF37] text-[#0A1E5E] font-bold"
                         : "text-slate-800 hover:bg-slate-50"
                     }`}
                   >
-                    <Icon className="w-5 h-5 mr-3 opacity-80" />
                     <span>{item.label}</span>
                   </Link>
 
@@ -519,19 +519,22 @@ export default function Header() {
 
                 {/* Mobile Submenu Accordion */}
                 {hasDropdown && isSubOpen && (
-                  <div className="pl-6 pr-2 py-1 space-y-1 bg-slate-50/70 rounded-xl my-1 border-l-2 border-[#D4AF37]">
+                  <div className="pl-4 pr-2 py-1 space-y-1 bg-slate-50/70 rounded-xl my-1 border-l-2 border-[#D4AF37]">
                     {/* If simple dropdown */}
                     {item.dropdown?.simple?.map((sub) => {
-                      const SubIcon = sub.icon;
                       return (
                         <Link
                           key={`mobile-${sub.href}-${sub.label}`}
                           href={sub.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center py-2 px-2 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
+                          onClick={(e) => handleNavClick(e, sub.href)}
+                          className="flex items-center justify-between py-2 px-2.5 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
                         >
-                          <SubIcon className="w-4 h-4 mr-2 text-[#D4AF37] shrink-0" />
                           <span className="truncate">{sub.label}</span>
+                          {sub.badge && (
+                            <span className="ml-2 px-1.5 py-0.5 text-[9px] font-extrabold bg-[#D4AF37] text-[#0A1E5E] rounded shrink-0">
+                              {sub.badge}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}
@@ -539,20 +542,23 @@ export default function Header() {
                     {/* If columns/mega dropdown */}
                     {item.dropdown?.columns?.map((col, idx) => (
                       <div key={idx} className="pt-1">
-                        <div className="text-[11px] font-extrabold text-[#0A1E5E] uppercase tracking-wider py-1 px-2">
+                        <div className="text-[11px] font-extrabold text-[#0A1E5E] uppercase tracking-wider py-1 px-2.5">
                           {col.title}
                         </div>
                         {col.items.map((sub) => {
-                          const SubIcon = sub.icon;
                           return (
                             <Link
                               key={`mobile-${sub.href}-${sub.label}`}
                               href={sub.href}
-                              onClick={() => setMobileMenuOpen(false)}
-                              className="flex items-center py-2 px-2 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
+                              onClick={(e) => handleNavClick(e, sub.href)}
+                              className="flex items-center justify-between py-2 px-2.5 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
                             >
-                              <SubIcon className="w-4 h-4 mr-2 text-[#D4AF37] shrink-0" />
                               <span className="truncate">{sub.label}</span>
+                              {sub.badge && (
+                                <span className="ml-2 px-1.5 py-0.5 text-[9px] font-extrabold bg-[#D4AF37] text-[#0A1E5E] rounded shrink-0">
+                                  {sub.badge}
+                                </span>
+                              )}
                             </Link>
                           );
                         })}
@@ -567,11 +573,10 @@ export default function Header() {
           <div className="pt-3 border-t border-slate-100 space-y-2">
             <Link
               href="/dich-vu#bao-gia"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center w-full py-2.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#e5c053] text-[#0A1E5E] font-bold text-sm shadow-md"
+              onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
+              className="flex items-center justify-center w-full py-3 rounded-xl bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] text-white font-extrabold text-sm shadow-md"
             >
               <span>Nhận Báo Giá Ngay</span>
-              <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
             <a
               href={`tel:${COMPANY_INFO.hotline}`}
