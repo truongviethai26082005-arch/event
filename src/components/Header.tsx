@@ -74,11 +74,24 @@ export default function Header() {
         e.preventDefault();
         window.history.pushState(null, "", `#${targetHash}`);
         window.dispatchEvent(new Event("hashchange"));
-        const element = document.getElementById(targetHash);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
+
+        const scrollToTarget = () => {
+          const element =
+            document.getElementById(targetHash) ||
+            document.getElementById("profile-viewer-container");
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        };
+
+        scrollToTarget();
+        setTimeout(scrollToTarget, 100);
       }
+    } else if (href === pathname) {
+      e.preventDefault();
+      window.history.pushState(null, "", pathname);
+      window.dispatchEvent(new Event("hashchange"));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -199,7 +212,7 @@ export default function Header() {
       dropdown: {
         simple: [
           {
-            href: "/ho-so-nang-luc",
+            href: "/ho-so-nang-luc#toan-bo",
             label: "Toàn Bộ E-Profile Năng Lực",
             desc: "Bản slide deck & báo cáo tổng quan chuẩn B2B",
           },

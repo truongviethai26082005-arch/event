@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -72,6 +72,49 @@ export default function InteractiveProfileViewer() {
 
   const currentChapter = PROFILE_CHAPTERS[currentChapterIndex];
 
+  // Tự động đồng bộ URL Hash với chế độ xem E-Profile và chương tương ứng
+  useEffect(() => {
+    const handleHashSync = () => {
+      if (typeof window === "undefined") return;
+      const rawHash = window.location.hash.replace("#", "").toLowerCase();
+      if (!rawHash) return;
+
+      if (rawHash === "thiet-bi" || rawHash === "kho-thiet-bi") {
+        setActiveMode("specs");
+      } else if (rawHash === "phap-ly" || rawHash === "ho-so-thau") {
+        setActiveMode("legal");
+      } else if (rawHash === "nhan-su" || rawHash === "dao-dien") {
+        setActiveMode("deck");
+        setCurrentChapterIndex(2); // Chương 03: Cơ cấu nhân sự & Đạo diễn
+      } else if (rawHash === "du-an" || rawHash === "doi-tac") {
+        setActiveMode("deck");
+        setCurrentChapterIndex(3); // Chương 04: Dự án tiêu biểu
+      } else if (rawHash === "quy-trinh" || rawHash === "cam-ket") {
+        setActiveMode("deck");
+        setCurrentChapterIndex(4); // Chương 05: Quy trình & Cam kết
+      } else if (rawHash === "tai-profile" || rawHash === "tai-lieu") {
+        setActiveMode("legal");
+      } else if (rawHash === "toan-bo" || rawHash === "slide") {
+        setActiveMode("deck");
+        setCurrentChapterIndex(0);
+      }
+
+      // Cuộn mượt đến phần tử hoặc profile-viewer-container
+      setTimeout(() => {
+        const target =
+          document.getElementById(rawHash) ||
+          document.getElementById("profile-viewer-container");
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    };
+
+    handleHashSync();
+    window.addEventListener("hashchange", handleHashSync);
+    return () => window.removeEventListener("hashchange", handleHashSync);
+  }, []);
+
   // Lọc thiết bị theo category và từ khóa
   const filteredEquipment = useMemo(() => {
     return EQUIPMENT_SPECS.filter((item) => {
@@ -128,7 +171,7 @@ export default function InteractiveProfileViewer() {
   };
 
   return (
-    <div className="w-full">
+    <div id="profile-viewer-container" className="w-full scroll-mt-24">
       {/* Toast thông báo tải hồ sơ */}
       {downloadSuccessToast && (
         <div className="fixed bottom-6 right-6 z-50 max-w-md bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-[#D4AF37]/50 flex items-start space-x-3 animate-bounce">
@@ -245,7 +288,7 @@ export default function InteractiveProfileViewer() {
       {/* 1. CHẾ ĐỘ A: LẬT TRANG E-PROFILE (INTERACTIVE SLIDE DECK)                  */}
       {/* ========================================================================= */}
       {activeMode === "deck" && (
-        <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <section id="toan-bo" className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-28">
           {/* Deck Header & Progress */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
             {/* Thanh tiến trình các chương */}
@@ -800,7 +843,7 @@ export default function InteractiveProfileViewer() {
       {/* 2. CHẾ ĐỘ B: TRA CỨU THIẾT BỊ & SPECS INSPECTOR                            */}
       {/* ========================================================================= */}
       {activeMode === "specs" && (
-        <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8 animate-fadeIn">
+        <section id="thiet-bi" className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8 animate-fadeIn scroll-mt-28">
           {/* Header Specs Explorer */}
           <div className="bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#142A75] text-white p-6 sm:p-8 rounded-2xl shadow-xl border border-[#D4AF37]/30">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1064,7 +1107,7 @@ export default function InteractiveProfileViewer() {
       {/* 3. CHẾ ĐỘ C: HỒ SƠ DỰ THẦU & PHÁP LÝ (B2B COMPLIANCE)                      */}
       {/* ========================================================================= */}
       {activeMode === "legal" && (
-        <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-10 animate-fadeIn">
+        <section id="phap-ly" className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-10 animate-fadeIn scroll-mt-28">
           {/* Header Pháp Lý */}
           <div className="bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#142A75] text-white p-6 sm:p-8 rounded-2xl shadow-xl border border-[#D4AF37]/30">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1133,7 +1176,7 @@ export default function InteractiveProfileViewer() {
           </div>
 
           {/* Các gói tài liệu E-Profile sẵn sàng xuất bản */}
-          <div className="space-y-4">
+          <div id="tai-profile" className="space-y-4 scroll-mt-28">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h3 className="text-lg font-black text-slate-900 flex items-center">
                 <Download className="w-5 h-5 mr-2 text-[#0A1E5E]" />
