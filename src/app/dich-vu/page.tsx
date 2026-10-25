@@ -20,6 +20,7 @@ import {
 import ServiceModal from "./components/ServiceModal";
 import PromotionSection from "./components/PromotionSection";
 import LeadForm from "./components/LeadForm";
+import LeItemPricing from "./components/LeItemPricing";
 import {
   Calendar,
   Compass,
@@ -309,6 +310,11 @@ export default function ServicesPage() {
           ))}
         </div>
       </section>
+
+      {/* =========================================================================
+          3.5 BẢNG BÁO GIÁ DỊCH VỤ LẺ THEO HẠNG MỤC
+      ========================================================================= */}
+      <LeItemPricing onSelectItem={(itemName) => handleSelectService(itemName)} />
 
       {/* =========================================================================
           4. KHU VỰC KHUYẾN MÃI & COMBO ƯU ĐÃI (PROMOTION CORE - HÒA BÌNH GROUP STYLE)
