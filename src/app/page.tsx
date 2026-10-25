@@ -1522,45 +1522,6 @@ export default function HomePage() {
           </Reveal>
         </div>
       </section>
-
-<<<<<<< Updated upstream
-      {/* =========================================================================
-          FLOATING QUICK CONTACT BUTTONS (BOFU - CHỐT ĐƠN 24/7)
-      ========================================================================= */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5 pointer-events-auto">
-        {/* Zalo Button */}
-        <a
-          href="https://zalo.me/0844198333"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackLandingLead("ZALO")}
-          className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 hover:shadow-blue-500/50"
-          title="Chat Zalo Tư Vấn Nhanh"
-        >
-          <span className="font-bold text-xs tracking-tight">Zalo</span>
-          <span className="absolute right-14 whitespace-nowrap bg-slate-900 text-white text-xs px-2.5 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md">
-            Chat Zalo tư vấn ngay
-          </span>
-        </a>
-
-        {/* Hotline Call Button with Pulse Ring */}
-        <a
-          href={`tel:${COMPANY_INFO.hotline}`}
-          onClick={() => trackLandingLead("HOTLINE")}
-          className="group relative flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-[#D4AF37] text-[#050D26] font-bold text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200"
-          title={`Gọi Hotline ${COMPANY_INFO.hotlineDisplay}`}
-        >
-          <span className="absolute -inset-1 rounded-full bg-amber-400 opacity-30 animate-ping -z-10" />
-          <div className="w-6 h-6 rounded-full bg-[#050D26] text-[#D4AF37] flex items-center justify-center shrink-0">
-            <Phone className="w-3.5 h-3.5" />
-          </div>
-          <span className="hidden sm:inline-block font-semibold">
-            Hotline: {COMPANY_INFO.hotlineDisplay}
-          </span>
-        </a>
-      </div>
-=======
->>>>>>> Stashed changes
     </div>
   );
 }

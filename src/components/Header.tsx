@@ -84,35 +84,6 @@ export default function Header() {
       href: "/",
       label: "Trang Chủ",
       icon: Calendar,
-      dropdown: {
-        simple: [
-          {
-            href: "/",
-            label: "Trang Chủ Chính",
-            desc: "Tổng quan sự kiện & du lịch Trường Hải",
-            icon: Building2,
-          },
-          {
-            href: "/#nang-luc",
-            label: "Năng Lực Thiết Bị Sự Kiện",
-            desc: "Làm chủ 100% kho âm thanh, ánh sáng & LED",
-            icon: Mic2,
-          },
-          {
-            href: "/#doi-tac",
-            label: "Khách Hàng & Đối Tác Lớn",
-            desc: "Đoàn thể, trường đại học & tập đoàn tin cậy",
-            icon: Users,
-          },
-          {
-            href: "/dich-vu#bao-gia",
-            label: "Báo Giá Nhanh 24/7",
-            desc: "Nhận dự toán chi phí chi tiết sau 30 phút",
-            icon: Sparkles,
-            badge: "Miễn phí",
-          },
-        ],
-      },
     },
     {
       id: "gioi-thieu",
@@ -389,7 +360,7 @@ export default function Header() {
                               const SubIcon = sub.icon;
                               return (
                                 <Link
-                                  key={sub.href}
+                                  key={`${sub.href}-${sub.label}`}
                                   href={sub.href}
                                   onClick={() => setActiveDropdown(null)}
                                   className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50/80 group/item transition-colors duration-150"
@@ -427,7 +398,7 @@ export default function Header() {
                                       const SubIcon = sub.icon;
                                       return (
                                         <Link
-                                          key={sub.href}
+                                          key={`${sub.href}-${sub.label}`}
                                           href={sub.href}
                                           onClick={() => setActiveDropdown(null)}
                                           className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-amber-50/80 group/sub transition-colors duration-150"
@@ -554,7 +525,7 @@ export default function Header() {
                       const SubIcon = sub.icon;
                       return (
                         <Link
-                          key={sub.href}
+                          key={`mobile-${sub.href}-${sub.label}`}
                           href={sub.href}
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center py-2 px-2 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
@@ -575,7 +546,7 @@ export default function Header() {
                           const SubIcon = sub.icon;
                           return (
                             <Link
-                              key={sub.href}
+                              key={`mobile-${sub.href}-${sub.label}`}
                               href={sub.href}
                               onClick={() => setMobileMenuOpen(false)}
                               className="flex items-center py-2 px-2 text-sm text-slate-700 hover:text-[#0A1E5E] font-medium rounded-lg hover:bg-white"
@@ -604,12 +575,8 @@ export default function Header() {
             </Link>
             <a
               href={`tel:${COMPANY_INFO.hotline}`}
-<<<<<<< Updated upstream
               onClick={() => trackLandingLead("HOTLINE")}
-              className="flex items-center justify-center w-full py-2.5 rounded-lg bg-[#D4AF37] text-[#0A1E5E] font-bold text-sm shadow-md"
-=======
               className="flex items-center justify-center w-full py-2.5 rounded-lg bg-slate-100 text-[#0A1E5E] hover:bg-slate-200 font-bold text-sm border border-slate-200"
->>>>>>> Stashed changes
             >
               <Phone className="w-4 h-4 mr-2 text-[#D4AF37]" />
               Gọi Hotline: {COMPANY_INFO.hotlineDisplay}
