@@ -52,7 +52,14 @@ export default function LeadForm({
   const [submittedLeadParams, setSubmittedLeadParams] = useState<{
     name: string;
     phone: string;
+    email?: string;
     event: string;
+    guests?: string;
+    budget?: string;
+    date?: string;
+    location?: string;
+    notes?: string;
+    promo?: string;
   } | null>(null);
 
   const [submitResult, setSubmitResult] = useState<{
@@ -73,7 +80,14 @@ export default function LeadForm({
       const q = new URLSearchParams({
         name: submittedLeadParams.name,
         phone: submittedLeadParams.phone,
+        email: submittedLeadParams.email || "",
         event: submittedLeadParams.event,
+        guests: submittedLeadParams.guests || "",
+        budget: submittedLeadParams.budget || "",
+        date: submittedLeadParams.date || "",
+        location: submittedLeadParams.location || "",
+        notes: submittedLeadParams.notes || "",
+        promo: submittedLeadParams.promo || "",
       }).toString();
       router.push(`/dich-vu/cam-on?${q}`);
     }
@@ -136,11 +150,33 @@ export default function LeadForm({
         submittedPhone: formData.phone,
       });
 
-      setSubmittedLeadParams({
-        name: formData.fullName,
-        phone: formData.phone,
+      const leadParamsToPass = {
+        name: formData.fullName.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
         event: formData.eventType,
-      });
+        guests: formData.estimatedGuests,
+        budget: formData.budgetRange,
+        date: formData.eventDate,
+        location: formData.location,
+        notes: formData.notes,
+        promo: initialPromo ? `${initialPromo.title} (Mã: ${initialPromo.code})` : "",
+      };
+
+      setSubmittedLeadParams(leadParamsToPass);
+
+      try {
+        localStorage.setItem(
+          "last_submitted_lead",
+          JSON.stringify({
+            ...leadParamsToPass,
+            submittedAt: new Date().toISOString(),
+          })
+        );
+      } catch (e) {
+        // ignore localStorage errors
+      }
+
       setRedirectCountdown(4);
 
       // Reset form
@@ -306,15 +342,37 @@ export default function LeadForm({
                   {/* Countdown notice & Direct Action Buttons */}
                   <div className="pt-2 border-t border-emerald-200/80 space-y-2.5">
                     {redirectCountdown !== null && redirectCountdown > 0 && (
-                      <div className="flex items-center justify-between text-[11px] text-emerald-800 font-medium">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-emerald-800 font-medium">
                         <span>⏳ Đang tự động chuyển đến Trang Xác Nhận sau <strong>{redirectCountdown}s</strong>...</span>
-                        <button
-                          type="button"
-                          onClick={() => setRedirectCountdown(null)}
-                          className="text-emerald-700 underline hover:text-emerald-900 text-[11px]"
-                        >
-                          Dừng chuyển tiếp
-                        </button>
+                        <div className="flex items-center gap-3">
+                          {submittedLeadParams && (
+                            <Link
+                              href={`/dich-vu/cam-on?${new URLSearchParams({
+                                name: submittedLeadParams.name,
+                                phone: submittedLeadParams.phone,
+                                email: submittedLeadParams.email || "",
+                                event: submittedLeadParams.event,
+                                guests: submittedLeadParams.guests || "",
+                                budget: submittedLeadParams.budget || "",
+                                date: submittedLeadParams.date || "",
+                                location: submittedLeadParams.location || "",
+                                notes: submittedLeadParams.notes || "",
+                                promo: submittedLeadParams.promo || "",
+                              }).toString()}`}
+                              className="font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1"
+                            >
+                              <span>Xem bảng tóm tắt ngay</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setRedirectCountdown(null)}
+                            className="text-slate-500 hover:text-slate-700 underline text-[11px]"
+                          >
+                            Dừng
+                          </button>
+                        </div>
                       </div>
                     )}
 
