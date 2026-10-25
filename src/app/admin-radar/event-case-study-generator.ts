@@ -187,36 +187,41 @@ export async function saveGeneratedCaseStudyToCMS(
   profileId: string,
   onSuccess?: (post: any) => void
 ): Promise<any> {
-  const payload = {
+  // Chỉ gửi các cột thực tế tồn tại trong bảng posts của Supabase:
+  // title, slug, content, meta_description, focus_keyword, status, created_at
+  const payload: any = {
     title: caseStudy.title,
     slug: caseStudy.slug,
     content: caseStudy.content,
     meta_description: caseStudy.meta_description,
     focus_keyword: caseStudy.focus_keyword,
-    category: "du-an-thuc-te",
-    status: caseStudy.status,
-    reading_time: caseStudy.reading_time,
-    created_at: caseStudy.created_at,
+    status: caseStudy.status || "published",
+    created_at: caseStudy.created_at || new Date().toISOString(),
   };
 
   let savedPost: any = null;
 
   if (isSupabaseConfigured) {
     try {
+      // Dùng upsert với onConflict: slug để nếu bài viết đã tồn tại thì cập nhật nội dung, không bị lỗi duplicate key
       const { data, error } = await supabase
         .from("posts")
-        .insert([payload])
-        .select()
-        .single();
-      if (!error && data) {
-        savedPost = data;
+        .upsert([payload], { onConflict: "slug" })
+        .select();
+
+      if (error) {
+        console.error("Lỗi Supabase khi lưu bài viết Case Study:", error);
+        throw new Error(error.message || "Lỗi lưu vào Supabase");
       }
-    } catch (e) {
-      console.warn("Lỗi khi lưu bài viết Case Study lên Supabase:", e);
+
+      savedPost = (data && data.length > 0) ? data[0] : payload;
+    } catch (e: any) {
+      console.error("Lỗi khi lưu bài viết Case Study lên Supabase:", e);
+      throw e;
     }
   }
 
-  // Fallback / local object
+  // Fallback / local object khi không cấu hình Supabase
   if (!savedPost) {
     savedPost = {
       id: `case-study-${Date.now()}`,
