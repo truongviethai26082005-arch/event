@@ -74,6 +74,7 @@ export default function Header() {
         e.preventDefault();
         window.history.pushState(null, "", `#${targetHash}`);
         window.dispatchEvent(new Event("hashchange"));
+        window.dispatchEvent(new CustomEvent("profile-navigate", { detail: targetHash }));
 
         const scrollToTarget = () => {
           const element =
@@ -91,6 +92,7 @@ export default function Header() {
       e.preventDefault();
       window.history.pushState(null, "", pathname);
       window.dispatchEvent(new Event("hashchange"));
+      window.dispatchEvent(new CustomEvent("profile-navigate", { detail: "toan-bo" }));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -463,11 +465,11 @@ export default function Header() {
 
           {/* Action CTAs */}
           <div className="hidden sm:flex shrink-0 items-center space-x-3 whitespace-nowrap">
-            {/* Quote Request CTA */}
+            {/* Quote Request CTA - Dài hơn, to hơn, nổi bật thu hút khách hàng */}
             <Link
               href="/dich-vu#bao-gia"
               onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
-              className="relative px-5 py-2.5 rounded-xl font-extrabold text-sm text-white bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] animate-cta-glow hover:scale-105 active:scale-95 transition-all duration-200 shadow-md flex items-center justify-center tracking-wide"
+              className="relative min-w-[175px] sm:min-w-[200px] px-7 sm:px-9 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] shadow-xl shadow-orange-600/35 animate-cta-glow hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center uppercase tracking-wider text-center"
             >
               <span>Nhận Báo Giá</span>
             </Link>

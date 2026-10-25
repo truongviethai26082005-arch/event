@@ -74,9 +74,12 @@ export default function InteractiveProfileViewer() {
 
   // Tự động đồng bộ URL Hash với chế độ xem E-Profile và chương tương ứng
   useEffect(() => {
-    const handleHashSync = () => {
+    const handleHashSync = (overrideHash?: string) => {
       if (typeof window === "undefined") return;
-      const rawHash = window.location.hash.replace("#", "").toLowerCase();
+      const rawHash = (
+        overrideHash || window.location.hash.replace("#", "")
+      ).toLowerCase();
+
       if (!rawHash) return;
 
       if (rawHash === "thiet-bi" || rawHash === "kho-thiet-bi") {
@@ -107,12 +110,25 @@ export default function InteractiveProfileViewer() {
         if (target) {
           target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-      }, 100);
+      }, 80);
+    };
+
+    const handleCustomNav = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      handleHashSync(customEvent.detail);
     };
 
     handleHashSync();
-    window.addEventListener("hashchange", handleHashSync);
-    return () => window.removeEventListener("hashchange", handleHashSync);
+    const timer = setTimeout(() => handleHashSync(), 250);
+
+    window.addEventListener("hashchange", () => handleHashSync());
+    window.addEventListener("profile-navigate", handleCustomNav);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("hashchange", () => handleHashSync());
+      window.removeEventListener("profile-navigate", handleCustomNav);
+    };
   }, []);
 
   // Lọc thiết bị theo category và từ khóa
