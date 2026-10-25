@@ -68,7 +68,8 @@ export default function TimelineMilestonesSection({
 }: TimelineMilestonesSectionProps) {
   return (
     <section
-      className={`py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white via-slate-50/70 to-white relative overflow-hidden ${className}`}
+      id="lich-su"
+      className={`scroll-mt-28 py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white via-slate-50/70 to-white relative overflow-hidden ${className}`}
     >
       {/* Background Ambient Luxury Light */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-amber-200/15 via-blue-900/5 to-transparent blur-3xl pointer-events-none -z-0" />

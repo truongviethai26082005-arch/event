@@ -7,8 +7,9 @@
  * =========================================================================
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
@@ -37,6 +38,30 @@ const CATEGORIES = [
   { label: "Hội Nghị & Hội Thảo", value: "hội nghị" },
   { label: "Kinh Nghiệm Tổ Chức", value: "kinh nghiệm" },
 ];
+
+const CAT_QUERY_MAP: Record<string, string> = {
+  "khai-truong": "khai trương",
+  "year-end-party": "year end party",
+  "team-building": "team building",
+  "hoi-nghi": "hội nghị",
+  "kinh-nghiem": "kinh nghiệm",
+};
+
+function CategoryParamListener({ onCategoryChange }: { onCategoryChange: (cat: string) => void }) {
+  const searchParams = useSearchParams();
+  const cat = searchParams.get("cat");
+
+  useEffect(() => {
+    if (cat) {
+      const mapped = CAT_QUERY_MAP[cat] || cat;
+      onCategoryChange(mapped);
+    } else {
+      onCategoryChange("all");
+    }
+  }, [cat, onCategoryChange]);
+
+  return null;
+}
 
 export default function BlogListPage() {
   const [posts, setPosts] = useState<any[]>(MOCK_BLOG_POSTS);
@@ -94,6 +119,9 @@ export default function BlogListPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <Suspense fallback={null}>
+        <CategoryParamListener onCategoryChange={setSelectedCategory} />
+      </Suspense>
       {/* Hero Banner */}
       <div className="bg-[#0A1E5E] text-white py-10 border-b border-[#D4AF37]/30 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#122868] opacity-90" />

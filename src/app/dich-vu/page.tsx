@@ -8,7 +8,7 @@
  * =========================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { COMPANY_INFO } from "@/lib/company-data";
 import {
   CORE_SERVICES,
@@ -56,6 +56,45 @@ export default function ServicesPage() {
 
   // FAQ Accordion state
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Tự động nhận diện URL Hash khi chuyển hướng từ Header hoặc click danh mục
+  useEffect(() => {
+    const handleHash = () => {
+      if (typeof window === "undefined") return;
+      const hash = window.location.hash.replace("#", "");
+      if (!hash) return;
+
+      if (hash === "su-kien") {
+        setMainTab("su-kien");
+        setSelectedSubTag("all");
+      } else if (hash === "du-lich") {
+        setMainTab("du-lich");
+        setSelectedSubTag("all");
+      } else if (
+        hash === "khai-truong-khanh-thanh" ||
+        hash === "tiec-tat-nien-yep" ||
+        hash === "hoi-nghi-hoi-thao-bds" ||
+        hash === "cho-thue-trang-thiet-bi"
+      ) {
+        setMainTab("su-kien");
+        setSelectedSubTag("all");
+      } else if (hash === "team-building-tour-mice") {
+        setMainTab("du-lich");
+        setSelectedSubTag("all");
+      }
+
+      setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 150);
+    };
+
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
 
   // Lọc danh sách dịch vụ theo tab
   const filteredServices = CORE_SERVICES.filter((item) => {
@@ -214,7 +253,8 @@ export default function ServicesPage() {
       {/* =========================================================================
           3. DANH SÁCH 5 DỊCH VỤ ĐÓNG GÓI CHI TIẾT (SERVICES GRID)
       ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section id="su-kien" className="scroll-mt-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative">
+        <div id="du-lich" className="absolute -top-28 left-0 pointer-events-none" />
         <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37] block mb-1">
@@ -241,7 +281,8 @@ export default function ServicesPage() {
           {filteredServices.map((service) => (
             <div
               key={service.id}
-              className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group"
+              id={service.id}
+              className="scroll-mt-28 bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group"
             >
               {/* Image & Tag Header */}
               <div className="h-56 relative overflow-hidden bg-slate-900 shrink-0">

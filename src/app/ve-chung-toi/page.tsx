@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import VisionMissionSection from "@/components/VisionMissionSection";
 import TimelineMilestonesSection from "@/components/TimelineMilestonesSection";
+import HashScrollHandler from "@/components/HashScrollHandler";
 import {
   COMPANY_INFO,
   PARTNER_GROUPS,
@@ -119,10 +120,11 @@ const MEDIA_PRESS_ITEMS = [
 export default function AboutUsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-800 font-sans">
+      <HashScrollHandler />
       {/* =========================================================================
           1. HERO BANNER & TỔNG QUAN DOANH NGHIỆP
       ========================================================================= */}
-      <section className="relative bg-[#0A1E5E] text-white py-16 sm:py-20 lg:py-24 overflow-hidden border-b border-[#D4AF37]/30">
+      <section id="tong-quan" className="scroll-mt-28 relative bg-[#0A1E5E] text-white py-16 sm:py-20 lg:py-24 overflow-hidden border-b border-[#D4AF37]/30">
         {/* Background Gradients & Ambient Glow */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#122b82] via-[#0A1E5E] to-[#040c24] opacity-95" />
         <div className="absolute top-12 left-10 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none animate-pulse-glow" />
@@ -268,7 +270,7 @@ export default function AboutUsPage() {
       {/* =========================================================================
           4. ĐỘI NGŨ NHÂN SỰ NÒNG CỐT & BAN LÃNH ĐẠO (KEY LEADERSHIP)
       ========================================================================= */}
-      <section className="py-16 sm:py-20 bg-slate-100/70 border-y border-slate-200">
+      <section id="lanh-dao" className="scroll-mt-28 py-16 sm:py-20 bg-slate-100/70 border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal delay={100} direction="up">
             <div className="text-center max-w-4xl mx-auto mb-12 sm:mb-14 space-y-2.5">
@@ -432,7 +434,7 @@ export default function AboutUsPage() {
       {/* =========================================================================
           6. THÔNG TIN PHÁP LÝ MINH BẠCH (MÃ SỐ THUẾ & TƯ CÁCH PHÁP NHÂN)
       ========================================================================= */}
-      <section id="phap-ly" className="py-16 sm:py-20 bg-slate-100/70 border-t border-slate-200">
+      <section id="phap-ly" className="scroll-mt-28 py-16 sm:py-20 bg-slate-100/70 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal delay={100} direction="up">
             <div className="text-center max-w-4xl mx-auto mb-12 space-y-2.5">
