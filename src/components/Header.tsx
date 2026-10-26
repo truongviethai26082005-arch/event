@@ -74,11 +74,26 @@ export default function Header() {
         e.preventDefault();
         window.history.pushState(null, "", `#${targetHash}`);
         window.dispatchEvent(new Event("hashchange"));
-        const element = document.getElementById(targetHash);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
+        window.dispatchEvent(new CustomEvent("profile-navigate", { detail: targetHash }));
+
+        const scrollToTarget = () => {
+          const element =
+            document.getElementById(targetHash) ||
+            document.getElementById("profile-viewer-container");
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        };
+
+        scrollToTarget();
+        setTimeout(scrollToTarget, 100);
       }
+    } else if (href === pathname) {
+      e.preventDefault();
+      window.history.pushState(null, "", pathname);
+      window.dispatchEvent(new Event("hashchange"));
+      window.dispatchEvent(new CustomEvent("profile-navigate", { detail: "toan-bo" }));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -199,14 +214,9 @@ export default function Header() {
       dropdown: {
         simple: [
           {
-            href: "/ho-so-nang-luc",
+            href: "/ho-so-nang-luc#toan-bo",
             label: "Toàn Bộ E-Profile Năng Lực",
             desc: "Bản slide deck & báo cáo tổng quan chuẩn B2B",
-          },
-          {
-            href: "/ho-so-nang-luc#thiet-bi",
-            label: "Kho Thiết Bị 1.000m² & Specs",
-            desc: "Tra cứu loa Line Array, màn LED, Moving Beam và đội xe",
           },
           {
             href: "/ho-so-nang-luc#phap-ly",
@@ -314,17 +324,17 @@ export default function Header() {
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-lg md:text-xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
+              <span className="font-extrabold text-lg md:text-xl xl:text-2xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
                 TRƯỜNG HẢI
               </span>
-              <span className="text-[11px] uppercase tracking-widest text-[#B8860B] font-bold">
+              <span className="text-[11px] xl:text-xs uppercase tracking-widest text-[#B8860B] font-bold">
                 EVENT & TRAVEL
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation with Dropdowns */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden lg:flex flex-1 items-center justify-center lg:space-x-1.5 xl:space-x-0 xl:justify-evenly mx-2 xl:mx-6 2xl:mx-10 max-w-5xl 2xl:max-w-6xl">
             {navItems.map((item) => {
               const active = isActive(item.href);
               const hasDropdown = Boolean(item.dropdown);
@@ -340,16 +350,16 @@ export default function Header() {
                   <Link
                     href={item.href}
                     onClick={(e) => handleNavClick(e, item.href)}
-                    className={`flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                    className={`flex items-center whitespace-nowrap px-3 xl:px-4 2xl:px-5 py-2.5 rounded-xl text-[14.5px] xl:text-[16px] 2xl:text-[17px] font-bold tracking-tight transition-all duration-200 ${
                       active
-                        ? "bg-[#0A1E5E] text-[#D4AF37] font-bold shadow-sm"
-                        : "text-slate-700 hover:text-[#0A1E5E] hover:bg-slate-100"
+                        ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md ring-1 ring-[#D4AF37]/30"
+                        : "text-slate-700 hover:text-[#0A1E5E] hover:bg-slate-100/90"
                     }`}
                   >
                     <span>{item.label}</span>
                     {hasDropdown && (
                       <ChevronDown
-                        className={`w-3.5 h-3.5 ml-1 transition-transform duration-200 ${
+                        className={`w-4 h-4 ml-1.5 transition-transform duration-200 ${
                           isOpen ? "rotate-180 text-[#0A1E5E]" : "opacity-60"
                         }`}
                       />
@@ -361,8 +371,12 @@ export default function Header() {
                     <div
                       className={`absolute top-full pt-2 z-50 animate-in fade-in-0 zoom-in-95 duration-150 ${
                         item.isMega
-                          ? "w-[560px] -left-16 xl:-left-12"
-                          : "w-80 left-0"
+                          ? "w-[600px] left-1/2 -translate-x-1/2"
+                          : item.id === "tin-tuc"
+                          ? "w-80 sm:w-88 right-0"
+                          : item.id === "gioi-thieu"
+                          ? "w-80 sm:w-88 left-0"
+                          : "w-80 sm:w-88 left-1/2 -translate-x-1/2"
                       }`}
                     >
                       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 border-t-2 border-t-[#D4AF37] p-2.5 text-slate-800">
@@ -450,11 +464,11 @@ export default function Header() {
 
           {/* Action CTAs */}
           <div className="hidden sm:flex shrink-0 items-center space-x-3 whitespace-nowrap">
-            {/* Quote Request CTA */}
+            {/* Quote Request CTA - Dài hơn, to hơn, nổi bật thu hút khách hàng */}
             <Link
               href="/dich-vu#bao-gia"
               onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
-              className="relative px-5 py-2.5 rounded-xl font-extrabold text-sm text-white bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] animate-cta-glow hover:scale-105 active:scale-95 transition-all duration-200 shadow-md flex items-center justify-center tracking-wide"
+              className="relative min-w-[175px] sm:min-w-[200px] px-7 sm:px-9 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-[#DC2626] via-[#EA580C] to-[#D4AF37] shadow-xl shadow-orange-600/35 animate-cta-glow hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center uppercase tracking-wider text-center"
             >
               <span>Nhận Báo Giá</span>
             </Link>
