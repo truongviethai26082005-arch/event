@@ -219,11 +219,6 @@ export default function Header() {
             desc: "Bản slide deck & báo cáo tổng quan chuẩn B2B",
           },
           {
-            href: "/ho-so-nang-luc#thiet-bi",
-            label: "Kho Thiết Bị 1.000m² & Specs",
-            desc: "Tra cứu loa Line Array, màn LED, Moving Beam và đội xe",
-          },
-          {
             href: "/ho-so-nang-luc#phap-ly",
             label: "Pháp Lý, ĐKKD & Hồ Sơ Dự Thầu",
             desc: "MST 0111601327, chứng chỉ an toàn TCVN, bảo hiểm sự kiện",
