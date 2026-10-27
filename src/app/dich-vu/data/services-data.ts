@@ -294,16 +294,16 @@ export const CORE_SERVICES: ServiceDetail[] = [
     title: "Sản Xuất, Thi Công & Cho Thuê Trang Thiết Bị Sự Kiện Trọn Gói",
     category: "su-kien",
     tag: "Trang thiết bị sự kiện",
-    badge: "Kho Thiết Bị Trực Tiếp",
-    priceNote: "Giá gốc tận kho - Không qua trung gian",
+    badge: "Thiết Bị Tiêu Chuẩn Cao",
+    priceNote: "Dự toán chuẩn chỉ - Tối ưu ngân sách",
     shortDesc:
       "Cung cấp hệ thống Âm thanh Line Array, Ánh sáng Moving/Beam, Màn hình LED P2.5 - P3.91, Nhà bạt nhôm không gian, Bàn ghế Banquet với chi phí tối ưu nhất.",
     description:
-      "Trường Hải Event & Travel sở hữu kho thiết bị sự kiện rộng hơn 1.000m² tại Hà Nội, trực tiếp nhập khẩu và bảo dưỡng định kỳ các dòng thiết bị âm thanh, ánh sáng, màn hình LED hiện đại nhất. Chúng tôi là đối tác cung cấp thiết bị tin cậy cho hàng trăm agency và doanh nghiệp trên toàn miền Bắc với cam kết giá gốc tận kho, kỹ thuật viên trực 24/7 và lắp đặt trước giờ G.",
+      "Trường Hải Event & Travel cung cấp các dòng thiết bị sự kiện âm thanh, ánh sáng, màn hình LED hiện đại đạt chuẩn chất lượng. Chúng tôi là đối tác cung cấp dịch vụ tin cậy cho hàng trăm agency và doanh nghiệp trên toàn miền Bắc với cam kết dự toán minh bạch, kỹ thuật viên trực 24/7 và lắp đặt trước giờ G.",
     imageUrl:
       "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1000&q=80",
     highlights: [
-      "Kho thiết bị tự sở hữu 100% - Tiết kiệm ngay 25% - 30% chi phí trung gian",
+      "Trang thiết bị hiện đại, chọn lọc kỹ lưỡng - Tối ưu 20% - 25% ngân sách",
       "Màn hình LED Cabinet nhôm đúc P2.5 trong nhà & P3.91 ngoài trời siêu nét",
       "Dàn loa Line Array công suất khủng, micro không dây UHF bắt sóng xa 100m",
       "Nhà bạt không gian hợp kim nhôm khẩu độ từ 10m đến 24m kiên cố an toàn",
@@ -539,7 +539,7 @@ export const SERVICE_FAQS: FaqItem[] = [
   {
     question: "Các gói Combo khuyến mãi có bị cắt giảm chất lượng thiết bị không?",
     answer:
-      "TUYỆT ĐỐI KHÔNG. Trường Hải tự sở hữu kho thiết bị hơn 1.000m² và đội ngũ nhân sự cơ hữu nên chúng tôi chủ động tối ưu chi phí trung gian để tặng lại lợi ích cho khách hàng. Thiết bị sử dụng trong combo đều là thiết bị chính hãng mới 95-100%.",
+      "TUYỆT ĐỐI KHÔNG. Trường Hải làm việc trực tiếp với các đối tác cung ứng uy tín và đội ngũ nhân sự cơ hữu chuyên nghiệp nên chúng tôi chủ động tối ưu chi phí để mang lại lợi ích tốt nhất cho khách hàng. Thiết bị sử dụng trong combo đều là thiết bị chính hãng đạt chuẩn quốc tế.",
   },
   {
     question: "Nếu thời tiết xấu (mưa gió) ngoài trời thì công ty xử lý ra sao?",

@@ -130,78 +130,25 @@ export default function Header() {
       href: "/dich-vu",
       label: "Dịch Vụ Sự Kiện & Tour",
       icon: Compass,
-      isMega: true,
       dropdown: {
-        columns: [
+        simple: [
           {
-            title: "MẢNG TỔ CHỨC SỰ KIỆN",
+            href: "/dich-vu#su-kien",
+            label: "Sự Kiện",
+            desc: "Tổ chức sự kiện trọn gói doanh nghiệp",
             icon: PartyPopper,
-            items: [
-              {
-                href: "/dich-vu#su-kien",
-                label: "Khai Trương, Khánh Thành & Khởi Công",
-                desc: "Quy trình chuẩn chỉ, lân sư rồng, cắt băng trang trọng",
-                icon: Building2,
-                badge: "Hot",
-              },
-              {
-                href: "/dich-vu#su-kien",
-                label: "Year End Party & Gala Dinner",
-                desc: "Ý tưởng độc bản, âm thanh ánh sáng bùng nổ cảm xúc",
-                icon: PartyPopper,
-                badge: "Mùa YEP",
-              },
-              {
-                href: "/dich-vu#su-kien",
-                label: "Hội Nghị, Hội Thảo & Mở Bán BĐS",
-                desc: "Hệ thống check-in QR, visual LED P2.5 chuyên nghiệp",
-                icon: Mic2,
-              },
-              {
-                href: "/dich-vu#su-kien",
-                label: "Trung Thu, Ngày Hội Gia Đình & Họp Lớp",
-                desc: "Gian hàng trò chơi dân gian, xiếc ảo thuật ấm cúng",
-                icon: Sparkles,
-              },
-              {
-                href: "/dich-vu#su-kien",
-                label: "Cho Thuê Âm Thanh, Ánh Sáng & Màn LED",
-                desc: "Loa Line Array công suất lớn, Moving Beam nhập khẩu",
-                icon: Mic2,
-              },
-            ],
           },
           {
-            title: "MẢNG DU LỊCH & BÁO GIÁ",
+            href: "/dich-vu#du-lich",
+            label: "Dịch Vụ - Tour",
+            desc: "Tour doanh nghiệp, team building & xe du lịch",
             icon: Compass,
-            items: [
-              {
-                href: "/dich-vu#du-lich",
-                label: "Tour Doanh Nghiệp & Team Building",
-                desc: "Hạ Long, Đà Nẵng, Phú Quốc - may đo theo ngân sách",
-                icon: Compass,
-                badge: "Trọn gói",
-              },
-              {
-                href: "/dich-vu#du-lich",
-                label: "Cho Thuê Xe Du Lịch Đời Mới",
-                desc: "Dàn xe 16 - 45 chỗ hiện đại, tài xế chuyên nghiệp",
-                icon: Bus,
-              },
-              {
-                href: "/dich-vu#khuyen-mai",
-                label: "Combo Ưu Đãi Sự Kiện 2024",
-                desc: "Tiết kiệm đến 30% khi đặt trọn gói âm thanh ánh sáng",
-                icon: Flame,
-                badge: "Tiết kiệm 30%",
-              },
-              {
-                href: "/dich-vu#bao-gia",
-                label: "Dự Toán Báo Giá Trực Tuyến",
-                desc: "Tính toán chi phí & nhận tư vấn chuyên viên 1-1",
-                icon: FileText,
-              },
-            ],
+          },
+          {
+            href: "/dich-vu#bao-gia",
+            label: "Báo Giá",
+            desc: "Dự toán chi phí & kịch bản nhanh 30 phút",
+            icon: FileText,
           },
         ],
       },

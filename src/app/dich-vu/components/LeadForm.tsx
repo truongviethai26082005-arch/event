@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
@@ -21,6 +21,7 @@ import {
   MessageCircle,
   MessageSquareText,
   ArrowRight,
+  Calendar,
 } from "lucide-react";
 
 interface LeadFormProps {
@@ -38,7 +39,7 @@ export default function LeadForm({
     fullName: "",
     phone: "",
     email: "",
-    eventType: initialService || "Tổ chức Lễ Khai trương, Khánh thành & Khởi công",
+    eventType: initialService || "Tổ chức Sự Kiện & Du Lịch Trọn Gói",
     estimatedGuests: "100 - 300 khách",
     budgetRange: "30.000.000đ - 70.000.000đ",
     eventDate: "",
@@ -46,8 +47,15 @@ export default function LeadForm({
     notes: "",
   });
 
+  useEffect(() => {
+    if (initialService) {
+      setFormData((prev) => ({ ...prev, eventType: initialService }));
+    }
+  }, [initialService]);
+
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+  const hiddenDateRef = useRef<HTMLInputElement>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const [submittedLeadParams, setSubmittedLeadParams] = useState<{
     name: string;
@@ -462,7 +470,7 @@ export default function LeadForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Email nhận báo giá (File PDF/Excel)
+                      Email
                     </label>
                     <input
                       type="email"
@@ -495,47 +503,7 @@ export default function LeadForm({
                   </div>
                 </div>
 
-                {/* Row 3: Service Selection */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Dịch vụ bạn quan tâm <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={formData.eventType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, eventType: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white font-medium"
-                  >
-                    <optgroup label="MẢNG TỔ CHỨC SỰ KIỆN">
-                      <option value="Tổ chức Lễ Khai trương, Khánh thành & Khởi công">
-                        Tổ chức Lễ Khai trương, Khánh thành & Khởi công
-                      </option>
-                      <option value="Tiệc Tất Niên (Year End Party) & Gala Dinner">
-                        Tiệc Tất Niên (Year End Party) & Gala Dinner
-                      </option>
-                      <option value="Tổ chức Hội Nghị, Hội Thảo & Sự Kiện Mở Bán BĐS">
-                        Tổ chức Hội Nghị, Hội Thảo & Sự Kiện Mở Bán BĐS
-                      </option>
-                      <option value="Sản Xuất, Thi Công & Cho Thuê Trang Thiết Bị Sự Kiện">
-                        Sản Xuất, Thi Công & Cho Thuê Trang Thiết Bị Sự Kiện
-                      </option>
-                    </optgroup>
-                    <optgroup label="MẢNG DU LỊCH & TEAM BUILDING">
-                      <option value="Team Building & Tour Doanh Nghiệp Nghỉ Dưỡng MICE">
-                        Team Building & Tour Doanh Nghiệp Nghỉ Dưỡng MICE
-                      </option>
-                      <option value="Dịch Vụ Vận Tải, Cho Thuê Xe Du Lịch Đời Mới 7-45 Chỗ">
-                        Dịch Vụ Vận Tải, Cho Thuê Xe Du Lịch Đời Mới 7-45 Chỗ
-                      </option>
-                      <option value="Du Lịch Trải Nghiệm & Thiện Nguyện Vì Cộng Đồng">
-                        Du Lịch Trải Nghiệm & Thiện Nguyện Vì Cộng Đồng
-                      </option>
-                    </optgroup>
-                  </select>
-                </div>
-
-                {/* Row 4: Budget & Expected Date */}
+                {/* Row 3: Budget & Expected Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -560,14 +528,34 @@ export default function LeadForm({
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Thời gian dự kiến tổ chức
                     </label>
-                    <input
-                      type="date"
-                      value={formData.eventDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, eventDate: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="dd/mm/yyyy"
+                        value={formData.eventDate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, eventDate: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white pr-10"
+                      />
+                      <input
+                        ref={hiddenDateRef}
+                        type="date"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const [yyyy, mm, dd] = e.target.value.split("-");
+                            setFormData({
+                              ...formData,
+                              eventDate: `${dd}/${mm}/${yyyy}`,
+                            });
+                          }
+                        }}
+                        className="absolute right-0 top-0 bottom-0 w-10 opacity-0 cursor-pointer z-10"
+                      />
+                      <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
 
