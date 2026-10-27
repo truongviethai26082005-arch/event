@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -17,36 +18,133 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
+import { toSentenceCase } from "@/app/api/radar/services/content-generator";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return MOCK_BLOG_POSTS.map((post) => ({
-    slug: post.slug,
-  }));
-}
-
+// Bật cho phép blocking route trên Next.js 16 (Cache Components) để tải dữ liệu bài viết động từ Supabase
 export const instant = false;
 
-async function getPostBySlug(slug: string) {
+export async function generateStaticParams() {
+  const slugs: { slug: string }[] = MOCK_BLOG_POSTS.map((post) => ({
+    slug: post.slug,
+  }));
+
   if (isSupabaseConfigured) {
     try {
+      const { data } = await supabase
+        .from("posts")
+        .select("slug")
+        .eq("status", "published")
+        .limit(20);
+
+      if (data && data.length > 0) {
+        data.forEach((p) => {
+          if (p.slug && !slugs.some((s) => s.slug === p.slug)) {
+            slugs.push({ slug: p.slug });
+          }
+        });
+      }
+    } catch {
+      // Ignore during static evaluation
+    }
+  }
+
+  return slugs;
+}
+
+async function getPostBySlug(slug: string) {
+  const cleanSlug = decodeURIComponent(slug).trim();
+
+  if (isSupabaseConfigured) {
+    try {
+      // 1. Thử tìm với cleanSlug
       const { data, error } = await supabase
         .from("posts")
         .select("*")
-        .eq("slug", slug)
-        .single();
+        .eq("slug", cleanSlug)
+        .maybeSingle();
 
       if (!error && data) return data;
+
+      // 2. Thử tìm với slug gốc nếu khác cleanSlug
+      if (slug !== cleanSlug) {
+        const resOriginal = await supabase
+          .from("posts")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (!resOriginal.error && resOriginal.data) return resOriginal.data;
+      }
     } catch (e) {
       console.warn("Supabase query error:", e);
     }
   }
 
   // Fallback to mock data
-  const found = MOCK_BLOG_POSTS.find((p) => p.slug === slug);
+  const found =
+    MOCK_BLOG_POSTS.find((p) => p.slug === cleanSlug) ||
+    MOCK_BLOG_POSTS.find((p) => p.slug === slug);
   return found || null;
+}
+
+async function getRelatedPosts(currentSlug: string) {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, title, slug, focus_keyword, created_at")
+        .neq("slug", currentSlug)
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      if (!error && data && data.length > 0) {
+        return data.map((item) => ({
+          ...item,
+          title: toSentenceCase(ensureAccentedKeyword(item.title || "")),
+          focus_keyword: item.focus_keyword
+            ? ensureAccentedKeyword(item.focus_keyword)
+            : "Sự kiện",
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return MOCK_BLOG_POSTS.filter((p) => p.slug !== currentSlug).slice(0, 3);
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
+
+  if (!post) {
+    return {
+      title: "Bài viết không tìm thấy | Trường Hải Event & Travel",
+      description: "Bài viết bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ.",
+    };
+  }
+
+  const title = toSentenceCase(ensureAccentedKeyword(post.title || ""));
+  const description =
+    post.meta_description ||
+    `Tìm hiểu chi tiết về ${post.title} từ Trường Hải Event & Travel. Hotline tư vấn: ${COMPANY_INFO.hotlineDisplay}`;
+
+  return {
+    title: `${title} | Trường Hải Event & Travel`,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      publishedTime: post.created_at,
+    },
+  };
 }
 
 export default async function BlogPostDetailPage({ params }: Props) {
@@ -57,7 +155,12 @@ export default async function BlogPostDetailPage({ params }: Props) {
     notFound();
   }
 
-  const relatedPosts = MOCK_BLOG_POSTS.filter((p) => p.slug !== slug).slice(0, 3);
+  const rawTitle = post.title || "";
+  const displayTitle = toSentenceCase(ensureAccentedKeyword(rawTitle));
+  const rawKeyword = post.focus_keyword || "";
+  const displayKeyword = rawKeyword ? ensureAccentedKeyword(rawKeyword) : "Cẩm nang sự kiện";
+
+  const relatedPosts = await getRelatedPosts(slug);
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
@@ -73,7 +176,7 @@ export default async function BlogPostDetailPage({ params }: Props) {
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-slate-800 font-medium truncate max-w-xs sm:max-w-md">
-            {post.title}
+            {displayTitle}
           </span>
         </nav>
 
@@ -85,7 +188,7 @@ export default async function BlogPostDetailPage({ params }: Props) {
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-[#0A1E5E] font-bold border border-blue-200">
                   <Tag className="w-3 h-3 mr-1 text-[#D4AF37]" />
-                  {post.focus_keyword || "Cẩm nang sự kiện"}
+                  {displayKeyword}
                 </span>
                 <span className="text-slate-400">•</span>
                 <span className="flex items-center text-slate-500">
@@ -102,14 +205,8 @@ export default async function BlogPostDetailPage({ params }: Props) {
               </div>
 
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A1E5E] leading-tight">
-                {post.title}
+                {displayTitle}
               </h1>
-
-              {post.meta_description && (
-                <p className="text-sm sm:text-base text-slate-600 italic bg-slate-50 p-4 rounded-xl border-l-4 border-[#D4AF37]">
-                  "{post.meta_description}"
-                </p>
-              )}
             </header>
 
             {/* Article Body */}
@@ -119,8 +216,14 @@ export default async function BlogPostDetailPage({ params }: Props) {
 
             {/* Author / Company Brand Box */}
             <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-amber-50/50 border border-[#D4AF37]/30 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#0A1E5E] text-[#D4AF37] font-black text-xl flex items-center justify-center shrink-0 shadow-md">
-                TH
+              <div className="w-14 h-14 rounded-2xl bg-white border border-[#D4AF37]/40 flex items-center justify-center shrink-0 shadow-md overflow-hidden">
+                <Image
+                  src="/images/logo.png"
+                  alt="Logo Trường Hải Event & Travel"
+                  width={112}
+                  height={112}
+                  className="w-full h-full object-contain scale-125"
+                />
               </div>
               <div className="space-y-1 text-center sm:text-left">
                 <h4 className="font-bold text-[#0A1E5E] text-sm">

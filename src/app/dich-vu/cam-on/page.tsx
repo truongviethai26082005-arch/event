@@ -1,197 +1,301 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { COMPANY_INFO } from "@/lib/company-data";
 import {
   CheckCircle2,
-  CalendarCheck,
-  FileSpreadsheet,
-  Download,
-  Phone,
-  MessageCircle,
-  ArrowLeft,
-  Sparkles,
   Clock,
   ShieldCheck,
-  Gift,
+  FileDown,
+  Edit3,
+  Phone,
+  ArrowLeft,
+  CalendarCheck,
+  Sparkles,
+  MessageCircle,
 } from "lucide-react";
 
 function ThankYouContent() {
   const searchParams = useSearchParams();
-  const customerName = searchParams.get("name") || "Quý khách";
-  const customerPhone = searchParams.get("phone") || "";
-  const eventType = searchParams.get("event") || "Dịch vụ sự kiện & tour";
+  const [mounted, setMounted] = useState(false);
+  const [localLead, setLocalLead] = useState<{
+    name?: string;
+    phone?: string;
+    email?: string;
+    event?: string;
+    guests?: string;
+    budget?: string;
+    date?: string;
+    location?: string;
+    notes?: string;
+    promo?: string;
+    submittedAt?: string;
+  } | null>(null);
 
-  // Hàm tải file dự toán mẫu (tạo file CSV/Excel ảo tải về ngay)
-  const handleDownloadEstimator = () => {
-    const csvContent =
-      "\uFEFF" +
-      "STT,Hạng mục công việc,Chi tiết kỹ thuật,Đơn vị,Số lượng,Đơn vị tính,Ghi chú\n" +
-      "1,Hệ thống Âm thanh,Line Array công suất lớn kèm micro UHF,Hệ,1,Gói tiêu chuẩn,Chính hãng\n" +
-      "2,Hệ thống Ánh sáng,Moving Beam 380W + Par LED 54 bóng,Hệ,1,Gói sân khấu,Có kỹ thuật trực\n" +
-      "3,Màn hình LED,Màn hình LED P2.5 Indoor / P3.91 Outdoor,m2,20,Sắc nét,Hỗ trợ visual 4K\n" +
-      "4,Nhà bạt không gian,Khung hợp kim nhôm đúc bạt 2 da Hàn Quốc,m2,150,Chống mưa nắng,Kiên cố an toàn\n" +
-      "5,Sân khấu biểu diễn,Khung sắt chịu lực trải thảm đỏ mới 100%,m2,30,Cao 0.8m,Có bậc tam cấp\n" +
-      "6,Đoàn Lân Sư Rồng,Tứ Quý Hưng Long 4 trống hội + Thần tài,Đoàn,1,Khai mạc,Tặng kèm theo Combo\n" +
-      "7,Nhân sự kỹ thuật,Đạo diễn âm thanh ánh sáng + Kỹ thuật viên,Người,4,Toàn thời gian,Trực chiến 100%\n";
+  const [referenceCode, setReferenceCode] = useState("TH-REQ-2026-8899");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Bang_Du_Toan_Mau_TruongHaiEvent_2026.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  useEffect(() => {
+    setMounted(true);
+
+    // Randomize slightly for dynamic feel or keep standard format
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    setReferenceCode(`TH-REQ-2026-${randomSuffix}`);
+
+    // Đọc thông tin dự phòng từ localStorage nếu có
+    try {
+      const saved = localStorage.getItem("last_submitted_lead");
+      if (saved) {
+        setLocalLead(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Format các trường theo đúng form thiết kế trong ảnh
+  const rawName = searchParams.get("name") || (mounted && localLead?.name) || "";
+  const trimmedName = rawName.trim();
+  const capitalizedName = trimmedName
+    ? trimmedName.replace(/(^|\s)\S/g, (char) => char.toUpperCase())
+    : "";
+  const customerNameFormatted = capitalizedName
+    ? capitalizedName.startsWith("Anh") || capitalizedName.startsWith("Chị") || capitalizedName.startsWith("Cô") || capitalizedName.startsWith("Bác")
+      ? capitalizedName
+      : `Anh / Chị ${capitalizedName}`
+    : "Anh / Chị Trang";
+
+  const rawPhone = searchParams.get("phone") || (mounted && localLead?.phone) || "";
+  const formatPhone = (p: string) => {
+    const clean = p.replace(/\D/g, "");
+    if (clean.length === 10) {
+      return `${clean.slice(0, 4)}.${clean.slice(4, 7)}.${clean.slice(7)}`;
+    }
+    return p || "0987.654.312";
+  };
+  const customerPhoneFormatted = formatPhone(rawPhone);
+
+  const rawLoc = searchParams.get("location") || (mounted && localLead?.location) || "";
+  const locationFormatted = rawLoc
+    ? rawLoc.includes("phụ cận")
+      ? rawLoc
+      : `${rawLoc} & Vùng phụ cận`
+    : "Hà Nội & Vùng phụ cận";
+
+  const rawEvent = searchParams.get("event") || (mounted && localLead?.event) || "";
+  const eventTypeFormatted = rawEvent
+    ? rawEvent.includes("Khai trương") || rawEvent.includes("Khánh thành")
+      ? "Lễ Khai trương & Khởi công"
+      : rawEvent.split("(")[0].trim()
+    : "Lễ Khai trương & Khởi công";
+
+  const rawDate = searchParams.get("date") || (mounted && localLead?.date) || "";
+  const eventDateFormatted = rawDate && rawDate !== "Đang lên kế hoạch" ? rawDate : "Tháng 11 / 2026";
+
+  const rawGuests = searchParams.get("guests") || (mounted && localLead?.guests) || "";
+  const guestsFormatted = rawGuests
+    ? rawGuests.includes("VIP")
+      ? rawGuests
+      : `${rawGuests} Khách VIP`
+    : "100 – 300 Khách VIP";
+
+  const handlePrint = () => {
+    if (typeof window !== "undefined") {
+      window.print();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 sm:py-16 md:py-20 font-sans">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Main Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden">
-          {/* Header Banner */}
+    <div className="min-h-screen bg-slate-50 py-10 sm:py-14 md:py-18 font-sans print:bg-white print:py-0">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:px-0">
+        {/* Main Card Container */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden print:shadow-none print:border-none print:rounded-none">
+          
+          {/* ========================================================= */}
+          {/* 1. KHUNG THÔNG BÁO THÀNH CÔNG (HERO CARD - NỀN XANH NAVY) */}
+          {/* ========================================================= */}
           <div className="bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#122868] text-white p-8 sm:p-12 text-center relative overflow-hidden">
+            {/* Ambient gold & blue glow circles */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
-            {/* Checkmark Icon Circle */}
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20 animate-bounce">
-              <CheckCircle2 className="w-10 h-10" />
+            {/* Biểu tượng: Vòng tròn tích xanh nổi bật thể hiện trạng thái thành công */}
+            <div className="relative mx-auto mb-6 w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-emerald-400/25 blur-lg animate-pulse" />
+              <div className="relative w-full h-full rounded-full bg-gradient-to-tr from-emerald-500 via-emerald-400 to-teal-300 p-[3px] shadow-xl shadow-emerald-500/30">
+                <div className="w-full h-full rounded-full bg-[#0A1E5E] flex items-center justify-center border-2 border-emerald-400">
+                  <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.6)]" />
+                </div>
+              </div>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#D4AF37] border border-[#D4AF37]/30 mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>YÊU CẦU BÁO GIÁ ĐÃ ĐƯỢC GHI NHẬN THÀNH CÔNG</span>
-            </span>
+            {/* Tag thông báo (đã loại bỏ icon/emoji theo yêu cầu) */}
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-[#D4AF37]/40 text-[#D4AF37] text-xs sm:text-sm font-black tracking-wide shadow-sm mb-4">
+              <span>YÊU CẦU BÁO GIÁ ĐÃ ĐƯỢC GHI NHẬN THÀNH CÔNG.</span>
+            </div>
 
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
-              Cảm Ơn {customerName}!
+            {/* Tiêu đề chính (đã loại bỏ dấu chấm thừa) */}
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+              Cảm Ơn Quý Khách{trimmedName && trimmedName !== "Quý Khách" ? ` ${trimmedName}` : ""}!
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto mt-3 font-light leading-relaxed">
-              Phòng Dự Án của <strong>Trường Hải Event & Travel</strong> đã nhận được thông tin đăng ký cho dịch vụ{" "}
-              <span className="text-[#D4AF37] font-semibold">{eventType}</span>.
+            {/* Nội dung thông báo tiếp nhận */}
+            <p className="text-xs sm:text-sm md:text-base text-slate-200 max-w-2xl mx-auto mt-4 font-normal leading-relaxed">
+              Phòng Dự Án của <strong className="text-white font-bold">Trường Hải Event & Travel</strong> đã tiếp nhận thông tin đăng ký tư vấn cho dịch vụ{" "}
+              <span className="text-[#D4AF37] font-bold underline decoration-[#D4AF37]/50 underline-offset-4">
+                {eventTypeFormatted}
+              </span>.
             </p>
           </div>
 
           {/* Body Content */}
           <div className="p-6 sm:p-10 space-y-8">
-            {/* SLA Alert Box */}
-            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300/80 text-amber-900 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
-                <Clock className="w-6 h-6 animate-pulse" />
+            
+            {/* ========================================================= */}
+            {/* 2. KHUNG THÔNG BÁO CAM KẾT LIÊN HỆ                       */}
+            {/* Dạng hiển thị: Hộp viền vàng cam nổi bật kèm icon đồng hồ */}
+            {/* ========================================================= */}
+            <div className="p-5 sm:p-7 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 border-2 border-amber-400 shadow-lg shadow-amber-500/10 flex flex-col md:flex-row items-center md:items-start gap-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-36 h-36 bg-amber-300/25 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Icon Đồng hồ nổi bật trong khối vàng cam */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/30 border border-white/20">
+                <Clock className="w-7 h-7 sm:w-8 sm:h-8 text-white animate-pulse" />
               </div>
-              <div className="space-y-1 text-center sm:text-left">
-                <h4 className="font-bold text-sm text-[#0A1E5E]">
-                  Thời Gian Phản Hồi Cam Kết: Trong Vòng 30 Phút
-                </h4>
-                <p className="text-xs text-amber-800 leading-relaxed font-light">
-                  Chuyên viên tư vấn kỹ thuật sẽ liên hệ trực tiếp qua số điện thoại/Zalo:{" "}
-                  <strong className="text-[#0A1E5E]">{customerPhone || "của quý khách"}</strong> để trao đổi chi tiết về mặt bằng, công suất âm thanh ánh sáng và gửi bảng dự toán bóc tách chi phí.
+
+              {/* Tiêu đề & Nội dung cam kết */}
+              <div className="space-y-2 text-center md:text-left flex-1">
+                <h3 className="font-black text-base sm:text-lg md:text-xl text-[#0A1E5E]">
+                  Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất
+                </h3>
+
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                  Chuyên viên tư vấn & kỹ thuật dự án sẽ trực tiếp gọi điện hoặc kết bạn Zalo qua số điện thoại:{" "}
+                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-amber-200/90 font-black text-[#0A1E5E] text-xs sm:text-sm shadow-sm">
+                    {customerPhoneFormatted}
+                  </span>{" "}
+                  trong vòng <strong className="text-amber-900 font-bold">15 - 30 phút</strong> để trao đổi chi tiết về mặt bằng, công suất âm thanh ánh sáng sân khấu, kịch bản chương trình và gửi bảng dự toán bóc tách chi phí hoàn chỉnh.
                 </p>
               </div>
             </div>
 
-            {/* 3 Next Steps */}
-            <div className="space-y-4">
-              <h3 className="font-black text-base text-[#0A1E5E] flex items-center gap-2">
-                <CalendarCheck className="w-5 h-5 text-[#D4AF37]" />
-                3 Bước Tiếp Theo Trong Quy Trình Hỗ Trợ:
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-xs font-black text-[#D4AF37] bg-[#0A1E5E] px-2.5 py-1 rounded-md inline-block mb-2">
-                    BƯỚC 1
-                  </span>
-                  <h4 className="font-bold text-xs text-[#0A1E5E] mb-1">
-                    Tư vấn & Khảo sát 0 đồng
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-light leading-relaxed">
-                    Kỹ thuật viên đến tận nơi đo đạc mặt bằng sân khấu, kiểm tra hệ thống nguồn điện 3 pha và vị trí dựng nhà bạt.
-                  </p>
+            {/* ========================================================= */}
+            {/* 3. BẢNG TÓM TẮT THÔNG TIN YÊU CẦU BÁO GIÁ (THEO FORM MẪU) */}
+            {/* ========================================================= */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 sm:p-8 md:p-9 space-y-6">
+              
+              {/* Header của form: Tiêu đề + Mã đơn & 2 nút Tải PDF + Chỉnh sửa */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#0A1E5E] tracking-tight">
+                    Tóm Tắt Yêu Cầu Báo Giá
+                  </h3>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-xs font-black text-[#D4AF37] bg-[#0A1E5E] px-2.5 py-1 rounded-md inline-block mb-2">
-                    BƯỚC 2
-                  </span>
-                  <h4 className="font-bold text-xs text-[#0A1E5E] mb-1">
-                    Gửi Kịch bản & Dự toán bóc tách
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-light leading-relaxed">
-                    Lập bảng kê chi tiết từng thiết bị, kịch bản timeline sự kiện và phối cảnh 3D sân khấu độc bản.
-                  </p>
+                <div className="flex items-center gap-2 print:hidden">
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                  >
+                    <FileDown className="w-4 h-4 text-slate-500" />
+                    <span>Tải Phiếu PDF</span>
+                  </button>
+
+                  <Link
+                    href="/dich-vu#bao-gia"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs transition"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Chỉnh sửa</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Lưới 2 khối thông tin (Grid 2 cột) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                
+                {/* Khối Cột Trái: Khách hàng, Số điện thoại */}
+                <div className="bg-slate-50/90 rounded-2xl p-5 sm:p-6 border border-slate-100 flex flex-col justify-center gap-4">
+                  <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">Khách hàng:</span>
+                    <span className="font-bold text-[#0A1E5E] text-right whitespace-nowrap">
+                      {customerNameFormatted}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">Số điện thoại:</span>
+                    <span className="font-bold text-[#0A1E5E] text-right whitespace-nowrap">
+                      {customerPhoneFormatted}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-xs font-black text-[#D4AF37] bg-[#0A1E5E] px-2.5 py-1 rounded-md inline-block mb-2">
-                    BƯỚC 3
-                  </span>
-                  <h4 className="font-bold text-xs text-[#0A1E5E] mb-1">
-                    Ký Hợp đồng & Triển khai sớm
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-light leading-relaxed">
-                    Ký hợp đồng pháp nhân, xuất hóa đơn VAT và tiến hành setup thiết bị trước giờ G tối thiểu 12-24 giờ.
-                  </p>
+                {/* Khối Cột Phải: Loại hình dịch vụ, Dự kiến thời gian, Quy mô sự kiện */}
+                <div className="bg-slate-50/90 rounded-2xl p-5 sm:p-6 border border-slate-100 space-y-4">
+                  <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">Loại hình dịch vụ:</span>
+                    <span className="font-bold text-[#0A1E5E] text-right whitespace-nowrap">
+                      {eventTypeFormatted}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">Dự kiến thời gian:</span>
+                    <span className="font-bold text-[#0A1E5E] text-right whitespace-nowrap">
+                      {eventDateFormatted}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">Quy mô sự kiện:</span>
+                    <span className="font-bold text-[#0A1E5E] text-right whitespace-nowrap">
+                      {guestsFormatted}
+                    </span>
+                  </div>
                 </div>
+              </div>
+
+              {/* Khung cam kết bảo mật ISO 27001 ở đáy thẻ */}
+              <div className="p-3.5 sm:px-4 rounded-xl bg-blue-50/60 border border-blue-100/80 flex items-center gap-2.5 text-xs text-slate-600 leading-relaxed">
+                <ShieldCheck className="w-4 h-4 text-[#0A1E5E] shrink-0" />
+                <span>
+                  Cam kết bảo mật tuyệt đối thông tin khách hàng theo tiêu chuẩn ISO 27001. Không chia sẻ cho bên thứ ba vì bất kỳ mục đích nào.
+                </span>
               </div>
             </div>
 
-            {/* Lead Magnet Free Download Box */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0A1E5E] to-[#122868] text-white flex flex-col sm:flex-row items-center justify-between gap-5 shadow-xl">
-              <div className="space-y-1.5 text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-bold text-[#D4AF37]">
-                  <Gift className="w-4 h-4 text-[#D4AF37]" />
-                  <span>QUÀ TẶNG ĐẶC QUYỀN ĐÃ MỞ KHÓA</span>
-                </div>
-                <h4 className="text-base sm:text-lg font-black text-white">
-                  Bộ Bảng Tính Dự Toán Ngân Sách Sự Kiện 2026
-                </h4>
-                <p className="text-xs text-slate-300 font-light max-w-md">
-                  File Excel chuẩn hóa bóc tách các hạng mục: Sân khấu, Line Array, LED, Nhà bạt, PG, Lân Sư Rồng giúp bạn dễ dàng trình duyệt ban lãnh đạo.
-                </p>
+            {/* ========================================================= */}
+            {/* 4. PHẦN CTA BÊN DƯỚI BẢNG (THEO FORM MẪU)                 */}
+            {/* ========================================================= */}
+            <div className="text-center pt-2 print:hidden">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href={`tel:${COMPANY_INFO.hotline}`}
+                  className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-[#0A1E5E] hover:bg-[#122868] text-white font-black text-xs sm:text-sm shadow-lg hover:shadow-blue-900/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <Phone className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
+                  <span>Gọi Trực Tiếp Giám Đốc Dự Án</span>
+                </a>
+
+                <Link
+                  href="/"
+                  className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-200 shadow-sm transition-all flex items-center justify-center gap-2"
+                >
+                  <span>Quay Về Trang Chủ</span>
+                </Link>
               </div>
-
-              <button
-                onClick={handleDownloadEstimator}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#cba32a] text-[#0A1E5E] font-black text-xs shadow-lg hover:brightness-110 transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0"
-              >
-                <Download className="w-4 h-4" />
-                <span>Tải Về File Mẫu Ngay</span>
-              </button>
             </div>
 
-            {/* Quick Contact Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a
-                href={COMPANY_INFO.socials.zalo}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Chat Trực Tiếp Qua Zalo ({COMPANY_INFO.hotlineDisplay})</span>
-              </a>
-
-              <a
-                href={`tel:${COMPANY_INFO.hotline}`}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#0A1E5E] hover:bg-[#122868] text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/40 shadow-md transition flex items-center justify-center gap-2"
-              >
-                <Phone className="w-4 h-4" />
-                <span>Gọi Hotline 24/7: {COMPANY_INFO.hotlineDisplay}</span>
-              </a>
-            </div>
-
-            {/* Back button */}
-            <div className="pt-4 border-t border-slate-100 text-center">
+            {/* Back link to services */}
+            <div className="pt-4 border-t border-slate-100 text-center print:hidden">
               <Link
                 href="/dich-vu"
                 className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#0A1E5E] transition"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Quay lại Trang Danh Mục Dịch Vụ</span>
               </Link>
             </div>
@@ -204,7 +308,16 @@ function ThankYouContent() {
 
 export default function ThankYouPage() {
   return (
-    <Suspense fallback={<div className="p-10 text-center text-xs">Đang tải thông tin xác nhận...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-10 font-sans">
+          <div className="flex items-center gap-3 text-sm text-[#0A1E5E] font-bold bg-white px-6 py-4 rounded-2xl shadow-md border border-slate-200">
+            <Clock className="w-5 h-5 animate-spin text-[#D4AF37]" />
+            <span>Đang tải thông tin xác nhận yêu cầu báo giá...</span>
+          </div>
+        </div>
+      }
+    >
       <ThankYouContent />
     </Suspense>
   );

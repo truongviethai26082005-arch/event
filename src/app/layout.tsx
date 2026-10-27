@@ -1,18 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import FloatingContactWidget from "@/components/FloatingContactWidget";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const openSans = Open_Sans({
+  variable: "--font-open-sans",
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -42,13 +39,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-[#D4AF37] selection:text-[#0A1E5E]">
-        <Suspense fallback={<div className="h-20 bg-[#0A1E5E] w-full" />}>
+    <html lang="vi" className={openSans.variable}>
+      <head>
+        <link href="https://fonts.cdnfonts.com/css/careera-script-personal-use" rel="stylesheet" />
+      </head>
+      <body className={`${openSans.className} min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-[#D4AF37] selection:text-[#0A1E5E]`}>
+        <Suspense fallback={<div className="h-20 bg-white w-full border-b border-slate-200" />}>
           <Header />
         </Suspense>
         <main className="flex-1">{children}</main>
         <Footer />
+        <FloatingContactWidget />
       </body>
     </html>
   );

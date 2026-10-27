@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured, DatabaseLead } from "@/lib/supabase";
+import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 import { PromotionCombo } from "../data/services-data";
 import {
   Send,
@@ -16,10 +17,9 @@ import {
   FileCheck2,
   CheckCircle2,
   AlertCircle,
-  FileSpreadsheet,
   X,
   MessageCircle,
-  Download,
+  MessageSquareText,
   ArrowRight,
 } from "lucide-react";
 
@@ -52,7 +52,14 @@ export default function LeadForm({
   const [submittedLeadParams, setSubmittedLeadParams] = useState<{
     name: string;
     phone: string;
+    email?: string;
     event: string;
+    guests?: string;
+    budget?: string;
+    date?: string;
+    location?: string;
+    notes?: string;
+    promo?: string;
   } | null>(null);
 
   const [submitResult, setSubmitResult] = useState<{
@@ -73,35 +80,19 @@ export default function LeadForm({
       const q = new URLSearchParams({
         name: submittedLeadParams.name,
         phone: submittedLeadParams.phone,
+        email: submittedLeadParams.email || "",
         event: submittedLeadParams.event,
+        guests: submittedLeadParams.guests || "",
+        budget: submittedLeadParams.budget || "",
+        date: submittedLeadParams.date || "",
+        location: submittedLeadParams.location || "",
+        notes: submittedLeadParams.notes || "",
+        promo: submittedLeadParams.promo || "",
       }).toString();
       router.push(`/dich-vu/cam-on?${q}`);
     }
     return () => clearTimeout(timer);
   }, [redirectCountdown, submittedLeadParams, router]);
-
-  // Hàm tải file dự toán mẫu trực tiếp về máy
-  const handleDownloadEstimator = () => {
-    const csvContent =
-      "\uFEFF" +
-      "STT,Hạng mục công việc,Chi tiết kỹ thuật,Đơn vị,Số lượng,Đơn vị tính,Ghi chú\n" +
-      "1,Hệ thống Âm thanh,Line Array công suất lớn kèm micro UHF,Hệ,1,Gói tiêu chuẩn,Chính hãng Trường Hải\n" +
-      "2,Hệ thống Ánh sáng,Moving Beam 380W + Par LED 54 bóng,Hệ,1,Gói sân khấu,Có kỹ thuật trực 100%\n" +
-      "3,Màn hình LED,Màn hình LED P2.5 Indoor / P3.91 Outdoor,m2,20,Sắc nét,Hỗ trợ visual 4K độc bản\n" +
-      "4,Nhà bạt không gian,Khung hợp kim nhôm đúc bạt 2 da Hàn Quốc,m2,150,Chống mưa bão,Kiên cố an toàn\n" +
-      "5,Sân khấu biểu diễn,Khung sắt chịu lực trải thảm đỏ mới 100%,m2,30,Cao 0.8m,Có bậc tam cấp hoa tươi\n" +
-      "6,Đoàn Lân Sư Rồng,Tứ Quý Hưng Long 4 trống hội + Thần tài,Đoàn,1,Khai mạc,Tặng kèm theo Combo\n" +
-      "7,Nhân sự kỹ thuật,Đạo diễn âm thanh ánh sáng + Kỹ thuật viên,Người,4,Toàn thời gian,Trực chiến 24/7\n";
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Bang_Du_Toan_Mau_TruongHaiEvent_2026.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,11 +150,33 @@ export default function LeadForm({
         submittedPhone: formData.phone,
       });
 
-      setSubmittedLeadParams({
-        name: formData.fullName,
-        phone: formData.phone,
+      const leadParamsToPass = {
+        name: formData.fullName.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
         event: formData.eventType,
-      });
+        guests: formData.estimatedGuests,
+        budget: formData.budgetRange,
+        date: formData.eventDate,
+        location: formData.location,
+        notes: formData.notes,
+        promo: initialPromo ? `${initialPromo.title} (Mã: ${initialPromo.code})` : "",
+      };
+
+      setSubmittedLeadParams(leadParamsToPass);
+
+      try {
+        localStorage.setItem(
+          "last_submitted_lead",
+          JSON.stringify({
+            ...leadParamsToPass,
+            submittedAt: new Date().toISOString(),
+          })
+        );
+      } catch (e) {
+        // ignore localStorage errors
+      }
+
       setRedirectCountdown(4);
 
       // Reset form
@@ -220,16 +233,16 @@ export default function LeadForm({
               <div className="p-4 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/15 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#D4AF37]">
                   <Gift className="w-4 h-4 text-[#D4AF37]" />
-                  <span>QUÀ TẶNG KÈM KHI ĐỂ LẠI THÔNG TIN:</span>
+                  <span>QUYỀN LỢI ĐẶC QUYỀN KHI ĐĂNG KÝ:</span>
                 </div>
                 <ul className="text-xs text-slate-200 space-y-1.5">
                   <li className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Bộ File Excel dự toán ngân sách sự kiện mẫu 2026</span>
+                    <MessageSquareText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Tư vấn trực tiếp 1-1, cá nhân hóa phương án theo đúng ngân sách</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <FileCheck2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Kịch bản timeline MC chi tiết từng phút cho sự kiện</span>
+                    <span>Kịch bản timeline MC & bóc tách chi tiết không phát sinh</span>
                   </li>
                 </ul>
               </div>
@@ -329,36 +342,59 @@ export default function LeadForm({
                   {/* Countdown notice & Direct Action Buttons */}
                   <div className="pt-2 border-t border-emerald-200/80 space-y-2.5">
                     {redirectCountdown !== null && redirectCountdown > 0 && (
-                      <div className="flex items-center justify-between text-[11px] text-emerald-800 font-medium">
-                        <span>⏳ Đang tự động chuyển đến Trang Xác Nhận & Tải File Dự Toán sau <strong>{redirectCountdown}s</strong>...</span>
-                        <button
-                          type="button"
-                          onClick={() => setRedirectCountdown(null)}
-                          className="text-emerald-700 underline hover:text-emerald-900 text-[11px]"
-                        >
-                          Dừng chuyển tiếp
-                        </button>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-emerald-800 font-medium">
+                        <span>⏳ Đang tự động chuyển đến Trang Xác Nhận sau <strong>{redirectCountdown}s</strong>...</span>
+                        <div className="flex items-center gap-3">
+                          {submittedLeadParams && (
+                            <Link
+                              href={`/dich-vu/cam-on?${new URLSearchParams({
+                                name: submittedLeadParams.name,
+                                phone: submittedLeadParams.phone,
+                                email: submittedLeadParams.email || "",
+                                event: submittedLeadParams.event,
+                                guests: submittedLeadParams.guests || "",
+                                budget: submittedLeadParams.budget || "",
+                                date: submittedLeadParams.date || "",
+                                location: submittedLeadParams.location || "",
+                                notes: submittedLeadParams.notes || "",
+                                promo: submittedLeadParams.promo || "",
+                              }).toString()}`}
+                              className="font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1"
+                            >
+                              <span>Xem bảng tóm tắt ngay</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setRedirectCountdown(null)}
+                            className="text-slate-500 hover:text-slate-700 underline text-[11px]"
+                          >
+                            Dừng
+                          </button>
+                        </div>
                       </div>
                     )}
 
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={handleDownloadEstimator}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#cba32a] text-[#0A1E5E] font-black text-xs shadow-sm hover:brightness-105 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Tải Ngay Bảng Dự Toán Mẫu (.CSV/Excel)</span>
-                      </button>
-
                       <a
                         href={COMPANY_INFO.socials.zalo}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition"
+                        onClick={() => trackLandingLead("ZALO")}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Chat Zalo Với Chuyên Viên</span>
+                        <span>Chat Zalo Trực Tiếp Với Chuyên Viên (Nhận Tư Vấn 1-1)</span>
+                      </a>
+
+                      <a
+                        href={`tel:${COMPANY_INFO.hotline}`}
+                        onClick={() => trackLandingLead("HOTLINE")}
+                        className="px-4 py-2.5 rounded-xl bg-[#0A1E5E] hover:bg-[#122868] text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/40 shadow-sm flex items-center justify-center gap-1.5 transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Gọi Hotline ({COMPANY_INFO.hotlineDisplay})</span>
                       </a>
                     </div>
 

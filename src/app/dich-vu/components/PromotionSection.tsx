@@ -120,27 +120,6 @@ export default function PromotionSection({ onSelectPromo }: PromotionSectionProp
                   {combo.subtitle}
                 </p>
 
-                {/* Price Display */}
-                <div className="mt-5 p-4 rounded-2xl bg-[#0A1E5E] text-white flex items-center justify-between shadow-inner">
-                  <div>
-                    <span className="text-[11px] text-slate-300 block line-through">
-                      Giá thị trường: {combo.originalPrice}
-                    </span>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className="text-xl sm:text-2xl font-black text-[#D4AF37]">
-                        {combo.comboPrice}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[11px] text-emerald-400 font-bold block">
-                      Tiết kiệm:
-                    </span>
-                    <span className="text-sm font-black text-emerald-300">
-                      {combo.savings}
-                    </span>
-                  </div>
-                </div>
               </div>
 
               {/* Card Body - Gifts & Conditions */}
