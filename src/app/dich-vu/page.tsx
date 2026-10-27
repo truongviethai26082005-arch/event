@@ -148,8 +148,11 @@ export default function ServicesPage() {
             <span>HỆ SINH THÁI TỔ CHỨC SỰ KIỆN & DU LỊCH TRỌN GÓI</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto drop-shadow-sm">
-            Giải Pháp Sự Kiện Độc Bản & Du Lịch Trải Nghiệm Đẳng Cấp
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight uppercase max-w-4xl mx-auto drop-shadow-sm">
+            GIẢI PHÁP SỰ KIỆN ĐỘC BẢN <br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#F5E08B] to-[#D4AF37]">
+              & DU LỊCH TRẢI NGHIỆM ĐẲNG CẤP
+            </span>
           </h1>
 
           {/* Key Value Badges */}
