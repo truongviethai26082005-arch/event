@@ -42,6 +42,7 @@ import {
 import {
   EventProfile,
   EventCategory,
+  DEFAULT_EVENT_PROFILES,
   getStoredEventProfiles,
   saveEventProfilesToStorage,
   addEventProfile,
@@ -76,8 +77,8 @@ export default function EventProfileArchive({
   onOpenInRadarEditor,
   onPostCreated,
 }: EventProfileArchiveProps) {
-  // Dữ liệu hồ sơ sự kiện
-  const [profiles, setProfiles] = useState<EventProfile[]>(() => getStoredEventProfiles());
+  // Dữ liệu hồ sơ sự kiện - Khởi tạo bằng DEFAULT_EVENT_PROFILES để SSR và Client render ban đầu trùng khớp hoàn toàn, loại bỏ lỗi Hydration Mismatch
+  const [profiles, setProfiles] = useState<EventProfile[]>(DEFAULT_EVENT_PROFILES);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [syncedLeadCount, setSyncedLeadCount] = useState<number>(0);
@@ -129,6 +130,9 @@ export default function EventProfileArchive({
   // Tự động kết nối Supabase CRM & đồng bộ các sự kiện đã/đang tổ chức
   useEffect(() => {
     let isMounted = true;
+
+    // Nạp dữ liệu từ localStorage khi đã mount trên client để triệt tiêu lỗi Hydration Mismatch
+    setProfiles(getStoredEventProfiles());
 
     async function initialSync() {
       setIsSyncing(true);
@@ -591,7 +595,7 @@ export default function EventProfileArchive({
                 </p>
                 <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0A1E5E] transition-colors" />
               </div>
-              <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">{stats.totalEvents} dự án</p>
+              <p suppressHydrationWarning className="mt-2 text-2xl font-black tracking-tight text-slate-900">{stats.totalEvents} dự án</p>
             </div>
             <span className="rounded-xl bg-blue-50 border border-blue-100 p-2.5 text-blue-600 group-hover:scale-105 transition-transform">
               <Briefcase className="h-5 w-5" />
@@ -621,14 +625,14 @@ export default function EventProfileArchive({
                 </p>
                 <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-colors" />
               </div>
-              <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">{formatVND(stats.totalRevenue)}</p>
+              <p suppressHydrationWarning className="mt-2 text-2xl font-black tracking-tight text-slate-900">{formatVND(stats.totalRevenue)}</p>
             </div>
             <span className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-amber-600 group-hover:scale-105 transition-transform">
               <DollarSign className="h-5 w-5" />
             </span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500 font-medium">
-            <span>Biên lợi nhuận ~{stats.avgProfitMargin}%</span>
+            <span suppressHydrationWarning>Biên lợi nhuận ~{stats.avgProfitMargin}%</span>
             <span className="text-[11px] text-amber-700 opacity-0 group-hover:opacity-100 transition-opacity font-bold">
               Chi tiết →
             </span>
@@ -649,7 +653,7 @@ export default function EventProfileArchive({
                 </p>
                 <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
               </div>
-              <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">5.0 / 5.0 ⭐</p>
+              <p suppressHydrationWarning className="mt-2 text-2xl font-black tracking-tight text-slate-900">5.0 / 5.0 ⭐</p>
             </div>
             <span className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-amber-500 group-hover:scale-105 transition-transform">
               <Star className="h-5 w-5 fill-amber-500" />
@@ -677,7 +681,7 @@ export default function EventProfileArchive({
                 </p>
                 <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-600 transition-colors" />
               </div>
-              <p className="mt-2 text-2xl font-black tracking-tight text-purple-700">
+              <p suppressHydrationWarning className="mt-2 text-2xl font-black tracking-tight text-purple-700">
                 {stats.seoArticlesCount} / {stats.totalEvents} bài
               </p>
             </div>

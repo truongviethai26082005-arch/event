@@ -143,3 +143,82 @@ body {
 .animate-phone-ring {
   animation: phoneRing 2.2s ease-in-out infinite;
 }
+
+@keyframes btnShimmer {
+  0% {
+    transform: translateX(-150%) skewX(-15deg);
+  }
+  35%, 100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+.animate-btn-shimmer {
+  animation: btnShimmer 3.5s ease-in-out infinite;
+}
+
+@keyframes ctaGlow {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.45);
+  }
+}
+
+.animate-cta-glow {
+  animation: ctaGlow 2.8s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+
+/* Tối ưu in ấn Hồ Sơ Năng Lực Chuẩn A4 */
+@media print {
+  header,
+  footer,
+  .no-print,
+  #floating-cta,
+  button:not(.allow-print),
+  .fixed,
+  nav {
+    display: none !important;
+  }
+
+  body, main {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 11pt !important;
+  }
+
+  .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  .border, .border-slate-200 {
+    border-color: #d1d5db !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+}
+

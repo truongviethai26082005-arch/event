@@ -14,7 +14,8 @@ export default function VisionMissionSection({
 }: VisionMissionSectionProps) {
   return (
     <section
-      className={`py-14 sm:py-16 lg:py-20 bg-slate-50 relative overflow-hidden border-b border-slate-200 ${className}`}
+      id="tam-nhin"
+      className={`scroll-mt-28 py-14 sm:py-16 lg:py-20 bg-slate-50 relative overflow-hidden border-b border-slate-200 ${className}`}
     >
       {/* Soft luxury ambient background glow */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[600px] h-40 bg-gradient-to-b from-amber-200/20 via-amber-100/10 to-transparent blur-3xl pointer-events-none -z-0" />

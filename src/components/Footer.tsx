@@ -141,7 +141,13 @@ export default function Footer() {
               <li>
                 <Link href="/ve-chung-toi" className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5">
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Giới thiệu & Hồ sơ năng lực
+                  Về chúng tôi & Ban lãnh đạo
+                </Link>
+              </li>
+              <li>
+                <Link href="/ho-so-nang-luc" className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5 font-bold text-[#F5E08B]">
+                  <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
+                  Hồ sơ năng lực (Kho 1.000m²)
                 </Link>
               </li>
               <li>
