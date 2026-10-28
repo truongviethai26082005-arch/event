@@ -38,6 +38,12 @@ interface NavItem {
 
 export default function Header() {
   const pathname = usePathname();
+  const isAdminPage = Boolean(
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/admin-radar") ||
+    pathname?.startsWith("/admin-login") ||
+    pathname === "/login"
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [openMobileSubmenu, setOpenMobileSubmenu] = useState<string | null>(null);
@@ -288,8 +294,10 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Desktop Navigation with Dropdowns */}
-          <nav className="hidden lg:flex flex-1 items-center justify-center lg:space-x-1.5 xl:space-x-0 xl:justify-evenly mx-2 xl:mx-6 2xl:mx-10 max-w-5xl 2xl:max-w-6xl">
+          {!isAdminPage && (
+            <>
+              {/* Desktop Navigation with Dropdowns */}
+              <nav className="hidden lg:flex flex-1 items-center justify-center lg:space-x-1.5 xl:space-x-0 xl:justify-evenly mx-2 xl:mx-6 2xl:mx-10 max-w-5xl 2xl:max-w-6xl">
             {navItems.map((item) => {
               const active = isActive(item.href);
               const hasDropdown = Boolean(item.dropdown);
@@ -429,21 +437,23 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex lg:hidden items-center space-x-2">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+              {/* Mobile menu button */}
+              <div className="flex lg:hidden items-center space-x-2">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                  aria-label="Toggle menu"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Mobile Drawer with Accordion Submenus */}
-      {mobileMenuOpen && (
+      {!isAdminPage && mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-slate-200 px-4 pt-3 pb-6 space-y-2 shadow-2xl animate-in slide-in-from-top-2 duration-200 max-h-[80vh] overflow-y-auto">
           <div className="py-2 text-xs text-[#B8860B] font-semibold border-b border-slate-100 flex items-center">
             <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />

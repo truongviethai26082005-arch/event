@@ -1,11 +1,23 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { Phone } from "lucide-react";
 import { COMPANY_INFO } from "@/lib/company-data";
 import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
 
 export default function FloatingContactWidget() {
+  const pathname = usePathname();
+
+  // Không hiển thị cụm nút liên hệ nổi trên các trang quản trị (Admin Dashboard, Radar, Leads,...)
+  if (
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/admin-radar") ||
+    pathname?.startsWith("/admin-login") ||
+    pathname === "/login"
+  ) {
+    return null;
+  }
   const contactItems: {
     id: string;
     label: string;

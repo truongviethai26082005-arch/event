@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardList, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
 import { signOut } from "@/app/admin-radar/actions";
+import FloatingContactHider from "./FloatingContactHider";
 
 export default function AdminRadarLayout({
   children,
@@ -10,6 +11,7 @@ export default function AdminRadarLayout({
 }) {
   return (
     <>
+      <FloatingContactHider />
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
