@@ -1,7 +1,7 @@
 -- =============================================================================
 -- HỆ THỐNG CƠ SỞ DỮ LIỆU SUPABASE CHO DỰ ÁN:
 -- CÔNG TY TNHH SỰ KIỆN VÀ DU LỊCH TRƯỜNG HẢI (TRƯỜNG HẢI EVENT & TRAVEL)
--- Tích hợp Công Cụ Quản Trị Radar SEO AI
+-- Tích hợp Công Cụ Quản Trị Radar SEO AI & Hệ Thống Quét Ngầm Đối Thủ
 -- =============================================================================
 
 -- Kích hoạt tiện ích tạo UUID
@@ -79,6 +79,77 @@ CREATE TABLE competitor_logs (
 );
 
 -- =============================================================================
+-- 6. BẢNG COMPETITORS: Quản lý danh sách đối thủ cạnh tranh đang theo dõi
+-- =============================================================================
+DROP TABLE IF EXISTS competitors CASCADE;
+CREATE TABLE competitors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    domain TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL DEFAULT 'tron-goi',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    priority_badge TEXT,
+    notes TEXT,
+    last_scanned_at TIMESTAMPTZ,
+    scanned_pages_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 7. BẢNG COMPETITOR_SCANNED_PAGES: Kho lưu trữ chữ/nội dung trang của đối thủ
+-- =============================================================================
+DROP TABLE IF EXISTS competitor_scanned_pages CASCADE;
+CREATE TABLE competitor_scanned_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    competitor_id UUID REFERENCES competitors(id) ON DELETE CASCADE,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    headings JSONB, -- Mảng cấu trúc H1, H2, H3
+    meta_description TEXT,
+    clean_text TEXT,
+    word_count INTEGER DEFAULT 0,
+    published_date TIMESTAMPTZ,
+    scanned_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 8. BẢNG CONTENT_GAP_IDEAS: Khoảng trống nội dung & Ý tưởng kế hoạch bài viết
+-- =============================================================================
+DROP TABLE IF EXISTS content_gap_ideas CASCADE;
+CREATE TABLE content_gap_ideas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic TEXT NOT NULL,
+    target_keyword TEXT NOT NULL,
+    competitor_source TEXT,
+    competitor_url TEXT,
+    cluster_category TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+    search_intent TEXT NOT NULL DEFAULT 'informational' CHECK (search_intent IN ('informational', 'commercial', 'transactional')),
+    our_site_status TEXT NOT NULL DEFAULT 'missing' CHECK (our_site_status IN ('missing', 'in_plan', 'drafted')),
+    suggested_title TEXT,
+    gap_reason TEXT,
+    estimated_search_volume TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 9. BẢNG RADAR_ACTIVITY_LOGS: Nhật ký vận hành hệ thống Radar SEO
+-- =============================================================================
+DROP TABLE IF EXISTS radar_activity_logs CASCADE;
+CREATE TABLE radar_activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_type TEXT NOT NULL CHECK (execution_type IN ('cron', 'dry-run', 'live-run', 'reschedule')),
+    status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'warning', 'error')),
+    competitor_name TEXT,
+    pages_scanned INTEGER DEFAULT 0,
+    gaps_found INTEGER DEFAULT 0,
+    message TEXT NOT NULL,
+    duration_sec INTEGER,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
 -- CẤU HÌNH ROW LEVEL SECURITY (RLS) ĐẢM BẢO AN TOÀN TRUY CẬP
 -- =============================================================================
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
@@ -86,6 +157,10 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitor_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitor_scanned_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_gap_ideas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE radar_activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Cho phép công chúng đọc dữ liệu dịch vụ và dự án
 CREATE POLICY "Public read services" ON services FOR SELECT USING (true);
@@ -101,8 +176,12 @@ CREATE POLICY "Enable all for posts" ON posts FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY "Public insert leads" ON leads FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public select leads" ON leads FOR SELECT USING (true);
 
--- Cho phép lưu log quét đối thủ
+-- Cho phép toàn quyền quản trị cho các module Radar SEO
 CREATE POLICY "Enable all for competitor_logs" ON competitor_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for competitors" ON competitors FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for competitor_scanned_pages" ON competitor_scanned_pages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for content_gap_ideas" ON content_gap_ideas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for radar_activity_logs" ON radar_activity_logs FOR ALL USING (true) WITH CHECK (true);
 
 
 -- =============================================================================
@@ -111,7 +190,6 @@ CREATE POLICY "Enable all for competitor_logs" ON competitor_logs FOR ALL USING 
 
 -- 1. INSERT DỊCH VỤ THẬT
 INSERT INTO services (title, slug, category, description, image_url) VALUES
--- Mảng Sự kiện
 ('Lễ kỷ niệm, khánh thành, khai trương, khởi công – động thổ', 'le-ky-niem-khanh-thanh-khai-truong', 'su-kien', 
  'Tổ chức trọn gói các nghi lễ trọng thể mang tính bước ngoặt của doanh nghiệp với quy trình chuẩn chỉ, thiết bị đẳng cấp và kịch bản trang trọng.', 
  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80'),
@@ -132,7 +210,6 @@ INSERT INTO services (title, slug, category, description, image_url) VALUES
  'Kho thiết bị sự kiện hiện đại, nhập khẩu chính hãng với dàn Line Array công suất lớn, đèn Beam, Par Led, màn hình LED sắc nét phục vụ trong nhà và ngoài trời.', 
  'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80'),
 
--- Mảng Du lịch
 ('Tổ chức Tour Doanh nghiệp, Tập thể, Cá nhân', 'tour-doanh-nghiep-tap-the-ca-nhan', 'du-lich', 
  'Thiết kế tour du lịch nghỉ dưỡng kết hợp Team Building, Gala Dinner tại các thiên đường nghỉ dưỡng như Hạ Long, Đà Nẵng, Phú Quốc, Sapa, Quy Nhơn...', 
  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80'),
@@ -192,3 +269,11 @@ INSERT INTO posts (title, slug, content, meta_description, focus_keyword, status
  'Khám phá 7 concept tiệc tất niên Year End Party (YEP) độc đáo, bùng nổ cảm xúc cho doanh nghiệp, giúp tôn vinh cống hiến và tái tạo năng lượng cho năm mới.',
  'tổ chức year end party',
  'published');
+
+-- 4. INSERT ĐỐI THỦ MẪU BAN ĐẦU
+INSERT INTO competitors (name, domain, category, is_active, priority_badge, notes, scanned_pages_count) VALUES
+('Viet Power Event', 'https://viet-power.vn', 'teambuilding', true, 'Top 1 Teambuilding', 'Mạnh về kịch bản trò chơi bãi biển và tour trọn gói', 42),
+('Hòa Bình Events', 'https://hoabinhevents.com', 'hoi-nghi', true, 'Top 1 Hội nghị Quốc tế', 'Quy mô lớn, chuyên hội thảo y tế, đại hội cổ đông', 68),
+('Á Châu Event', 'https://sukienachau.com', 'tron-goi', true, 'Chuyên Khai Trương VIP', 'Đội ngũ PG, MC, múa lân sư rồng khai trương chuyên nghiệp', 35),
+('Cho Thuê Âm Thanh AS', 'https://chothueamthanhas.com', 'thiet-bi', true, 'Tổng kho Thiết bị LED', 'Báo giá bóc tách âm thanh ánh sáng, sân khấu nhôm truss', 29)
+ON CONFLICT (domain) DO NOTHING;

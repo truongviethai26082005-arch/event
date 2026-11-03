@@ -50,10 +50,24 @@ import {
   ListFilter,
   CheckCheck,
   Briefcase,
+  Compass,
+  Activity,
+  AlertTriangle,
+  Target,
 } from "lucide-react";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
 import SeoScoreChecklist from "./SeoScoreChecklist";
+import CompetitorsManager from "./CompetitorsManager";
+import RadarCronManager from "./RadarCronManager";
+import ContentGapDashboard from "./ContentGapDashboard";
+import RadarActivityLogs from "./RadarActivityLogs";
+import {
+  getStoredCompetitors,
+  getStoredContentGaps,
+  getStoredRadarLogs,
+  getStoredScheduleConfig,
+} from "./competitors-data";
 import {
   CompetitorPreset,
   saveCustomCompetitor,
@@ -140,7 +154,28 @@ export default function RadarSeoAdminPage() {
   // Leads state
   const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads" | "events">("posts");
+  const [activeAdminTab, setActiveAdminTab] = useState<
+    "posts" | "competitors" | "content_gap" | "activity_logs" | "leads" | "events"
+  >("posts");
+
+  // Radar Engine Stats (Đối thủ, Khoảng trống SEO, Nhật ký, Lịch ngầm)
+  const [trackedCompetitors, setTrackedCompetitors] = useState<any[]>([]);
+  const [contentGaps, setContentGaps] = useState<any[]>([]);
+  const [radarLogs, setRadarLogs] = useState<any[]>([]);
+  const [scheduleConfig, setScheduleConfig] = useState<any>(null);
+
+  const refreshRadarStats = () => {
+    if (typeof window !== "undefined") {
+      setTrackedCompetitors(getStoredCompetitors());
+      setContentGaps(getStoredContentGaps());
+      setRadarLogs(getStoredRadarLogs());
+      setScheduleConfig(getStoredScheduleConfig());
+    }
+  };
+
+  useEffect(() => {
+    refreshRadarStats();
+  }, []);
   const [eventProfilesCount, setEventProfilesCount] = useState<number>(DEFAULT_EVENT_PROFILES.length);
 
   // Hồ sơ sự kiện liên kết với Radar SEO
@@ -2413,49 +2448,75 @@ export default function RadarSeoAdminPage() {
         )}
 
         {/* =====================================================================
-            DASHBOARD METRIC CARDS (THỐNG KÊ TỔNG QUAN)
+            DASHBOARD METRIC CARDS (BỘ 4 CHỈ SỐ CỐT LÕI RADAR SEO)
         ===================================================================== */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Số lượng đối thủ đang theo dõi */}
           <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-              <FileText className="w-6 h-6" />
+              <Globe className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Tổng bài viết SEO</p>
-              <h3 className="text-2xl font-black text-white">{postsList.length}</h3>
+              <p className="text-xs text-slate-400 font-medium">Đối thủ đang theo dõi</p>
+              <div className="flex items-baseline space-x-1.5">
+                <h3 className="text-2xl font-black text-white">
+                  {trackedCompetitors.filter((c) => c.isActive).length}
+                </h3>
+                <span className="text-[11px] text-slate-400">/{trackedCompetitors.length} tổng</span>
+              </div>
             </div>
           </div>
 
+          {/* Card 2: Tổng số trang/bài viết đã quét của đối thủ */}
           <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-              <CheckCircle2 className="w-6 h-6" />
+              <Radar className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Đã xuất bản</p>
-              <h3 className="text-2xl font-black text-emerald-400">{publishedCount}</h3>
+              <p className="text-xs text-slate-400 font-medium">Tổng bài đối thủ đã quét</p>
+              <h3 className="text-2xl font-black text-emerald-400">
+                {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)} bài
+              </h3>
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Bản nháp chờ duyệt</p>
-              <h3 className="text-2xl font-black text-amber-400">{draftCount}</h3>
-            </div>
-          </div>
-
+          {/* Card 3: Khoảng trống SEO (Content Gap) phát hiện được */}
           <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
             <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] shrink-0">
-              <Users className="w-6 h-6" />
+              <Compass className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Khách cần tư vấn</p>
-              <h3 className="text-2xl font-black text-[#D4AF37]">{leadsList.length}</h3>
+              <p className="text-xs text-slate-400 font-medium">Khoảng trống SEO (Gaps)</p>
+              <h3 className="text-2xl font-black text-[#D4AF37]">
+                {contentGaps.filter((g) => g.ourSiteStatus === "missing").length} chủ đề
+              </h3>
+            </div>
+          </div>
+
+          {/* Card 4: Cảnh báo các bài viết/nội dung chưa đạt tiêu chuẩn cần xem lại */}
+          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Cảnh báo cần xem lại</p>
+              <div className="flex items-baseline space-x-1.5">
+                <h3 className="text-2xl font-black text-amber-400">
+                  {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
+                </h3>
+                <span className="text-[11px] text-amber-400/80 font-semibold">Ưu tiên cao</span>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* =====================================================================
+            MODULE 2: LẬP LỊCH QUÉT ĐỊNH KỲ (02:30 SÁNG) & BỘ 4 NÚT ĐIỀU KHIỂN
+        ===================================================================== */}
+        <RadarCronManager
+          onRefreshData={refreshRadarStats}
+          onRunLiveCrawl={refreshRadarStats}
+        />
 
         {/* =====================================================================
             CMS DATA WORKSPACE: POSTS MANAGEMENT & LEADS MANAGEMENT
@@ -2492,6 +2553,45 @@ export default function RadarSeoAdminPage() {
 
               <button
                 type="button"
+                onClick={() => setActiveAdminTab("competitors")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "competitors"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Đối Thủ Theo Dõi ({trackedCompetitors.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminTab("content_gap")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "content_gap"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Khoảng Trống SEO & Xu Hướng ({contentGaps.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminTab("activity_logs")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  activeAdminTab === "activity_logs"
+                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Nhật Ký Ca Quét ({radarLogs.length})</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveAdminTab("events")}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
                   activeAdminTab === "events"
@@ -2500,7 +2600,7 @@ export default function RadarSeoAdminPage() {
                 }`}
               >
                 <Briefcase className="w-3.5 h-3.5" />
-                <span>Hồ Sơ Sự Kiện & Lưu Trữ Dự Án ({eventProfilesCount})</span>
+                <span>Hồ Sơ Sự Kiện ({eventProfilesCount})</span>
               </button>
             </div>
 
@@ -2865,6 +2965,36 @@ export default function RadarSeoAdminPage() {
                 </table>
               </div>
             </div>
+          ) : activeAdminTab === "competitors" ? (
+            /* =====================================================================
+               1. QUẢN LÝ DANH SÁCH ĐỐI THỦ CẠNH TRANH
+            ===================================================================== */
+            <CompetitorsManager
+              onSelectCompetitorForScan={(domain, name) => {
+                setDomainInput(domain);
+                setScanMode("domain");
+                window.scrollTo({ top: 350, behavior: "smooth" });
+              }}
+              onRefreshStats={refreshRadarStats}
+            />
+          ) : activeAdminTab === "content_gap" ? (
+            /* =====================================================================
+               3. BẢN ĐỒ KHOẢNG TRỐNG SEO & GOM NHÓM XU HƯỚNG
+            ===================================================================== */
+            <ContentGapDashboard
+              onGenerateDraftFromGap={(gap) => {
+                setCompetitorUrl(gap.competitorUrl);
+                setTargetKeyword(gap.targetKeyword);
+                setScanMode("single");
+                window.scrollTo({ top: 350, behavior: "smooth" });
+              }}
+              onRefreshData={refreshRadarStats}
+            />
+          ) : activeAdminTab === "activity_logs" ? (
+            /* =====================================================================
+               4. NHẬT KÝ HOẠT ĐỘNG RADAR SEO (ACTIVITY LOG)
+            ===================================================================== */
+            <RadarActivityLogs onRefreshData={refreshRadarStats} />
           ) : (
             /* =====================================================================
                EVENT PROFILES MANAGEMENT & ARCHIVE (HỒ SƠ SỰ KIỆN & CASE STUDIES)
