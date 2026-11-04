@@ -314,6 +314,44 @@ export function saveStoredRadarLogs(logs: RadarActivityLog[]) {
   }
 }
 
+export function deduplicateContentGaps(gaps: ContentGapItem[]): ContentGapItem[] {
+  const result: ContentGapItem[] = [];
+  const seenNormals = new Set<string>();
+
+  for (const item of gaps) {
+    if (!item) continue;
+    const normalized = (item.targetKeyword || item.topic || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let isDupe = false;
+    for (const seen of seenNormals) {
+      if (seen === normalized) {
+        isDupe = true;
+        break;
+      }
+      if (
+        (normalized.includes(seen) || seen.includes(normalized)) &&
+        Math.min(normalized.length, seen.length) >= 12
+      ) {
+        isDupe = true;
+        break;
+      }
+    }
+
+    if (!isDupe && normalized.length > 2) {
+      seenNormals.add(normalized);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
 export function getStoredContentGaps(): ContentGapItem[] {
   if (typeof window === "undefined") return DEFAULT_CONTENT_GAPS;
   try {
@@ -322,7 +360,8 @@ export function getStoredContentGaps(): ContentGapItem[] {
       localStorage.setItem(STORAGE_KEYS.GAPS, JSON.stringify(DEFAULT_CONTENT_GAPS));
       return DEFAULT_CONTENT_GAPS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return deduplicateContentGaps(parsed);
   } catch (e) {
     return DEFAULT_CONTENT_GAPS;
   }

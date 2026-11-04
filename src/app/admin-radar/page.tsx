@@ -12,6 +12,7 @@ import Link from "next/link";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
 import { supabase, isSupabaseConfigured, DatabasePost } from "@/lib/supabase";
 import EventProfileArchive from "./EventProfileArchive";
+import BrandBrainViewer from "./BrandBrainViewer";
 import { getStoredEventProfiles, DEFAULT_EVENT_PROFILES } from "./event-profiles-data";
 import {
   Radar,
@@ -52,14 +53,17 @@ import {
   AlertTriangle,
   Target,
   Menu,
+  Wand2,
+  Bot,
   Zap,
+  X,
+  Plus,
 } from "lucide-react";
 import RadarSidebar, { RadarNavSection } from "./RadarSidebar";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorDropdown from "./CompetitorDropdown";
 import SeoScoreChecklist from "./SeoScoreChecklist";
 import CompetitorsManager from "./CompetitorsManager";
-import RadarCronManager from "./RadarCronManager";
 import ContentGapDashboard from "./ContentGapDashboard";
 import RadarActivityLogs from "./RadarActivityLogs";
 import {
@@ -152,7 +156,27 @@ export default function RadarSeoAdminPage() {
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
-  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("scanner");
+  // 5 Mục canonical: "viet_bai" | "duyet_bai" | "bo_nao" | "doi_thu" | "ke_hoach"
+  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("viet_bai");
+
+  // State duyệt bài & kiểm soát chất lượng (QA)
+  const [reviewingPost, setReviewingPost] = useState<DatabasePost | null>(null);
+  const [reviewingChecklist, setReviewingChecklist] = useState<{
+    dataChecked: boolean;
+    keywordChecked: boolean;
+    brandBrainChecked: boolean;
+    formatChecked: boolean;
+  }>({
+    dataChecked: false,
+    keywordChecked: false,
+    brandBrainChecked: false,
+    formatChecked: false,
+  });
+
+  // State Soát lỗi QA tự động bằng máy
+  const [isQaRunning, setIsQaRunning] = useState(false);
+  const [qaReport, setQaReport] = useState<any>(null);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<
     "posts" | "competitors" | "content_gap" | "activity_logs" | "leads" | "events"
@@ -240,6 +264,7 @@ export default function RadarSeoAdminPage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
   const [postNotice, setPostNotice] = useState<{
     type: "success" | "error" | "info";
     text: string;
@@ -260,6 +285,30 @@ export default function RadarSeoAdminPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // TÍCH CHỌN HÀNG LOẠT (SELECT ALL / DESELECT ALL)
+  const isAllVisibleSelected =
+    filteredPosts.length > 0 &&
+    filteredPosts.every((p) => selectedPostIds.includes(p.id));
+
+  const isSomeVisibleSelected =
+    filteredPosts.some((p) => selectedPostIds.includes(p.id)) && !isAllVisibleSelected;
+
+  const handleToggleSelectPost = (id: string) => {
+    setSelectedPostIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllVisible = () => {
+    if (isAllVisibleSelected) {
+      const visibleIds = new Set(filteredPosts.map((p) => p.id));
+      setSelectedPostIds((prev) => prev.filter((id) => !visibleIds.has(id)));
+    } else {
+      const visibleIds = filteredPosts.map((p) => p.id);
+      setSelectedPostIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
   const publishedCount = postsList.filter((p) => p.status === "published").length;
   const draftCount = postsList.filter((p) => p.status === "draft" || !p.status).length;
 
@@ -275,13 +324,60 @@ export default function RadarSeoAdminPage() {
       reading_time: "5 phút",
     });
     setActiveResultTab("article");
-    setActiveNavSection("editor");
+    setActiveNavSection("viet_bai");
     setTimeout(() => {
       const editorEl = document.getElementById("radar-results-editor");
       if (editorEl) {
         editorEl.scrollIntoView({ behavior: "smooth" });
       }
     }, 100);
+  };
+
+  // Cập nhật trực tiếp số liệu thật vào bài viết từ modal QA
+  const handleDirectUpdateContent = async (updatedPost: DatabasePost) => {
+    setPostsList((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    if (isSupabaseConfigured && updatedPost.id) {
+      try {
+        await supabase
+          .from("posts")
+          .update({
+            content: updatedPost.content,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", updatedPost.id);
+      } catch (err) {
+        console.error("Direct update error:", err);
+      }
+    }
+    setPostNotice({
+      type: "success",
+      text: `Đã điền số liệu thực tế vào bài viết "${updatedPost.title}"!`,
+      slug: updatedPost.slug,
+    });
+  };
+
+  // Xuất bản bài viết trực tiếp từ modal QA
+  const handlePublishDirect = async (targetPost: DatabasePost) => {
+    try {
+      const updated = { ...targetPost, status: "published" as const };
+      setPostsList((prev) => prev.map((p) => (p.id === targetPost.id ? updated : p)));
+      if (isSupabaseConfigured && targetPost.id) {
+        await supabase
+          .from("posts")
+          .update({
+            status: "published",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", targetPost.id);
+      }
+      setPostNotice({
+        type: "success",
+        text: `Đã phê duyệt và xuất bản bài viết "${targetPost.title}" lên website thành công!`,
+        slug: targetPost.slug,
+      });
+    } catch (err) {
+      console.error("Publish direct error:", err);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -336,25 +432,46 @@ export default function RadarSeoAdminPage() {
       setAvailableProfiles(getStoredEventProfiles());
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam === "events") {
-        setActiveNavSection("events");
-        setActiveAdminTab("events");
-      } else if (tabParam === "posts") {
-        setActiveNavSection("posts");
+      if (
+        tabParam === "viet_bai" ||
+        tabParam === "viet-bai" ||
+        tabParam === "editor" ||
+        tabParam === "scanner"
+      ) {
+        setActiveNavSection("viet_bai");
+      } else if (
+        tabParam === "duyet_bai" ||
+        tabParam === "duyet-bai" ||
+        tabParam === "posts"
+      ) {
+        setActiveNavSection("duyet_bai");
+        setStatusFilter("draft");
         setActiveAdminTab("posts");
-      } else if (tabParam === "competitors") {
-        setActiveNavSection("competitors");
+      } else if (
+        tabParam === "bo_nao" ||
+        tabParam === "bo-nao" ||
+        tabParam === "events"
+      ) {
+        setActiveNavSection("bo_nao");
+        setActiveAdminTab("events");
+      } else if (
+        tabParam === "doi_thu" ||
+        tabParam === "doi-thu" ||
+        tabParam === "competitors"
+      ) {
+        setActiveNavSection("doi_thu");
         setActiveAdminTab("competitors");
-      } else if (tabParam === "content_gap") {
-        setActiveNavSection("content_gap");
+      } else if (
+        tabParam === "ke_hoach" ||
+        tabParam === "ke-hoach" ||
+        tabParam === "content_gap" ||
+        tabParam === "cron"
+      ) {
+        setActiveNavSection("ke_hoach");
         setActiveAdminTab("content_gap");
-      } else if (tabParam === "cron") {
-        setActiveNavSection("cron");
       } else if (tabParam === "logs" || tabParam === "activity_logs") {
         setActiveNavSection("logs");
         setActiveAdminTab("activity_logs");
-      } else if (tabParam === "editor") {
-        setActiveNavSection("editor");
       }
     }
   }, []);
@@ -378,10 +495,14 @@ export default function RadarSeoAdminPage() {
     setCustomPrompt((prev) => (prev ? `${prev}\n- ${proofText}` : proofText));
   };
 
-  // Main Radar Action: Call /api/radar
-  const handleScanAndGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!competitorUrl) return;
+  // Main Radar Action: Call /api/radar (Hỗ trợ gọi trực tiếp từ Tab Kế hoạch hoặc qua Form)
+  const executeScanAndGenerate = async (
+    overrideUrl?: string,
+    overrideKeyword?: string
+  ) => {
+    const url = (overrideUrl || competitorUrl || "").trim();
+    const keyword = (overrideKeyword || targetKeyword || "").trim();
+    if (!url) return;
 
     setIsAnalyzing(true);
     setErrorMsg(null);
@@ -400,8 +521,8 @@ export default function RadarSeoAdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          competitorUrl: competitorUrl.trim(),
-          targetKeyword: targetKeyword.trim(),
+          competitorUrl: url,
+          targetKeyword: keyword,
           customPrompt: customPrompt.trim(),
           selectedEventId,
           eventProfileProof: activeEventProfile,
@@ -428,14 +549,21 @@ export default function RadarSeoAdminPage() {
       if (data.savedPostId) {
         setEditingPostId(data.savedPostId);
       }
-      // ƯU TIÊN MỞ TAB "analysis" ĐỂ ADMIN NẮM ĐƯỢC BỐI CẢNH VÀ LỖ HỔNG
-      setActiveResultTab("analysis");
-      setActiveNavSection("editor");
+      // ƯU TIÊN MỞ THẲNG TAB "article" (SOẠN THẢO BÀI VIẾT) ĐỂ USER THẤY BÀI ĐÃ TẠO XONG
+      setActiveResultTab("article");
+      setArticlePreviewMode("edit");
+      setActiveNavSection("viet_bai");
 
       // Reload posts table if server saved it
       if (data.isSupabaseSaved) {
         fetchPosts();
       }
+
+      // Cuộn mượt mà đến khu vực soạn thảo AI Studio
+      setTimeout(() => {
+        const editorEl = document.getElementById("radar-results-editor");
+        if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
+      }, 300);
     } catch (err: any) {
       console.error("Radar error:", err);
       setErrorMsg(err.message || "Đã xảy ra lỗi khi quét bài viết đối thủ.");
@@ -443,6 +571,88 @@ export default function RadarSeoAdminPage() {
       setIsAnalyzing(false);
       setProcessStep(0);
     }
+  };
+
+  const handleScanAndGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeScanAndGenerate();
+  };
+
+  // HÀM MÁY TỰ ĐỘNG SOÁT LỖI & CHẤM ĐIỂM QA THEO 20 TIÊU CHÍ
+  const runAutomatedQaReview = async (postToReview?: DatabasePost | null) => {
+    const target = postToReview || reviewingPost;
+    if (!target || !target.content) return;
+
+    setIsQaRunning(true);
+    try {
+      const res = await fetch("/api/radar/qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: target.content,
+          title: target.title,
+          keyword: target.focus_keyword || "",
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setQaReport(json.data);
+        // Tự động đồng bộ tick các mục đạt chuẩn vào checklist
+        setReviewingChecklist({
+          dataChecked: json.data.summary.missingDataCount === 0,
+          keywordChecked: json.data.checks.some(
+            (c: any) => c.id === "Q1_SEO" && c.status === "pass"
+          ),
+          brandBrainChecked: json.data.checks.some(
+            (c: any) => c.id === "Q12_BRAND" && c.status === "pass"
+          ),
+          formatChecked: json.data.checks.some(
+            (c: any) => c.id === "Q15_FAQ" && c.status === "pass"
+          ),
+        });
+      }
+    } catch (err) {
+      console.error("Automated QA Review error:", err);
+    } finally {
+      setIsQaRunning(false);
+    }
+  };
+
+  // HÀM TỰ ĐỘNG SỬA TỪ CẤM V8, V9, V10
+  const handleAutoFixForbiddenWords = () => {
+    if (!reviewingPost) return;
+    let fixedContent = reviewingPost.content;
+    const replacements: Record<string, string> = {
+      "đẳng cấp": "chất lượng cao",
+      "hàng đầu": "chuyên sâu",
+      "số 1": "uy tín",
+      "top 1": "đáng tin cậy",
+      "uy tín nhất": "uy tín",
+      "chuyên nghiệp nhất": "chuyên nghiệp",
+      "đột phá": "hiệu quả",
+      "bùng nổ": "sôi nổi",
+      "thăng hoa": "ấn tượng",
+      "đỉnh cao": "bài bản",
+      "hoàn hảo": "chu đáo",
+      "tuyệt vời": "tốt đẹp",
+      "siêu": "rất",
+      "khủng": "quy mô lớn",
+      "trong kỷ nguyên số": "Hiện nay",
+      "trong thời đại ngày nay": "Hiện nay",
+      "trong bối cảnh": "Hiện nay",
+      "không thể phủ nhận": "Rõ ràng",
+      "100%": "tối đa",
+      "rẻ nhất": "hợp lý",
+    };
+    for (const [bad, good] of Object.entries(replacements)) {
+      const reg = new RegExp(`\\b${bad}\\b`, "gi");
+      fixedContent = fixedContent.replace(reg, good);
+    }
+    const updated = { ...reviewingPost, content: fixedContent };
+    setReviewingPost(updated);
+    handleDirectUpdateContent(updated);
+    // Chạy lại kiểm định để thấy điểm số tăng vọt ngay
+    runAutomatedQaReview(updated);
   };
 
   // QUÉT TỰ ĐỘNG DOMAIN ĐỐI THỦ
@@ -951,7 +1161,7 @@ export default function RadarSeoAdminPage() {
     });
   };
 
-  // THAO TÁC XÓA BẢN NHÁP / BÀI VIẾT
+  // THAO TÁC XÓA BẢN NHÁP / BÀI VIẾT ĐƠN LẺ
   const handleDeletePost = async (post: any) => {
     const isConfirm = window.confirm(
       `Bạn có chắc chắn muốn xóa bài viết:\n"${post.title}" không?`
@@ -970,7 +1180,71 @@ export default function RadarSeoAdminPage() {
     }
 
     setPostsList(postsList.filter((p) => p.id !== post.id));
+    setSelectedPostIds((prev) => prev.filter((id) => id !== post.id));
     setSaveStatus(`Đã xóa bài viết "${post.title.slice(0, 30)}..." thành công!`);
+  };
+
+  // THAO TÁC XÓA HÀNG LOẠT (BULK DELETE)
+  const handleBulkDeletePosts = async () => {
+    const count = selectedPostIds.length;
+    if (count === 0) return;
+
+    const isConfirm = window.confirm(
+      `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${count} bài viết đã chọn không?\n\nThao tác này sẽ dọn sạch kho dữ liệu và không thể hoàn tác!`
+    );
+    if (!isConfirm) return;
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from("posts").delete().in("id", selectedPostIds);
+        if (error) {
+          console.warn("Lỗi xóa hàng loạt từ Supabase:", error);
+        }
+      } catch (err) {
+        console.error("Bulk delete error:", err);
+      }
+    }
+
+    setPostsList((prev) => prev.filter((p) => !selectedPostIds.includes(p.id)));
+    setSelectedPostIds([]);
+    setPostNotice({
+      type: "success",
+      text: `Đã xóa thành công ${count} bài viết khỏi kho dữ liệu!`,
+    });
+  };
+
+  // THAO TÁC XUẤT BẢN HÀNG LOẠT (BULK PUBLISH)
+  const handleBulkPublishPosts = async () => {
+    const count = selectedPostIds.length;
+    if (count === 0) return;
+
+    const isConfirm = window.confirm(
+      `Bạn có muốn XUẤT BẢN NHANH ${count} bài viết đã chọn lên website ngay bây giờ?`
+    );
+    if (!isConfirm) return;
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from("posts")
+          .update({ status: "published" })
+          .in("id", selectedPostIds);
+        if (error) {
+          console.warn("Lỗi xuất bản hàng loạt từ Supabase:", error);
+        }
+      } catch (err) {
+        console.error("Bulk publish error:", err);
+      }
+    }
+
+    setPostsList((prev) =>
+      prev.map((p) => (selectedPostIds.includes(p.id) ? { ...p, status: "published" } : p))
+    );
+    setSelectedPostIds([]);
+    setPostNotice({
+      type: "success",
+      text: `Đã xuất bản thành công ${count} bài viết lên website!`,
+    });
   };
 
   return (
@@ -980,18 +1254,26 @@ export default function RadarSeoAdminPage() {
         activeSection={activeNavSection}
         onSelectSection={(section) => {
           setActiveNavSection(section);
-          if (
-            section === "posts" ||
-            section === "competitors" ||
+          if (section === "duyet_bai" || section === "posts") {
+            setStatusFilter("draft");
+            setActiveAdminTab("posts");
+          } else if (section === "bo_nao" || section === "events") {
+            setActiveAdminTab("events");
+          } else if (section === "doi_thu" || section === "competitors") {
+            setActiveAdminTab("competitors");
+          } else if (
+            section === "ke_hoach" ||
             section === "content_gap" ||
-            section === "logs" ||
-            section === "events"
+            section === "cron"
           ) {
-            setActiveAdminTab(section === "logs" ? "activity_logs" : (section as any));
+            setActiveAdminTab("content_gap");
+          } else if (section === "logs") {
+            setActiveAdminTab("activity_logs");
           }
         }}
         counts={{
           posts: postsList.length,
+          drafts: draftCount,
           competitors: trackedCompetitors.length,
           gaps: contentGaps.length,
           events: eventProfilesCount,
@@ -1028,28 +1310,49 @@ export default function RadarSeoAdminPage() {
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  {activeNavSection === "scanner" && "Quét & Bóc Tách Đối Thủ AI"}
-                  {activeNavSection === "editor" && "AI Studio & Trình Biên Tập SEO"}
-                  {activeNavSection === "posts" && "Kho Quản Lý Bài Viết SEO"}
-                  {activeNavSection === "competitors" && "Quản Lý Danh Sách Đối Thủ"}
-                  {activeNavSection === "content_gap" && "Khoảng Trống SEO & Xu Hướng"}
-                  {activeNavSection === "events" && "Hồ Sơ Sự Kiện & Minh Chứng"}
-                  {activeNavSection === "cron" && "Bộ Chỉ Số Cốt Lõi & Lập Lịch Ca Quét"}
-                  {activeNavSection === "logs" && "Nhật Ký Ca Quét AI"}
+                  {(activeNavSection === "viet_bai" ||
+                    activeNavSection === "scanner" ||
+                    activeNavSection === "editor") &&
+                    "1. Viết Bài & Sáng Tạo Nội Dung AI"}
+                  {(activeNavSection === "duyet_bai" ||
+                    activeNavSection === "posts") &&
+                    "2. Duyệt Bài & Kiểm Soát Chất Lượng (QA)"}
+                  {(activeNavSection === "bo_nao" ||
+                    activeNavSection === "events") &&
+                    "3. Bộ Não Thương Hiệu (Brand Brain)"}
+                  {(activeNavSection === "doi_thu" ||
+                    activeNavSection === "competitors") &&
+                    "4. Quản Lý Danh Sách Đối Thủ"}
+                  {(activeNavSection === "ke_hoach" ||
+                    activeNavSection === "content_gap" ||
+                    activeNavSection === "cron") &&
+                    "5. Kế Hoạch Nội Dung & Khoảng Trống SEO"}
+                  {activeNavSection === "logs" && "Nhật Ký Hoạt Động Ca Quét AI"}
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
                   AI v2.0
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {activeNavSection === "scanner" && "Quét tự động toàn bộ domain/sitemap hoặc cào sâu link bài viết đơn lẻ của đối thủ."}
-                {activeNavSection === "editor" && "Báo cáo bóc trần lỗ hổng đối thủ & Trình biên tập bài viết tích hợp vũ khí Trường Hải."}
-                {activeNavSection === "posts" && "Xem danh sách bài viết trên website, lọc trạng thái, sửa nhanh hoặc xuất bản."}
-                {activeNavSection === "competitors" && "Quản lý 9 đối thủ mẫu và cấu hình sitemap tự động của các đơn vị sự kiện."}
-                {activeNavSection === "content_gap" && "Bản đồ các chủ đề từ khóa đối thủ có mà mình còn thiếu để lấp đầy."}
-                {activeNavSection === "events" && "Kho minh chứng thực tế, bảng giá dự toán và hình ảnh thực chiến độc quyền."}
-                {activeNavSection === "cron" && "Bộ 4 chỉ số thống kê radar và thiết lập ca quét định kỳ 02:30 sáng tự động."}
-                {activeNavSection === "logs" && "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
+                {(activeNavSection === "viet_bai" ||
+                  activeNavSection === "scanner" ||
+                  activeNavSection === "editor") &&
+                  "Chỉ tập trung vào tạo bài viết: Nhập từ khóa, quét đối thủ, bóc tách cấu trúc và AI Studio tạo nháp."}
+                {(activeNavSection === "duyet_bai" ||
+                  activeNavSection === "posts") &&
+                  "Nơi người duyệt đọc, kiểm tra các vị trí [CẦN SỐ LIỆU], tick checklist QA rồi mới xuất bản lên web."}
+                {(activeNavSection === "bo_nao" ||
+                  activeNavSection === "events") &&
+                  "Kho dữ liệu độc quyền của công ty: Hồ sơ dự án thật, danh mục thiết bị sẵn kho, quy tắc giọng văn."}
+                {(activeNavSection === "doi_thu" ||
+                  activeNavSection === "competitors") &&
+                  "Máy tự tìm hoặc người thêm đối thủ, quét sitemap và tự động cào bài viết mới."}
+                {(activeNavSection === "ke_hoach" ||
+                  activeNavSection === "content_gap" ||
+                  activeNavSection === "cron") &&
+                  "Ma trận khoảng trống nội dung từ ca quét 02:30 sáng, gom cụm đề bài và lên lịch viết bài."}
+                {activeNavSection === "logs" &&
+                  "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
               </p>
             </div>
           </div>
@@ -1128,36 +1431,22 @@ export default function RadarSeoAdminPage() {
           </div>
         )}
 
-        {/* PHÂN HỆ 1: QUÉT & BÓC TÁCH (SCANNER) */}
-        {activeNavSection === "scanner" && (
+        {/* MỤC 1: VIẾT BÀI (DÒNG CHẢY LIỀN MẠCH) */}
+        {(activeNavSection === "viet_bai" ||
+          activeNavSection === "scanner" ||
+          activeNavSection === "editor") && (
           <div className="space-y-6">
-            {(analysisResult || editablePost) && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in shadow-xs">
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="text-slate-700 truncate">
-                    Đang có bài viết mở trong AI Studio:{" "}
-                    <strong className="text-slate-900">{editablePost?.title || "Bài viết mới"}</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveNavSection("editor")}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] text-[#0A1E5E] font-bold shrink-0 hover:bg-amber-400 transition-colors flex items-center space-x-1.5 self-end sm:self-auto cursor-pointer shadow-xs"
-                >
-                  <span>Mở Trình Biên Tập</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm relative">
-          <div className="space-y-6">
-            {/* HEADER WORKSPACE & MODE SWITCHER */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shrink-0 flex items-center justify-center shadow-xs">
-                  <div className="w-full h-full bg-[#0A1E5E] rounded-[9px] flex items-center justify-center">
-                    <Search className="w-4 h-4 text-[#D4AF37]" />
+            {!(editablePost || analysisResult) ? (
+              /* KHI CHƯA MỞ BÀI: HIỆN THẲNG FORM NHẬP TỪ KHÓA / CÀO SITEMAP ĐỂ VIẾT BÀI */
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm relative">
+                  <div className="space-y-6">
+                    {/* HEADER WORKSPACE & MODE SWITCHER */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shrink-0 flex items-center justify-center shadow-xs">
+                          <div className="w-full h-full bg-[#0A1E5E] rounded-[9px] flex items-center justify-center">
+                            <Search className="w-4 h-4 text-[#D4AF37]" />
                   </div>
                 </div>
                 <div>
@@ -2041,14 +2330,40 @@ export default function RadarSeoAdminPage() {
             )}
           </div>
         </div>
-          </div>
-        )}
+              </div>
+            ) : (
+              /* KHI CÓ BÀI VIẾT ĐANG MỞ HOẶC VỪA TẠO XONG: HIỂN THỊ TRỰC TIẾP TRÌNH SOẠN THẢO */
+              <div className="space-y-6">
+                {/* Thanh trạng thái bài viết đang mở kèm nút "+ Viết bài mới khác" */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-xs gap-3 shadow-xs animate-in fade-in">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-amber-950 truncate text-xs">
+                        Đang soạn bài: <strong className="font-black text-slate-900">{editablePost?.title || "Bản thảo AI"}</strong>
+                      </p>
+                      <p className="text-[11px] text-amber-800">
+                        {editingPostId ? "Đang cập nhật bài viết từ Database" : "Bản thảo AI vừa phân tích & tạo ra"}
+                      </p>
+                    </div>
+                  </div>
 
-        {/* PHÂN HỆ 2: AI STUDIO & BIÊN TẬP (EDITOR) */}
-        {activeNavSection === "editor" && (
-          <div className="space-y-6">
-            {(analysisResult || editablePost) ? (
-              <div id="radar-results-editor" className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditablePost(null);
+                      setAnalysisResult(null);
+                      setEditingPostId(null);
+                      setSaveStatus(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-300 transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer shadow-xs self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600" />
+                    <span>+ Viết bài mới khác</span>
+                  </button>
+                </div>
+
+                <div id="radar-results-editor" className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             {editingPostId && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-800 text-xs gap-2 animate-in fade-in">
                 <span className="font-semibold flex items-center">
@@ -2351,6 +2666,17 @@ export default function RadarSeoAdminPage() {
                   metaDescription={editablePost.meta_description || ""}
                   slug={editablePost.slug || ""}
                   content={editablePost.content || ""}
+                  onAutoOptimize={(fixes) => {
+                    setEditablePost((prev: any) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        title: fixes.title ?? prev.title,
+                        content: fixes.content ?? prev.content,
+                        meta_description: fixes.metaDescription ?? prev.meta_description,
+                      };
+                    });
+                  }}
                 />
 
                 <div>
@@ -2421,49 +2747,27 @@ export default function RadarSeoAdminPage() {
               </div>
             )}
           </div>
-            ) : (
-              <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 shadow-sm text-center space-y-5">
-                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
-                  <Sparkles className="w-8 h-8" />
-                </div>
-                <div className="max-w-md mx-auto space-y-2">
-                  <h3 className="text-lg font-bold text-slate-900">Chưa có bài viết hoặc kết quả quét nào đang mở</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Bạn có thể bắt đầu bằng cách quét một đối thủ mới từ thanh công cụ bên trái để AI bóc tách & viết bài, hoặc chọn một bài viết có sẵn trong Kho bài viết để chỉnh sửa và tối ưu hóa SEO.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveNavSection("scanner")}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] font-bold text-xs flex items-center space-x-2 shadow-sm hover:scale-105 transition-all cursor-pointer"
-                  >
-                    <Radar className="w-4 h-4" />
-                    <span>⚡ Bắt đầu Quét đối thủ mới</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveNavSection("posts")}
-                    className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs flex items-center space-x-2 border border-slate-200 transition-colors cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-amber-600" />
-                    <span>📝 Chọn bài từ Kho bài viết SEO ({postsList.length})</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        </div>
+      )}
+    </div>
+  )}
 
-        {/* PHÂN HỆ 3: KHO BÀI VIẾT SEO (POSTS) */}
-        {activeNavSection === "posts" && (
+        {/* MỤC 2: DUYỆT BÀI & KIỂM SOÁT CHẤT LƯỢNG (QA) */}
+        {(activeNavSection === "duyet_bai" || activeNavSection === "posts") && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
-              <div className="flex items-center space-x-2">
-                <FileText className="w-5 h-5 text-amber-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  Danh sách bài viết SEO trên website ({postsList.length})
-                </h2>
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#0A1E5E] text-[#D4AF37] flex items-center justify-center shrink-0 shadow-xs">
+                  <CheckSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    Duyệt bài & Kiểm soát chất lượng (QA)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Rà soát các thẻ [CẦN SỐ LIỆU], kiểm chứng thông số và tick checklist QA trước khi Đăng lên website.
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -2471,9 +2775,25 @@ export default function RadarSeoAdminPage() {
                 className="inline-flex items-center text-xs text-amber-700 hover:underline self-end sm:self-auto cursor-pointer font-semibold"
               >
                 <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                Làm mới danh sách
+                Làm mới danh sách ({postsList.length})
               </button>
             </div>
+
+            {/* Banner Hướng Dẫn Quy Trình QA */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-300 text-xs flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="text-amber-950 font-bold">
+                  Quy trình duyệt: 1. Đọc nội dung ➔ 2. Điền số thật tại các thẻ [CẦN SỐ LIỆU] ➔ 3. Tick 4 mục QA ➔ 4. Xuất bản
+                </span>
+              </div>
+              {draftCount > 0 && (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-[11px] shadow-2xs animate-pulse">
+                  {draftCount} bài nháp chờ duyệt
+                </span>
+              )}
+            </div>
+
             <div className="space-y-4">
               {/* Notice Banner khi Duyệt / Xuất bản bài viết */}
               {postNotice && (
@@ -2512,6 +2832,7 @@ export default function RadarSeoAdminPage() {
                   </div>
                 </div>
               )}
+
               {/* Search & Filter Toolbar */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
                 {/* Search Input */}
@@ -2539,14 +2860,15 @@ export default function RadarSeoAdminPage() {
                 <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 self-start sm:self-auto">
                   <button
                     type="button"
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      statusFilter === "all"
-                        ? "bg-amber-500 text-slate-900 shadow-xs font-bold"
-                        : "text-slate-600 hover:text-slate-900"
+                    onClick={() => setStatusFilter("draft")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                      statusFilter === "draft"
+                        ? "bg-[#0A1E5E] text-[#D4AF37] shadow-xs font-bold"
+                        : "text-amber-900 hover:bg-amber-100/50"
                     }`}
                   >
-                    Tất cả ({postsList.length})
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Chờ duyệt / Nháp ({draftCount})</span>
                   </button>
 
                   <button
@@ -2558,38 +2880,94 @@ export default function RadarSeoAdminPage() {
                         : "text-emerald-700 hover:bg-emerald-50"
                     }`}
                   >
-                    <span>Đã duyệt ({publishedCount})</span>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Đã xuất bản ({publishedCount})</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setStatusFilter("draft")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
-                      statusFilter === "draft"
-                        ? "bg-amber-500 text-slate-900 shadow-xs font-bold"
-                        : "text-amber-800 hover:bg-amber-50"
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      statusFilter === "all"
+                        ? "bg-slate-800 text-white shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>Nháp ({draftCount})</span>
+                    Tất cả ({postsList.length})
                   </button>
                 </div>
               </div>
+
+              {/* Bulk Action Bar khi có bài viết được tích chọn */}
+              {selectedPostIds.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/90 border-2 border-amber-400 shadow-md">
+                  <div className="flex items-center space-x-2.5">
+                    <span className="flex items-center justify-center min-w-6 h-6 px-1.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-xs">
+                      {selectedPostIds.length}
+                    </span>
+                    <span className="text-xs font-bold text-amber-950">
+                      Đã chọn <span className="underline font-black">{selectedPostIds.length}</span> / {filteredPosts.length} bài viết
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPostIds([])}
+                      className="text-xs text-slate-600 hover:text-slate-900 underline ml-2 cursor-pointer font-medium"
+                    >
+                      Bỏ chọn tất cả
+                    </button>
+                  </div>
+
+                  <div className="flex items-center space-x-2 self-end sm:self-auto">
+                    {/* Xuất bản hàng loạt */}
+                    <button
+                      type="button"
+                      onClick={handleBulkPublishPosts}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Xuất bản ({selectedPostIds.length})</span>
+                    </button>
+
+                    {/* Xóa hàng loạt */}
+                    <button
+                      type="button"
+                      onClick={handleBulkDeletePosts}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xóa {selectedPostIds.length} bài đã chọn</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-50 uppercase text-[10px] text-slate-600 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4">Tiêu đề bài viết</th>
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllVisibleSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeVisibleSelected;
+                      }}
+                      onChange={handleSelectAllVisible}
+                      className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                      title="Chọn / Bỏ chọn tất cả bài viết trên danh sách hiện tại"
+                    />
+                  </th>
+                  <th className="py-3 px-4">Tiêu đề bài viết & Cảnh báo</th>
                   <th className="py-3 px-4">Từ khóa chính</th>
                   <th className="py-3 px-4">Trạng thái</th>
                   <th className="py-3 px-4">Thời gian tạo</th>
-                  <th className="py-3 px-4 text-right">Thao tác</th>
+                  <th className="py-3 px-4 text-right">Thao tác duyệt QA</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredPosts.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <FileText className="w-8 h-8 text-slate-400" />
                         <p className="text-xs">
@@ -2601,87 +2979,149 @@ export default function RadarSeoAdminPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs truncate">
-                      {post.title}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-700">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-medium">
-                        {post.focus_keyword || "N/A"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {post.status === "published" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                          Published
-                        </span>
-                      ) : post.status === "scheduled" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
-                          <Calendar className="w-3 h-3 mr-1 text-indigo-600" />
-                          Lên lịch
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                          <Clock className="w-3 h-3 mr-1 text-amber-600" />
-                          Draft (Nháp)
-                        </span>
-                      )}
-                    </td>
-                    {/* HIỂN THỊ RÕ GIỜ : PHÚT : GIÂY VÀ NGÀY/THÁNG/NĂM */}
-                    <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap font-mono text-[11px]">
-                      <span className="flex items-center text-slate-600">
-                        <Clock className="w-3 h-3 text-amber-600 mr-1.5 shrink-0" />
-                        {formatFullDateTime(post.created_at)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
-                      {/* Nút Duyệt / Thu hồi */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(post)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-2xs ${
-                          post.status === "published"
-                            ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                            : "bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E]"
-                        }`}
-                      >
-                        {post.status === "published" ? "Thu hồi nháp" : "Duyệt đăng"}
-                      </button>
+                  filteredPosts.map((post) => {
+                    const neededMatches = post.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || [];
+                    const neededCount = neededMatches.length;
+                    const isSelected = selectedPostIds.includes(post.id);
 
-                      {/* Nút Sửa bài viết */}
-                      <button
-                        type="button"
-                        onClick={() => handleStartEditPost(post)}
-                        className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center transition-all ml-1 cursor-pointer"
-                        title="Chỉnh sửa bài viết"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
+                    return (
+                    <tr
+                      key={post.id}
+                      className={`transition-colors ${
+                        isSelected
+                          ? "bg-amber-50/80 hover:bg-amber-100/60 border-l-4 border-l-amber-500"
+                          : "hover:bg-slate-50/80"
+                      }`}
+                    >
+                      <td className="py-3.5 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectPost(post.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                          title={`Chọn bài: ${post.title}`}
+                        />
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs">
+                        <div className="truncate font-bold text-slate-900">{post.title}</div>
+                        {neededCount > 0 ? (
+                          <div className="mt-1 flex items-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <AlertTriangle className="w-3 h-3 mr-1 text-amber-700" />
+                              Có {neededCount} vị trí [CẦN SỐ LIỆU]
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="mt-1 flex items-center">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
+                              <CheckCircle2 className="w-2.5 h-2.5 mr-1 text-emerald-600" />
+                              Đầy đủ số liệu
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-700">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-medium">
+                          {post.focus_keyword || "N/A"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {post.status === "published" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                            Đã xuất bản
+                          </span>
+                        ) : post.status === "scheduled" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                            <Calendar className="w-3 h-3 mr-1 text-indigo-600" />
+                            Lên lịch
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Clock className="w-3 h-3 mr-1 text-amber-600" />
+                            Chờ duyệt
+                          </span>
+                        )}
+                      </td>
+                      {/* HIỂN THỊ RÕ GIỜ : PHÚT : GIÂY VÀ NGÀY/THÁNG/NĂM */}
+                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap font-mono text-[11px]">
+                        <span className="flex items-center text-slate-600">
+                          <Clock className="w-3 h-3 text-amber-600 mr-1.5 shrink-0" />
+                          {formatFullDateTime(post.created_at)}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                        {/* NÚT SOÁT QA & ĐIỀN SỐ THẬT */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewingPost(post);
+                            setQaReport(null);
+                            setReviewingChecklist({
+                              dataChecked: false,
+                              keywordChecked: false,
+                              brandBrainChecked: false,
+                              formatChecked: false,
+                            });
+                            // Tự động chạy máy soát lỗi QA ngay khi bấm mở
+                            runAutomatedQaReview(post);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 text-amber-950 border border-amber-300 inline-flex items-center space-x-1 transition-all cursor-pointer shadow-2xs"
+                          title="Soát lỗi [CẦN SỐ LIỆU] & Duyệt QA"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Soát QA</span>
+                        </button>
 
-                      {/* Nút Xem bài viết */}
-                      <Link
-                        href={`/tin-tuc/${post.slug}`}
-                        target="_blank"
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center ml-1"
-                        title="Xem bài viết"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </Link>
+                        {/* Nút Duyệt đăng nhanh */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(post)}
+                          className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs ${
+                            post.status === "published"
+                              ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                              : "bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E]"
+                          }`}
+                        >
+                          {post.status === "published" ? "Thu hồi nháp" : "Đăng ngay"}
+                        </button>
 
-                      {/* NÚT XÓA BẢN NHÁP / BÀI VIẾT */}
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePost(post)}
-                        className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center transition-colors cursor-pointer"
-                        title="Xóa bài viết này"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </td>
-                  </tr>
-                )))}
+                        {/* Nút Sửa bài viết trong AI Studio */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleStartEditPost(post);
+                            setActiveNavSection("viet_bai");
+                          }}
+                          className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 hover:border-amber-200 inline-flex items-center transition-all cursor-pointer"
+                          title="Mở trong AI Studio để sửa sâu"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Nút Xem bài viết */}
+                        <Link
+                          href={`/tin-tuc/${post.slug}`}
+                          target="_blank"
+                          className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center"
+                          title="Xem bài viết trên web"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+
+                        {/* NÚT XÓA BẢN NHÁP / BÀI VIẾT */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePost(post)}
+                          className="px-2 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center transition-colors cursor-pointer"
+                          title="Xóa bài viết này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                    );
+                  }))}
               </tbody>
             </table>
           </div>
@@ -2689,13 +3129,344 @@ export default function RadarSeoAdminPage() {
           </div>
         )}
 
-        {/* PHÂN HỆ 5: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
-        {activeNavSection === "competitors" && (
+        {/* MODAL SOÁT LỖI [CẦN SỐ LIỆU] & KIỂM ĐỊNH QA */}
+        {reviewingPost && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
+                      QA & KIỂM ĐỊNH BÀI VIẾT
+                    </span>
+                    <span className="text-xs text-slate-500 font-mono">
+                      Từ khóa: <strong>{reviewingPost.focus_keyword || "Chưa gán"}</strong>
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                    {reviewingPost.title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReviewingPost(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 text-xs">
+                {/* HỆ THỐNG MÁY TỰ ĐỘNG SOÁT LỖI & CHẤM ĐIỂM QA 20 TIÊU CHÍ */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-[#0A1E5E] to-slate-900 text-white shadow-md space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm">
+                        <Bot className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-black text-white">
+                            Máy Tự Động Soát Lỗi & Chấm Điểm QA
+                          </h4>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/20 text-amber-300">
+                            20 Tiêu Chuẩn E-E-A-T
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 mt-0.5">
+                          Tự động rà soát từ cấm, đối chiếu Bộ não thương hiệu và kiểm tra cấu trúc SEO thay cho người duyệt.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isQaRunning}
+                      onClick={() => runAutomatedQaReview()}
+                      className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isQaRunning ? "animate-spin" : ""}`} />
+                      <span>{isQaRunning ? "Đang soát bài..." : "Soát lại ngay"}</span>
+                    </button>
+                  </div>
+
+                  {/* KẾT QUẢ SOÁT TỰ ĐỘNG NẾU CÓ BÁO CÁO */}
+                  {qaReport && (
+                    <div className="pt-2 space-y-3">
+                      {/* Thẻ Điểm Số & Đánh Giá */}
+                      <div className="p-4 rounded-2xl bg-white/10 border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center space-x-3.5">
+                          <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black shrink-0 border-2 ${
+                            qaReport.score >= 80
+                              ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                              : qaReport.score >= 60
+                              ? "bg-amber-500/20 border-amber-400 text-amber-300"
+                              : "bg-rose-500/20 border-rose-400 text-rose-300"
+                          }`}>
+                            <span className="text-xl leading-none">{qaReport.score}</span>
+                            <span className="text-[9px] uppercase tracking-wider mt-0.5">/100</span>
+                          </div>
+                          <div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block ${
+                              qaReport.isOverallPass
+                                ? "bg-emerald-400 text-slate-950"
+                                : "bg-amber-400 text-slate-950"
+                            }`}>
+                              {qaReport.isOverallPass ? "✅ ĐẠT CHUẨN XUẤT BẢN" : "⚠️ CẦN SỬA LỖI TRƯỚC KHI ĐĂNG"}
+                            </span>
+                            <p className="text-xs text-slate-200 mt-1 font-medium">
+                              Đã kiểm tra: <strong className="text-white">{qaReport.summary.passedChecks} tiêu chí Đạt</strong> •{" "}
+                              <strong className={qaReport.summary.failedChecks > 0 ? "text-rose-300" : "text-slate-300"}>
+                                {qaReport.summary.failedChecks} tiêu chí Lỗi
+                              </strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Nút Sửa Tự Động Từ Cấm Nếu Phát Hiện */}
+                        {qaReport.summary.forbiddenWordCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleAutoFixForbiddenWords}
+                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:brightness-110 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer self-start sm:self-auto shrink-0"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            <span>Máy tự động sửa {qaReport.summary.forbiddenWordCount} từ cấm</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Chi tiết các lỗi phát hiện (nếu có) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        {qaReport.checks.map((chk: any) => (
+                          <div
+                            key={chk.id}
+                            className={`p-2.5 rounded-xl border flex items-start space-x-2 ${
+                              chk.status === "pass"
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"
+                                : chk.status === "warn"
+                                ? "bg-amber-500/10 border-amber-500/20 text-amber-200"
+                                : "bg-rose-500/20 border-rose-500/40 text-rose-200"
+                            }`}
+                          >
+                            {chk.status === "pass" ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                            ) : chk.status === "warn" ? (
+                              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            )}
+                            <div className="space-y-0.5 flex-1 min-w-0">
+                              <div className="font-bold flex items-center justify-between">
+                                <span className="truncate">{chk.name}</span>
+                                {chk.status !== "pass" && (
+                                  <span className="text-[10px] font-mono font-normal opacity-80">
+                                    {chk.scoreImpact} điểm
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] opacity-90 leading-snug">
+                                {chk.message}
+                              </p>
+                              {chk.matches && chk.matches.length > 0 && (
+                                <p className="text-[10px] font-mono text-amber-300 truncate">
+                                  Phát hiện: {chk.matches.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* HỘP 1: RÀ SOÁT CÁC CHỖ [CẦN SỐ LIỆU] */}
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-700" />
+                      <h4 className="font-bold text-amber-950 text-xs">
+                        Rà soát các thẻ [CẦN SỐ LIỆU] & Thông số thực tế
+                      </h4>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-amber-900 bg-amber-200/60 px-2 py-0.5 rounded">
+                      {(reviewingPost.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || []).length} vị trí
+                    </span>
+                  </div>
+
+                  {(() => {
+                    const matches = reviewingPost.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || [];
+                    if (matches.length === 0) {
+                      return (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-center space-x-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>Bài viết không còn thẻ [CẦN SỐ LIỆU] nào. Thông số thực tế đã hoàn chỉnh!</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-amber-800">
+                          AI đã đánh dấu các vị trí cần thông số người thật duyệt. Bạn có thể bấm "Điền số thật" để thay thế ngay hoặc mở AI Studio để sửa sâu:
+                        </p>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                          {matches.map((m, idx) => (
+                            <div key={idx} className="p-2 rounded-lg bg-white border border-amber-200 flex items-center justify-between gap-2">
+                              <span className="font-mono text-[11px] font-bold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded truncate">
+                                {m}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const replacement = window.prompt(`Nhập số liệu thực tế thay thế cho "${m}":`, "");
+                                  if (replacement !== null && replacement.trim()) {
+                                    const newContent = reviewingPost.content.replace(m, replacement.trim());
+                                    const updated = { ...reviewingPost, content: newContent };
+                                    setReviewingPost(updated);
+                                    handleDirectUpdateContent(updated);
+                                  }
+                                }}
+                                className="px-2.5 py-1 rounded bg-[#0A1E5E] text-[#D4AF37] font-bold text-[10px] hover:bg-slate-800 cursor-pointer shrink-0"
+                              >
+                                Điền số thật
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* HỘP 2: CHECKLIST QA TRƯỚC KHI ĐĂNG */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center space-x-2 text-slate-900 font-bold text-xs">
+                    <CheckCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Checklist kiểm định QA của người duyệt bài:</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                      <input
+                        type="checkbox"
+                        checked={reviewingChecklist.dataChecked}
+                        onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, dataChecked: e.target.checked })}
+                        className="mt-0.5 accent-amber-600 rounded"
+                      />
+                      <span className="leading-snug">
+                        <strong>1. Số liệu thực tế:</strong> Đã rà soát & thay thế các thẻ [CẦN SỐ LIỆU] bằng thông số thật.
+                      </span>
+                    </label>
+
+                    <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                      <input
+                        type="checkbox"
+                        checked={reviewingChecklist.keywordChecked}
+                        onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, keywordChecked: e.target.checked })}
+                        className="mt-0.5 accent-amber-600 rounded"
+                      />
+                      <span className="leading-snug">
+                        <strong>2. Từ khóa & Cấu trúc SEO:</strong> Từ khóa chính nằm trong Tiêu đề, H1, H2 và xuất hiện tự nhiên.
+                      </span>
+                    </label>
+
+                    <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                      <input
+                        type="checkbox"
+                        checked={reviewingChecklist.brandBrainChecked}
+                        onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, brandBrainChecked: e.target.checked })}
+                        className="mt-0.5 accent-amber-600 rounded"
+                      />
+                      <span className="leading-snug">
+                        <strong>3. Bộ não thương hiệu:</strong> Đã trích dẫn dự án hoặc thiết bị thật sẵn kho của Trường Hải Event.
+                      </span>
+                    </label>
+
+                    <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                      <input
+                        type="checkbox"
+                        checked={reviewingChecklist.formatChecked}
+                        onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, formatChecked: e.target.checked })}
+                        className="mt-0.5 accent-amber-600 rounded"
+                      />
+                      <span className="leading-snug">
+                        <strong>4. FAQ & Lời kêu gọi:</strong> Đầy đủ 3 câu hỏi thường gặp và hotline liên hệ 096.386.1313.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* HỘP 3: XEM TRƯỚC TOÀN VĂN BÀI VIẾT */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                      <Eye className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Xem trước bài viết thực tế</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Độ dài: {reviewingPost.content?.length || 0} ký tự
+                    </span>
+                  </div>
+                  <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 max-h-96 overflow-y-auto shadow-inner">
+                    <ArticleContentRenderer content={reviewingPost.content || ""} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions Footer */}
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartEditPost(reviewingPost);
+                    setReviewingPost(null);
+                    setActiveNavSection("viet_bai");
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-slate-300 font-bold text-xs flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Sửa sâu trong AI Studio</span>
+                </button>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewingPost(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handlePublishDirect(reviewingPost);
+                      setReviewingPost(null);
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black text-xs flex items-center space-x-1.5 shadow-md cursor-pointer transition-all hover:scale-105"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>🚀 Phê Duyệt & Xuất Bản Lên Web Ngay</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MỤC 4: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
+        {(activeNavSection === "doi_thu" || activeNavSection === "competitors") && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <CompetitorsManager
               onSelectCompetitorForScan={(domain, name) => {
                 setDomainInput(domain);
                 setScanMode("domain");
+                setEditablePost(null);
+                setAnalysisResult(null);
+                setActiveNavSection("viet_bai");
                 window.scrollTo({ top: 350, behavior: "smooth" });
               }}
               onRefreshStats={refreshRadarStats}
@@ -2703,116 +3474,123 @@ export default function RadarSeoAdminPage() {
           </div>
         )}
 
-        {/* PHÂN HỆ 6: KHOẢNG TRỐNG SEO (CONTENT GAP) */}
-        {activeNavSection === "content_gap" && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-            <ContentGapDashboard
-              onGenerateDraftFromGap={(gap) => {
-                setCompetitorUrl(gap.competitorUrl);
-                setTargetKeyword(gap.targetKeyword);
-                setScanMode("single");
-                window.scrollTo({ top: 350, behavior: "smooth" });
-              }}
-              onRefreshData={refreshRadarStats}
-            />
-          </div>
-        )}
-
-        {/* PHÂN HỆ 7: HỒ SƠ SỰ KIỆN (EVENTS) */}
-        {activeNavSection === "events" && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-            <EventProfileArchive
-              onOpenInRadarEditor={(post) => {
-                setEditablePost(post);
-                setActiveResultTab("article");
-                setArticlePreviewMode("edit");
-                setTimeout(() => {
-                  const editorEl = document.getElementById("radar-results-editor");
-                  if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
-                }, 100);
-              }}
-              onPostCreated={(newPost) => {
-                setPostsList((prev) => [newPost, ...prev]);
-                fetchPosts();
-              }}
-            />
-          </div>
-        )}
-
-        {/* PHÂN HỆ 8: CHỈ SỐ & LẬP LỊCH TỰ ĐỘNG (CRON) */}
-        {activeNavSection === "cron" && (
+        {/* MỤC 5: KHOẢNG TRỐNG SEO & LẬP LỊCH QUÉT NGẦM (CONTENT GAP & CRON) */}
+        {(activeNavSection === "ke_hoach" ||
+          activeNavSection === "content_gap" ||
+          activeNavSection === "cron") && (
           <div className="space-y-6">
+            {/* 4 THẺ CHỈ SỐ TỔNG QUAN HỆ THỐNG */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Số lượng đối thủ đang theo dõi */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-              <Globe className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Đối thủ đang theo dõi</p>
-              <div className="flex items-baseline space-x-1.5">
-                <h3 className="text-2xl font-black text-slate-900">
-                  {trackedCompetitors.filter((c) => c.isActive).length}
-                </h3>
-                <span className="text-[11px] text-slate-500">/{trackedCompetitors.length} tổng</span>
+              {/* Card 1: Số lượng đối thủ đang theo dõi */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">Đối thủ đang theo dõi</p>
+                  <div className="flex items-baseline space-x-1.5">
+                    <h3 className="text-2xl font-black text-slate-900">
+                      {trackedCompetitors.filter((c) => c.isActive).length}
+                    </h3>
+                    <span className="text-[11px] text-slate-500">/{trackedCompetitors.length} tổng</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Tổng số trang/bài viết đã quét của đối thủ */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+                  <Radar className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">Tổng bài đối thủ đã quét</p>
+                  <h3 className="text-2xl font-black text-emerald-700">
+                    {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)} bài
+                  </h3>
+                </div>
+              </div>
+
+              {/* Card 3: Khoảng trống SEO (Content Gap) phát hiện được */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                  <Compass className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">Khoảng trống SEO (Gaps)</p>
+                  <h3 className="text-2xl font-black text-amber-700">
+                    {contentGaps.filter((g) => g.ourSiteStatus === "missing").length} chủ đề
+                  </h3>
+                </div>
+              </div>
+
+              {/* Card 4: Cảnh báo các bài viết/nội dung chưa đạt tiêu chuẩn cần xem lại */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">Cảnh báo cần xem lại</p>
+                  <div className="flex items-baseline space-x-1.5">
+                    <h3 className="text-2xl font-black text-amber-700">
+                      {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
+                    </h3>
+                    <span className="text-[11px] text-amber-700 font-semibold">Ưu tiên cao</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Card 2: Tổng số trang/bài viết đã quét của đối thủ */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-              <Radar className="w-6 h-6" />
+            {/* MÀN HÌNH TÍCH HỢP: LẬP LỊCH QUÉT 02:30 SÁNG & BẢN ĐỒ KHOẢNG TRỐNG SEO */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+              <ContentGapDashboard
+                onGenerateDraftFromGap={(gap) => {
+                  setCompetitorUrl(gap.competitorUrl);
+                  setTargetKeyword(gap.targetKeyword);
+                  setScanMode("single");
+                  setEditablePost(null);
+                  setAnalysisResult(null);
+                  setActiveNavSection("viet_bai");
+                  window.scrollTo({ top: 350, behavior: "smooth" });
+                  // Tự động kích hoạt AI Studio bóc tách và viết bài ngay lập tức!
+                  executeScanAndGenerate(gap.competitorUrl, gap.targetKeyword);
+                }}
+                onRefreshData={refreshRadarStats}
+                onNavigateSection={setActiveNavSection}
+              />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Tổng bài đối thủ đã quét</p>
-              <h3 className="text-2xl font-black text-emerald-700">
-                {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)} bài
-              </h3>
-            </div>
-          </div>
-
-          {/* Card 3: Khoảng trống SEO (Content Gap) phát hiện được */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-              <Compass className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Khoảng trống SEO (Gaps)</p>
-              <h3 className="text-2xl font-black text-amber-700">
-                {contentGaps.filter((g) => g.ourSiteStatus === "missing").length} chủ đề
-              </h3>
-            </div>
-          </div>
-
-          {/* Card 4: Cảnh báo các bài viết/nội dung chưa đạt tiêu chuẩn cần xem lại */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Cảnh báo cần xem lại</p>
-              <div className="flex items-baseline space-x-1.5">
-                <h3 className="text-2xl font-black text-amber-700">
-                  {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
-                </h3>
-                <span className="text-[11px] text-amber-700 font-semibold">Ưu tiên cao</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* =====================================================================
-            MODULE 2: LẬP LỊCH QUÉT ĐỊNH KỲ (02:30 SÁNG) & BỘ 4 NÚT ĐIỀU KHIỂN
-        ===================================================================== */}
-        <RadarCronManager
-          onRefreshData={refreshRadarStats}
-          onRunLiveCrawl={refreshRadarStats}
-        />
           </div>
         )}
 
-        {/* PHÂN HỆ 9: NHẬT KÝ CA QUÉT (LOGS) */}
+        {/* MỤC 3: BỘ NÃO THƯƠNG HIỆU (EVENTS & BRAND BRAIN) */}
+        {(activeNavSection === "bo_nao" || activeNavSection === "events") && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-8">
+            <BrandBrainViewer />
+            <div className="pt-8 border-t border-slate-200">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-amber-600" />
+                Hồ sơ chi tiết các Case Study sự kiện (Kho ảnh & Báo giá bóc tách)
+              </h3>
+              <EventProfileArchive
+                onOpenInRadarEditor={(post) => {
+                  setEditablePost(post);
+                  setActiveResultTab("article");
+                  setArticlePreviewMode("edit");
+                  setActiveNavSection("viet_bai");
+                  setTimeout(() => {
+                    const editorEl = document.getElementById("radar-results-editor");
+                    if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
+                  }, 100);
+                }}
+                onPostCreated={(newPost) => {
+                  setPostsList((prev) => [newPost, ...prev]);
+                  fetchPosts();
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* NHẬT KÝ CA QUÉT (LOGS) */}
         {activeNavSection === "logs" && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <RadarActivityLogs onRefreshData={refreshRadarStats} />

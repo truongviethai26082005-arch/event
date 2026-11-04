@@ -6,3 +6,4 @@ export * from "./content-generator";
 export * from "./domain-scanner";
 export * from "./vietnamese-diacritics";
 export * from "./event-profile-bridge";
+export * from "./brand-loader";

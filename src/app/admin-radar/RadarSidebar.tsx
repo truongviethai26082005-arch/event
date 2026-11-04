@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import {
   Radar,
@@ -8,21 +8,22 @@ import {
   Compass,
   Globe,
   FileText,
-  Users,
-  Briefcase,
-  TrendingUp,
   Activity,
   ExternalLink,
-  RefreshCw,
   X,
   ChevronRight,
-  ShieldCheck,
-  Layers,
   LogOut,
+  Brain,
+  CheckSquare,
 } from "lucide-react";
 import { signOut } from "@/app/admin-radar/actions";
 
 export type RadarNavSection =
+  | "viet_bai"
+  | "duyet_bai"
+  | "bo_nao"
+  | "doi_thu"
+  | "ke_hoach"
   | "scanner"
   | "editor"
   | "posts"
@@ -34,17 +35,14 @@ export type RadarNavSection =
 
 export interface NavItem {
   id: RadarNavSection;
+  number: string;
   label: string;
   subtitle: string;
   icon: any;
   badge?: string;
   badgeVariant?: string;
   count?: number;
-}
-
-export interface NavGroup {
-  group: string;
-  items: NavItem[];
+  highlightCount?: boolean;
 }
 
 export interface RadarSidebarProps {
@@ -52,6 +50,7 @@ export interface RadarSidebarProps {
   onSelectSection: (section: RadarNavSection) => void;
   counts: {
     posts: number;
+    drafts?: number;
     competitors: number;
     gaps: number;
     events: number;
@@ -78,80 +77,83 @@ export default function RadarSidebar({
   mobileOpen,
   onCloseMobile,
 }: RadarSidebarProps) {
-  const navGroups: NavGroup[] = [
+  const draftCount = counts.drafts ?? 0;
+
+  // 5 Canonical Items requested by the user
+  const navItems: NavItem[] = [
     {
-      group: "TRUNG TÂM RADAR AI",
-      items: [
-        {
-          id: "scanner" as RadarNavSection,
-          label: "Quét & Bóc Tách",
-          subtitle: "Domain, Sitemap & Link URL",
-          icon: Radar,
-          badge: isScanning ? "Đang quét" : undefined,
-          badgeVariant: "animate-pulse bg-amber-500/20 text-amber-300 border-amber-500/40",
-        },
-        {
-          id: "editor" as RadarNavSection,
-          label: "AI Studio & Biên Tập",
-          subtitle: "Lỗ hổng đối thủ & Soạn bài SEO",
-          icon: Sparkles,
-          badge: hasActiveEditor ? "Đang mở" : undefined,
-          badgeVariant: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-        },
-        {
-          id: "content_gap" as RadarNavSection,
-          label: "Khoảng Trống SEO",
-          subtitle: "Bản đồ chủ đề & Xu hướng",
-          icon: Compass,
-          count: counts.gaps,
-        },
-        {
-          id: "competitors" as RadarNavSection,
-          label: "Quản Lý Đối Thủ",
-          subtitle: "Danh bạ 9 đối thủ & Tần suất",
-          icon: Globe,
-          count: counts.competitors,
-        },
-      ],
+      id: "viet_bai",
+      number: "1",
+      label: "Viết bài",
+      subtitle: "Nhập từ khóa & AI tạo nháp",
+      icon: Sparkles,
+      badge: isScanning ? "Đang quét" : hasActiveEditor ? "Đang mở" : undefined,
+      badgeVariant: isScanning
+        ? "animate-pulse bg-amber-500/20 text-amber-700 border-amber-400"
+        : "bg-emerald-50 text-emerald-700 border-emerald-300",
     },
     {
-      group: "BÀI VIẾT & VŨ KHÍ NỘI DUNG",
-      items: [
-        {
-          id: "posts" as RadarNavSection,
-          label: "Kho Bài Viết Radar",
-          subtitle: "Bản nháp & Đã xuất bản",
-          icon: FileText,
-          count: counts.posts,
-        },
-        {
-          id: "events" as RadarNavSection,
-          label: "Vũ Khí & Case Study",
-          subtitle: "Dữ liệu năng lực thực tế",
-          icon: Briefcase,
-          count: counts.events,
-        },
-      ],
+      id: "duyet_bai",
+      number: "2",
+      label: draftCount > 0 ? `Duyệt bài (${draftCount})` : "Duyệt bài",
+      subtitle: "Soát [CẦN SỐ LIỆU] & Đăng",
+      icon: CheckSquare,
+      count: draftCount > 0 ? draftCount : undefined,
+      highlightCount: draftCount > 0,
     },
     {
-      group: "VẬN HÀNH HỆ THỐNG",
-      items: [
-        {
-          id: "cron" as RadarNavSection,
-          label: "Chỉ Số & Tự Động",
-          subtitle: "4 Metric & Ca quét 02:30",
-          icon: TrendingUp,
-        },
-        {
-          id: "logs" as RadarNavSection,
-          label: "Nhật Ký Ca Quét",
-          subtitle: "Lịch sử hoạt động AI",
-          icon: Activity,
-          count: counts.logs,
-        },
-      ],
+      id: "bo_nao",
+      number: "3",
+      label: "Bộ não thương hiệu",
+      subtitle: "Dự án thật, thiết bị & Quy tắc",
+      icon: Brain,
+      count: counts.events,
+    },
+    {
+      id: "doi_thu",
+      number: "4",
+      label: "Đối thủ",
+      subtitle: "Tìm đối thủ & Đọc sitemap",
+      icon: Globe,
+      count: counts.competitors,
+    },
+    {
+      id: "ke_hoach",
+      number: "5",
+      label: "Kế hoạch nội dung",
+      subtitle: "Bản đồ khoảng trống & Đề bài",
+      icon: Compass,
+      count: counts.gaps,
     },
   ];
+
+  // Helper check active section (including backward compatible aliases)
+  const isItemActive = (itemId: RadarNavSection) => {
+    if (itemId === "viet_bai") {
+      return (
+        activeSection === "viet_bai" ||
+        activeSection === "scanner" ||
+        activeSection === "editor"
+      );
+    }
+    if (itemId === "duyet_bai") {
+      return activeSection === "duyet_bai" || activeSection === "posts";
+    }
+    if (itemId === "bo_nao") {
+      return activeSection === "bo_nao" || activeSection === "events";
+    }
+    if (itemId === "doi_thu") {
+      return activeSection === "doi_thu" || activeSection === "competitors";
+    }
+    if (itemId === "ke_hoach") {
+      return (
+        activeSection === "ke_hoach" ||
+        activeSection === "content_gap" ||
+        activeSection === "cron"
+      );
+    }
+    return activeSection === itemId;
+  };
 
   const handleItemClick = (id: RadarNavSection) => {
     onSelectSection(id);
@@ -188,7 +190,7 @@ export default function RadarSidebar({
           <button
             type="button"
             onClick={onCloseMobile}
-            className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+            className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -209,11 +211,11 @@ export default function RadarSidebar({
               </p>
             </div>
           </div>
-          {activeSection !== "editor" && (
+          {!isItemActive("viet_bai") && (
             <button
               type="button"
-              onClick={() => handleItemClick("editor")}
-              className="px-2 py-1 rounded-lg bg-[#D4AF37] text-[#0A1E5E] text-[10px] font-bold shrink-0 hover:bg-amber-400 transition-colors shadow-xs"
+              onClick={() => handleItemClick("viet_bai")}
+              className="px-2 py-1 rounded-lg bg-[#D4AF37] text-[#0A1E5E] text-[10px] font-bold shrink-0 hover:bg-amber-400 transition-colors shadow-xs cursor-pointer"
             >
               Xem ngay
             </button>
@@ -221,87 +223,135 @@ export default function RadarSidebar({
         </div>
       )}
 
-      {/* Navigation Links (Scrollable) */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
-        {navGroups.map((group, gIdx) => (
-          <div key={gIdx} className="space-y-1">
-            <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-              {group.group}
-            </p>
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const isActive = activeSection === item.id;
-                const IconComponent = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleItemClick(item.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between transition-all group cursor-pointer ${
+      {/* 5-ITEM TOOLBAR NAVIGATION */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex items-center justify-between px-3 pb-1">
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+            Thanh công cụ (5 mục)
+          </p>
+          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+            Trực quan & Tinh gọn
+          </span>
+        </div>
+
+        <div className="space-y-1.5">
+          {navItems.map((item) => {
+            const isActive = isItemActive(item.id);
+            const IconComponent = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleItemClick(item.id)}
+                className={`w-full text-left px-3 py-3 rounded-2xl flex items-center justify-between transition-all group cursor-pointer border ${
+                  isActive
+                    ? "bg-gradient-to-r from-amber-50 via-amber-100/60 to-white border-[#D4AF37] text-slate-900 shadow-sm"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 border-transparent"
+                }`}
+              >
+                <div className="flex items-center space-x-3 min-w-0">
+                  {/* Item Number + Icon Container */}
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors relative ${
                       isActive
-                        ? "bg-gradient-to-r from-amber-50 via-amber-100/50 to-white border border-[#D4AF37] text-slate-900 shadow-sm"
-                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 border border-transparent"
+                        ? "bg-[#0A1E5E] text-[#D4AF37] font-bold shadow-xs"
+                        : "bg-slate-100 text-slate-600 group-hover:text-amber-700 group-hover:bg-[#D4AF37]/15"
                     }`}
                   >
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isActive
-                            ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow-xs"
-                            : "bg-slate-100 text-slate-600 group-hover:text-amber-700 group-hover:bg-[#D4AF37]/15"
-                        }`}
-                      >
-                        <IconComponent className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p
-                          className={`text-xs font-bold truncate leading-tight ${
-                            isActive ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"
-                          }`}
-                        >
-                          {item.label}
-                        </p>
-                        <p className={`text-[10px] truncate leading-tight mt-0.5 ${
-                          isActive ? "text-amber-800 font-medium" : "text-slate-400 group-hover:text-slate-500"
-                        }`}>
-                          {item.subtitle}
-                        </p>
-                      </div>
-                    </div>
+                    <IconComponent className="w-4 h-4" />
+                    <span
+                      className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center border ${
+                        isActive
+                          ? "bg-[#D4AF37] text-[#0A1E5E] border-white shadow-xs"
+                          : "bg-white text-slate-500 border-slate-200 group-hover:border-amber-400 group-hover:text-amber-700"
+                      }`}
+                    >
+                      {item.number}
+                    </span>
+                  </div>
 
-                    <div className="flex items-center space-x-1.5 shrink-0 ml-2">
-                      {item.badge && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${item.badgeVariant}`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                      {typeof item.count === "number" && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold ${
-                            isActive
-                              ? "bg-[#D4AF37] text-[#0A1E5E]"
-                              : "bg-slate-100 text-slate-600 border border-slate-200 group-hover:bg-slate-200"
-                          }`}
-                        >
-                          {item.count}
-                        </span>
-                      )}
-                      <ChevronRight
-                        className={`w-3.5 h-3.5 transition-transform ${
-                          isActive
-                            ? "text-[#D4AF37] translate-x-0.5"
-                            : "text-slate-400 opacity-0 group-hover:opacity-100"
-                        }`}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
+                  {/* Label & Subtitle */}
+                  <div className="min-w-0">
+                    <p
+                      className={`text-xs font-black truncate leading-tight ${
+                        isActive
+                          ? "text-slate-900"
+                          : "text-slate-700 group-hover:text-slate-900"
+                      }`}
+                    >
+                      {item.label}
+                    </p>
+                    <p
+                      className={`text-[10px] truncate leading-tight mt-0.5 ${
+                        isActive
+                          ? "text-amber-800 font-semibold"
+                          : "text-slate-400 group-hover:text-slate-500"
+                      }`}
+                    >
+                      {item.subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Badges / Counts */}
+                <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                  {item.badge && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${item.badgeVariant}`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+
+                  {typeof item.count === "number" && (
+                    <span
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
+                        item.highlightCount
+                          ? "bg-amber-500 text-slate-950 border-amber-600 shadow-xs animate-pulse"
+                          : isActive
+                          ? "bg-[#D4AF37] text-[#0A1E5E] border-[#D4AF37]"
+                          : "bg-slate-100 text-slate-600 border-slate-200 group-hover:bg-slate-200"
+                      }`}
+                    >
+                      {item.count}
+                    </span>
+                  )}
+
+                  <ChevronRight
+                    className={`w-3.5 h-3.5 transition-transform ${
+                      isActive
+                        ? "text-[#D4AF37] translate-x-0.5"
+                        : "text-slate-400 opacity-0 group-hover:opacity-100"
+                    }`}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Secondary: Nhật Ký Ca Quét */}
+        <div className="pt-3 border-t border-slate-150">
+          <button
+            type="button"
+            onClick={() => handleItemClick("logs")}
+            className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs transition-colors cursor-pointer ${
+              activeSection === "logs"
+                ? "bg-slate-100 text-slate-900 font-bold border border-slate-300"
+                : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Activity className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[11px] font-medium">Nhật ký hoạt động ca quét</span>
             </div>
-          </div>
-        ))}
+            {counts.logs > 0 && (
+              <span className="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                {counts.logs}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Footer Actions */}
@@ -346,7 +396,7 @@ export default function RadarSidebar({
             className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onCloseMobile}
           />
-          <div className="relative w-72 sm:w-80 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          <div className="relative w-72 sm:w-80 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-from-left duration-200">
             {sidebarContent}
           </div>
         </div>

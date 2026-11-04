@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "id": "A7",
+    "title": "Checklist chất lượng bài viết",
+    "how_to_use": "Tiêu chí có 'checker' = 'code' do bộ chạy tự kiểm (đếm, so khớp chuỗi), không cần gọi AI. Tiêu chí 'checker' = 'ai' được gửi cho prompt 11-qa. Tiêu chí 'checker' = 'nguoi' hiện thành ô tick ở màn Duyệt bài.",
+    "pass_rule": "Bài đạt khi mọi tiêu chí 'bat_buoc' đều đạt. Tiêu chí 'nen' chỉ hiện cảnh báo."
+  },
+  "criteria": [
+    { "id": "Q1", "group": "Cấu trúc", "level": "bat_buoc", "checker": "code", "rule": "Có đúng 1 H1 và H1 chứa từ khóa chính" },
+    { "id": "Q2", "group": "Cấu trúc", "level": "bat_buoc", "checker": "code", "rule": "Từ khóa chính xuất hiện nguyên văn ở tối đa 1 H2 (S2)" },
+    { "id": "Q3", "group": "Cấu trúc", "level": "nen", "checker": "code", "rule": "Không có H2 nào chỉ có đúng 1 H3 (S5)" },
+    { "id": "Q4", "group": "Cấu trúc", "level": "bat_buoc", "checker": "code", "rule": "Không có heading 'Kết luận' (S9)" },
+    { "id": "Q5", "group": "Cấu trúc", "level": "nen", "checker": "code", "rule": "Số từ nằm trong khoảng của ý định tìm kiếm (S17)" },
+    { "id": "Q6", "group": "Giọng văn", "level": "bat_buoc", "checker": "code", "rule": "Không chứa từ và cụm từ cấm trong V8, V9, V10" },
+    { "id": "Q7", "group": "Giọng văn", "level": "nen", "checker": "code", "rule": "Không câu nào dài quá 35 từ (V4 cho phép dao động, quá 35 là chắc chắn quá dài)" },
+    { "id": "Q8", "group": "Giọng văn", "level": "bat_buoc", "checker": "ai", "rule": "Câu đầu mỗi mục trả lời ngay điều heading hỏi (V5, S13)" },
+    { "id": "Q9", "group": "Giọng văn", "level": "nen", "checker": "ai", "rule": "Đọc không thấy giọng brochure quảng cáo; không có đoạn chỉ để kéo dài bài" },
+    { "id": "Q10", "group": "Ý định", "level": "bat_buoc", "checker": "ai", "rule": "Bài trả lời đúng nhu cầu người tìm từ khóa đã xác định ở B2; người đọc làm được việc hoặc ra được quyết định sau khi đọc" },
+    { "id": "Q11", "group": "Ý định", "level": "bat_buoc", "checker": "ai", "rule": "Bài có ít nhất 1 điểm mà các bài top ở B3 không có (góc nhìn, dữ liệu, ví dụ, bảng)" },
+    { "id": "Q12", "group": "Sự thật", "level": "bat_buoc", "checker": "ai", "rule": "Mọi con số, giá, tên khách hàng, tên dự án về Trường Hải đều có trong A1, A2, A3 (kết quả B10 không còn mục 'khong_co_nguon')" },
+    { "id": "Q13", "group": "Sự thật", "level": "bat_buoc", "checker": "ai", "rule": "Không có cam kết tuyệt đối (V12)" },
+    { "id": "Q14", "group": "Sự thật", "level": "bat_buoc", "checker": "nguoi", "rule": "Người duyệt đã đọc lại mọi đoạn có số liệu, giá, thông tin pháp lý, thông tin địa phương" },
+    { "id": "Q15", "group": "Trích dẫn", "level": "nen", "checker": "ai", "rule": "Mỗi H2 có đoạn trả lời 40–60 từ đọc riêng vẫn hiểu (S13)" },
+    { "id": "Q16", "group": "Liên kết", "level": "bat_buoc", "checker": "code", "rule": "Có ít nhất 1 link tới page_url của dịch vụ liên quan (S22)" },
+    { "id": "Q17", "group": "Liên kết", "level": "nen", "checker": "code", "rule": "Không có chữ gắn link 'tại đây', 'xem thêm', 'click' (S23)" },
+    { "id": "Q18", "group": "Meta", "level": "bat_buoc", "checker": "code", "rule": "Meta description 140–160 ký tự và chứa từ khóa chính (S20)" },
+    { "id": "Q19", "group": "Meta", "level": "bat_buoc", "checker": "code", "rule": "Slug không dấu, tối đa 6 từ, không trùng slug bài đã có (S21)" },
+    { "id": "Q20", "group": "Hình ảnh", "level": "bat_buoc", "checker": "nguoi", "rule": "Ảnh stock không được chú thích là ảnh thực tế sự kiện của Trường Hải" }
+  ]
+}

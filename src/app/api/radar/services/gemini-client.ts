@@ -2,18 +2,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Danh sách model Gemini sắp xếp theo độ ưu tiên:
- * 1. gemini-2.0-flash: Thế hệ mới nhất, phản hồi trong 2-3s, tối ưu chi phí và không bị lỗi model version.
- * 2. gemini-1.5-flash-latest: Alias chuẩn của Gemini 1.5 Flash.
- * 3. gemini-2.5-flash: Model thế hệ tiếp theo nếu khả dụng.
- * 4. gemini-1.5-flash: Model cũ (fallback nếu endpoint hỗ trợ).
- * 5. gemini-1.5-pro: Dự phòng chất lượng cao cuối cùng.
+ * 1. gemini-2.5-flash: Model thế hệ mới chuẩn nhất theo hướng dẫn README.md của Radar SEO.
+ * 2. gemini-2.0-flash: Phản hồi siêu tốc trong 2-3s.
+ * 3. gemini-2.5-pro: Dự phòng chất lượng cao.
  */
 const CANDIDATE_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
   "gemini-2.5-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.5-pro",
 ];
 
 interface CallGeminiParams {
@@ -58,5 +54,7 @@ export async function callGeminiWithFallback({
     }
   }
 
-  throw lastError || new Error("Tất cả candidate models của Gemini đều không phản hồi.");
+  throw new Error(
+    `Không thể gọi Gemini qua tất cả các candidate models: ${lastError?.message || "Lỗi không xác định"}`
+  );
 }
