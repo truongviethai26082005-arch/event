@@ -208,23 +208,23 @@ export default function SeoScoreChecklist({
   }, [title, focusKeyword, metaDescription, slug, content]);
 
   return (
-    <div className="rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-5 shadow-xl space-y-4">
+    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header Widget */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/30 to-[#0A1E5E] border border-[#D4AF37]/40 flex items-center justify-center shrink-0 shadow-md">
-            <Award className="w-5 h-5 text-[#D4AF37]" />
+          <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+            <Award className="w-5 h-5 text-amber-700" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h4 className="text-sm font-bold text-white tracking-wide">
+              <h4 className="text-sm font-bold text-slate-900 tracking-wide">
                 Thước Đo Chuẩn SEO On-Page Real-time
               </h4>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${analysis.scoreBadge.color}`}>
                 Hạng {analysis.scoreBadge.grade} • {analysis.scoreBadge.label}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-light mt-0.5">
+            <p className="text-[11px] text-slate-500 font-normal mt-0.5">
               Đạt {analysis.passedCount}/{analysis.items.length} tiêu chuẩn On-Page của Google Search Engine
             </p>
           </div>
@@ -233,17 +233,17 @@ export default function SeoScoreChecklist({
         {/* Điểm số & Toggle nút */}
         <div className="flex items-center space-x-3 self-end sm:self-auto">
           <div className="text-right">
-            <div className="text-xl sm:text-2xl font-black text-white font-mono leading-none">
-              <span className="text-[#D4AF37]">{analysis.totalScore}</span>
-              <span className="text-xs text-slate-400 font-normal">/100</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 font-mono leading-none">
+              <span className="text-amber-600">{analysis.totalScore}</span>
+              <span className="text-xs text-slate-500 font-normal">/100</span>
             </div>
-            <span className="text-[10px] text-slate-400">Điểm tối ưu</span>
+            <span className="text-[10px] text-slate-500">Điểm tối ưu</span>
           </div>
 
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300 transition"
+            className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs"
             title={isExpanded ? "Thu gọn danh sách" : "Mở rộng chi tiết"}
           >
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -253,7 +253,7 @@ export default function SeoScoreChecklist({
 
       {/* Thanh tiến trình Progress Bar */}
       <div className="space-y-1.5">
-        <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+        <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
           <div
             className={`h-full transition-all duration-500 rounded-full ${analysis.scoreBadge.barColor}`}
             style={{ width: `${analysis.totalScore}%` }}
@@ -262,27 +262,27 @@ export default function SeoScoreChecklist({
 
         {/* Các số liệu nhanh Quick Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
-          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-            <span className="block text-[10px] text-slate-400">Dung lượng</span>
-            <span className="text-xs font-bold text-white font-mono">
+          <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <span className="block text-[10px] text-slate-500">Dung lượng</span>
+            <span className="text-xs font-bold text-slate-900 font-mono">
               {analysis.wordCount.toLocaleString("vi-VN")} từ
             </span>
           </div>
-          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-            <span className="block text-[10px] text-slate-400">Thời gian đọc</span>
-            <span className="text-xs font-bold text-white font-mono">
+          <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <span className="block text-[10px] text-slate-500">Thời gian đọc</span>
+            <span className="text-xs font-bold text-slate-900 font-mono">
               ~{analysis.readingTimeMinutes} phút
             </span>
           </div>
-          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-            <span className="block text-[10px] text-slate-400">Lặp từ khóa</span>
-            <span className="text-xs font-bold text-amber-300 font-mono">
+          <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <span className="block text-[10px] text-slate-500">Lặp từ khóa</span>
+            <span className="text-xs font-bold text-amber-700 font-mono">
               {analysis.keywordCount} lần
             </span>
           </div>
-          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-            <span className="block text-[10px] text-slate-400">Mật độ từ khóa</span>
-            <span className={`text-xs font-bold font-mono ${analysis.density > 2.8 ? "text-rose-400" : "text-emerald-400"}`}>
+          <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <span className="block text-[10px] text-slate-500">Mật độ từ khóa</span>
+            <span className={`text-xs font-bold font-mono ${analysis.density > 2.8 ? "text-rose-600" : "text-emerald-700"}`}>
               {analysis.density.toFixed(2)}%
             </span>
           </div>
@@ -291,39 +291,39 @@ export default function SeoScoreChecklist({
 
       {/* Chi tiết từng tiêu chí Checklist (Expandable) */}
       {isExpanded && (
-        <div className="space-y-2 pt-2 border-t border-white/10 animate-in fade-in duration-200">
+        <div className="space-y-2 pt-2 border-t border-slate-200 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
             {analysis.items.map((item) => (
               <div
                 key={item.id}
                 className={`p-2.5 rounded-xl border transition-all ${
                   item.passed
-                    ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-200"
-                    : "bg-rose-950/20 border-rose-500/30 text-rose-200"
+                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+                    : "bg-rose-50/70 border-rose-200 text-rose-900"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start space-x-2">
                     {item.passed ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                     )}
                     <div>
-                      <span className="font-semibold block text-white text-[11px]">
+                      <span className="font-semibold block text-slate-900 text-[11px]">
                         {item.label}
                       </span>
-                      <p className="text-[10px] text-slate-300 mt-0.5">
+                      <p className="text-[10px] text-slate-600 mt-0.5">
                         {item.detail}
                       </p>
                       {!item.passed && item.recommendation && (
-                        <p className="text-[10px] text-amber-300/90 font-light mt-1 italic">
+                        <p className="text-[10px] text-amber-800 font-normal mt-1 italic">
                           💡 Gợi ý: {item.recommendation}
                         </p>
                       )}
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded bg-black/30">
+                  <span className="text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700 shadow-2xs">
                     +{item.score}/{item.maxScore}
                   </span>
                 </div>

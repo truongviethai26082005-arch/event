@@ -10,10 +10,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabasePost, DatabaseLead } from "@/lib/supabase";
-import ConversionFunnel from "./ConversionFunnel";
-import CustomerSourcesChart from "./CustomerSourcesChart";
-import EventCalendar from "./EventCalendar";
+import { supabase, isSupabaseConfigured, DatabasePost } from "@/lib/supabase";
 import EventProfileArchive from "./EventProfileArchive";
 import { getStoredEventProfiles, DEFAULT_EVENT_PROFILES } from "./event-profiles-data";
 import {
@@ -54,9 +51,12 @@ import {
   Activity,
   AlertTriangle,
   Target,
+  Menu,
+  Zap,
 } from "lucide-react";
+import RadarSidebar, { RadarNavSection } from "./RadarSidebar";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
-import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
+import CompetitorDropdown from "./CompetitorDropdown";
 import SeoScoreChecklist from "./SeoScoreChecklist";
 import CompetitorsManager from "./CompetitorsManager";
 import RadarCronManager from "./RadarCronManager";
@@ -71,6 +71,7 @@ import {
 import {
   CompetitorPreset,
   saveCustomCompetitor,
+  DEFAULT_COMPETITOR_PRESETS,
 } from "./competitor-presets";
 import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
 import { toSentenceCase } from "@/app/api/radar/services/content-generator";
@@ -151,9 +152,8 @@ export default function RadarSeoAdminPage() {
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
-  // Leads state
-  const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
-  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("scanner");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<
     "posts" | "competitors" | "content_gap" | "activity_logs" | "leads" | "events"
   >("posts");
@@ -263,74 +263,6 @@ export default function RadarSeoAdminPage() {
   const publishedCount = postsList.filter((p) => p.status === "published").length;
   const draftCount = postsList.filter((p) => p.status === "draft" || !p.status).length;
 
-  // Fetch leads from Supabase
-  const fetchLeads = async () => {
-    setLoadingLeads(true);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (!error && data) {
-          setLeadsList(data);
-          setLoadingLeads(false);
-          return;
-        }
-      } catch (e) {
-        console.warn("Lỗi tải leads từ Supabase:", e);
-      }
-    }
-
-    // Mock leads fallback
-    setLeadsList([
-      {
-        id: "lead-1",
-        full_name: "Nguyễn Văn Hùng",
-        phone: "0912 345 678",
-        email: "hung.nv@techcorp.vn",
-        event_type: "Hội nghị khách hàng 300 khách",
-        notes: "Cần báo giá trọn gói âm thanh ánh sáng & tiệc teabreak tại Hà Nội cuối tháng sau.",
-        created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-      },
-      {
-        id: "lead-2",
-        full_name: "Trần Thị Mai Anh",
-        phone: "0988 765 432",
-        email: "maianh.event@vietgroup.com",
-        event_type: "Lễ khai trương chi nhánh mới",
-        notes: "Cần kịch bản đón tiếp khách VIP và đội múa Lân Sư Rồng tại Cầu Giấy.",
-        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-      },
-      {
-        id: "lead-3",
-        full_name: "Lê Hoàng Long",
-        phone: "0903 112 233",
-        email: "long.lh@sunshine.vn",
-        event_type: "Teambuilding & Gala Dinner 2N1Đ",
-        notes: "Đoàn 150 người tại Hạ Long, yêu cầu MC nhiệt huyết và quà tặng teambuilding.",
-        created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-      },
-    ]);
-    setLoadingLeads(false);
-  };
-
-  const handleDeleteLead = async (leadId?: string) => {
-    if (!leadId) return;
-    if (!window.confirm("Bạn có chắc muốn xóa yêu cầu tư vấn của khách hàng này?")) return;
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from("leads").delete().eq("id", leadId);
-        fetchLeads();
-        return;
-      } catch (e) {
-        console.warn("Lỗi khi xóa lead:", e);
-      }
-    }
-    setLeadsList(leadsList.filter((l) => l.id !== leadId));
-  };
-
   const handleStartEditPost = (post: any) => {
     setEditingPostId(post.id);
     setEditablePost({
@@ -343,6 +275,7 @@ export default function RadarSeoAdminPage() {
       reading_time: "5 phút",
     });
     setActiveResultTab("article");
+    setActiveNavSection("editor");
     setTimeout(() => {
       const editorEl = document.getElementById("radar-results-editor");
       if (editorEl) {
@@ -399,15 +332,29 @@ export default function RadarSeoAdminPage() {
 
   useEffect(() => {
     fetchPosts();
-    fetchLeads();
     if (typeof window !== "undefined") {
       setAvailableProfiles(getStoredEventProfiles());
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       if (tabParam === "events") {
+        setActiveNavSection("events");
         setActiveAdminTab("events");
-      } else if (tabParam === "leads") {
-        setActiveAdminTab("leads");
+      } else if (tabParam === "posts") {
+        setActiveNavSection("posts");
+        setActiveAdminTab("posts");
+      } else if (tabParam === "competitors") {
+        setActiveNavSection("competitors");
+        setActiveAdminTab("competitors");
+      } else if (tabParam === "content_gap") {
+        setActiveNavSection("content_gap");
+        setActiveAdminTab("content_gap");
+      } else if (tabParam === "cron") {
+        setActiveNavSection("cron");
+      } else if (tabParam === "logs" || tabParam === "activity_logs") {
+        setActiveNavSection("logs");
+        setActiveAdminTab("activity_logs");
+      } else if (tabParam === "editor") {
+        setActiveNavSection("editor");
       }
     }
   }, []);
@@ -483,6 +430,7 @@ export default function RadarSeoAdminPage() {
       }
       // ƯU TIÊN MỞ TAB "analysis" ĐỂ ADMIN NẮM ĐƯỢC BỐI CẢNH VÀ LỖ HỔNG
       setActiveResultTab("analysis");
+      setActiveNavSection("editor");
 
       // Reload posts table if server saved it
       if (data.isSupabaseSaved) {
@@ -1026,90 +974,220 @@ export default function RadarSeoAdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 py-10 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-        {/* Header Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/10 gap-4">
+    <div className="min-h-screen bg-slate-100/90 text-slate-900 font-sans flex flex-col lg:flex-row">
+      {/* THANH CÔNG CỤ DỌC BÊN TRÁI (LEFT SIDEBAR DOCK) */}
+      <RadarSidebar
+        activeSection={activeNavSection}
+        onSelectSection={(section) => {
+          setActiveNavSection(section);
+          if (
+            section === "posts" ||
+            section === "competitors" ||
+            section === "content_gap" ||
+            section === "logs" ||
+            section === "events"
+          ) {
+            setActiveAdminTab(section === "logs" ? "activity_logs" : (section as any));
+          }
+        }}
+        counts={{
+          posts: postsList.length,
+          competitors: trackedCompetitors.length,
+          gaps: contentGaps.length,
+          events: eventProfilesCount,
+          logs: radarLogs.length,
+        }}
+        hasActiveEditor={Boolean(editablePost || analysisResult)}
+        activeEditorTitle={editablePost?.title}
+        isScanning={isScanningDomain || isBatchRunning || isAnalyzing}
+        isSupabaseConfigured={isSupabaseConfigured}
+        onRefreshAll={() => {
+          fetchPosts();
+          refreshRadarStats();
+          if (typeof window !== "undefined") {
+            setEventProfilesCount(getStoredEventProfiles().length);
+          }
+        }}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+      />
+
+      {/* KHÔNG GIAN LÀM VIỆC CHÍNH (MAIN WORKSPACE) */}
+      <main className="flex-1 min-w-0 bg-slate-100/80 min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
+        {/* HEADER TRÊN CÙNG CỦA WORKSPACE */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shadow-lg flex items-center justify-center">
-              <div className="w-full h-full bg-[#06123B] rounded-[14px] flex items-center justify-center">
-                <Radar className="w-6 h-6 text-[#D4AF37] animate-spin [animation-duration:8s]" />
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-2.5 rounded-xl bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shrink-0 cursor-pointer shadow-xs"
+              title="Mở thanh công cụ"
+            >
+              <Menu className="w-5 h-5 text-amber-600" />
+            </button>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-2xl font-black text-white tracking-tight">
-                  RADAR SEO ENGINE
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  {activeNavSection === "scanner" && "Quét & Bóc Tách Đối Thủ AI"}
+                  {activeNavSection === "editor" && "AI Studio & Trình Biên Tập SEO"}
+                  {activeNavSection === "posts" && "Kho Quản Lý Bài Viết SEO"}
+                  {activeNavSection === "competitors" && "Quản Lý Danh Sách Đối Thủ"}
+                  {activeNavSection === "content_gap" && "Khoảng Trống SEO & Xu Hướng"}
+                  {activeNavSection === "events" && "Hồ Sơ Sự Kiện & Minh Chứng"}
+                  {activeNavSection === "cron" && "Bộ Chỉ Số Cốt Lõi & Lập Lịch Ca Quét"}
+                  {activeNavSection === "logs" && "Nhật Ký Ca Quét AI"}
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
                   AI v2.0
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Công cụ quét đối thủ qua Jina Reader & Tái tạo bài viết chuẩn SEO cho Trường Hải Event & Travel
+              <p className="text-xs text-slate-500 mt-0.5">
+                {activeNavSection === "scanner" && "Quét tự động toàn bộ domain/sitemap hoặc cào sâu link bài viết đơn lẻ của đối thủ."}
+                {activeNavSection === "editor" && "Báo cáo bóc trần lỗ hổng đối thủ & Trình biên tập bài viết tích hợp vũ khí Trường Hải."}
+                {activeNavSection === "posts" && "Xem danh sách bài viết trên website, lọc trạng thái, sửa nhanh hoặc xuất bản."}
+                {activeNavSection === "competitors" && "Quản lý 9 đối thủ mẫu và cấu hình sitemap tự động của các đơn vị sự kiện."}
+                {activeNavSection === "content_gap" && "Bản đồ các chủ đề từ khóa đối thủ có mà mình còn thiếu để lấp đầy."}
+                {activeNavSection === "events" && "Kho minh chứng thực tế, bảng giá dự toán và hình ảnh thực chiến độc quyền."}
+                {activeNavSection === "cron" && "Bộ 4 chỉ số thống kê radar và thiết lập ca quét định kỳ 02:30 sáng tự động."}
+                {activeNavSection === "logs" && "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 text-xs">
-            <span
-              className={`px-3 py-1.5 rounded-full border flex items-center space-x-1.5 ${
-                isSupabaseConfigured
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-400"
-              }`}
+          <div className="flex items-center space-x-2.5 text-xs self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                fetchPosts();
+                refreshRadarStats();
+                if (typeof window !== "undefined") {
+                  setEventProfilesCount(getStoredEventProfiles().length);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold flex items-center space-x-1.5 transition-colors border border-slate-300 shadow-xs cursor-pointer"
+              title="Làm mới dữ liệu"
             >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isSupabaseConfigured ? "bg-emerald-400" : "bg-amber-400"
-                } animate-ping`}
-              />
-              <span>
-                {isSupabaseConfigured
-                  ? "Supabase: Đã kết nối"
-                  : "Chế độ: Độc lập Demo"}
-              </span>
-            </span>
+              <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Làm mới</span>
+            </button>
 
             <Link
               href="/tin-tuc"
               target="_blank"
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#D4AF37] font-bold flex items-center space-x-1 transition-all border border-white/10"
+              className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-bold flex items-center space-x-1 transition-all shadow-xs"
             >
-              <span>Xem Blog Thực tế</span>
+              <span>Xem Blog</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
-        {/* INPUT WORKSPACE */}
-        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        {/* MODAL HẸN LỊCH ĐĂNG BÀI TOÀN CỤC */}
+        {showScheduleModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center space-x-2 text-slate-900">
+                <Calendar className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-base">Hẹn lịch đăng bài tự động</h3>
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Chọn ngày và giờ bạn muốn bài viết này tự động được xuất bản lên chuyên mục Tin tức & Cẩm nang:
+              </p>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Thời gian xuất bản dự kiến:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={!scheduledTime}
+                  onClick={() => handleSaveToSupabase("scheduled")}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] text-xs font-bold hover:brightness-105 disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  Xác nhận hẹn lịch
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHÂN HỆ 1: QUÉT & BÓC TÁCH (SCANNER) */}
+        {activeNavSection === "scanner" && (
+          <div className="space-y-6">
+            {(analysisResult || editablePost) && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in shadow-xs">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="text-slate-700 truncate">
+                    Đang có bài viết mở trong AI Studio:{" "}
+                    <strong className="text-slate-900">{editablePost?.title || "Bài viết mới"}</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveNavSection("editor")}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] text-[#0A1E5E] font-bold shrink-0 hover:bg-amber-400 transition-colors flex items-center space-x-1.5 self-end sm:self-auto cursor-pointer shadow-xs"
+                >
+                  <span>Mở Trình Biên Tập</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm relative">
           <div className="space-y-6">
             {/* HEADER WORKSPACE & MODE SWITCHER */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
-              <div className="flex items-center space-x-2">
-                <Search className="w-5 h-5 text-[#D4AF37]" />
-                <h2 className="text-base font-bold text-white">
-                  {scanMode === "domain"
-                    ? "Chế độ 2: Quét tự động bằng Domain / Sitemap đối thủ"
-                    : "Chế độ 1: Quét bài viết đơn lẻ từ URL"}
-                </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shrink-0 flex items-center justify-center shadow-xs">
+                  <div className="w-full h-full bg-[#0A1E5E] rounded-[9px] flex items-center justify-center">
+                    <Search className="w-4 h-4 text-[#D4AF37]" />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-wide">
+                    {scanMode === "domain"
+                      ? "Dò Tìm & Bóc Tách Bài Viết Từ Website Đối Thủ"
+                      : "Bóc Tách & Tái Tạo 1 Bài Viết Cụ Thể"}
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    {scanMode === "domain"
+                      ? "Tự động phân giải XML Sitemap để bóc tách danh sách bài viết dịch vụ & blog mới nhất"
+                      : "Cào sâu cấu trúc H1-H3 qua Jina, phát hiện khoảng trống nội dung và tái tạo bài chuẩn SEO"}
+                  </p>
+                </div>
               </div>
 
               {/* Mode Switcher Buttons */}
-              <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/10 self-start sm:self-auto">
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start sm:self-auto shrink-0">
                 <button
                   type="button"
                   onClick={() => setScanMode("domain")}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                     scanMode === "domain"
-                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
-                      : "text-slate-300 hover:text-white"
+                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-sm font-black"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5" />
                   <span>Quét Domain / Sitemap</span>
-                  <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
                     Khuyên dùng
                   </span>
                 </button>
@@ -1118,34 +1196,27 @@ export default function RadarSeoAdminPage() {
                   onClick={() => setScanMode("single")}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                     scanMode === "single"
-                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
-                      : "text-slate-300 hover:text-white"
+                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-sm font-black"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Link bài viết đơn lẻ</span>
+                  <span>Bóc tách 1 Link bài viết</span>
                 </button>
               </div>
             </div>
 
             {/* =====================================================================
-                CHẾ ĐỘ 2: QUÉT TỰ ĐỘNG THEO DOMAIN / SITEMAP
+                CHẾ ĐỘ QUÉT THEO DOMAIN / SITEMAP
             ===================================================================== */}
             {scanMode === "domain" && (
               <div className="space-y-6">
-                {/* DANH BẠ ĐỐI THỦ MẪU NẠP SẴN (PRESET DIRECTORY) */}
-                <CompetitorPresetDirectory
-                  currentDomain={domainInput}
-                  onSelectCompetitor={handleSelectCompetitorPreset}
-                  isScanning={isScanningDomain}
-                />
-
                 {/* Domain Input Form */}
-                <form onSubmit={handleScanDomain} className="space-y-4">
+                <form onSubmit={handleScanDomain} className="space-y-3">
                   <div className="space-y-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <label className="block text-xs font-semibold text-slate-300">
-                        Hoặc nhập tên miền / website đối thủ tùy ý <span className="text-[#D4AF37]">*</span>
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Nhập tên miền đối thủ hoặc bấm chọn nhanh từ danh bạ 9 đối thủ mẫu <span className="text-amber-600">*</span>
                       </label>
 
                       {domainInput.trim() && (
@@ -1160,29 +1231,36 @@ export default function RadarSeoAdminPage() {
                             });
                             alert("Đã lưu đối thủ này vào danh bạ riêng!");
                           }}
-                          className="text-[11px] font-semibold text-[#D4AF37] hover:underline flex items-center space-x-1 cursor-pointer"
+                          className="text-[11px] font-semibold text-amber-600 hover:underline flex items-center space-x-1 cursor-pointer"
                         >
                           <span>⭐ Lưu domain này vào danh bạ riêng</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
                       <div className="relative flex-1">
                         <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                         <input
                           type="text"
-                          required
                           placeholder="VD: viet-power.vn hoặc https://viet-power.vn"
                           value={domainInput}
                           onChange={(e) => setDomainInput(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
                         />
                       </div>
+
+                      {/* NÚT DROPDOWN GỌN: CHỌN ĐỐI THỦ MẪU */}
+                      <CompetitorDropdown
+                        currentDomain={domainInput}
+                        onSelectCompetitor={handleSelectCompetitorPreset}
+                        isScanning={isScanningDomain}
+                      />
+
                       <button
                         type="submit"
                         disabled={isScanningDomain || !domainInput.trim()}
-                        className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer shrink-0"
+                        className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer shrink-0"
                       >
                         {isScanningDomain ? (
                           <>
@@ -1197,108 +1275,181 @@ export default function RadarSeoAdminPage() {
                         )}
                       </button>
                     </div>
-                  </div>
 
-                  {/* Yêu cầu AI bổ sung dùng chung cho cả batch */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
-                      <label className="text-xs font-semibold text-slate-300">
-                        Chỉ đạo nội dung cho Gemini AI (áp dụng cho tất cả bài viết được cào)
-                      </label>
-                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
-                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
+                    {/* DÒNG GỢI Ý QUÉT NHANH DẠNG PILL (GỌN GÀNG, KHÔNG RỐI) */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                      <span className="text-[11px] text-slate-500 font-medium flex items-center mr-1">
+                        <Zap className="w-3 h-3 text-amber-600 mr-1" /> Gợi ý nhanh:
                       </span>
+                      {DEFAULT_COMPETITOR_PRESETS.slice(0, 4).map((comp) => (
+                        <button
+                          key={comp.id}
+                          type="button"
+                          onClick={() => handleSelectCompetitorPreset(comp, true)}
+                          title={`Bấm để quét sitemap ${comp.name}`}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                        >
+                          <span>{comp.name}</span>
+                          <span className="text-[9px] text-slate-500 font-mono">({comp.domain.replace(/^https?:\/\//, "")})</span>
+                        </button>
+                      ))}
                     </div>
-
-                    {/* Quick inject pills from event profiles */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Lễ Khai Trương Showroom Nam Hải Auto",
-                            "Công ty Cổ phần Ô tô Nam Hải",
-                            250,
-                            "Cầu Giấy, Hà Nội",
-                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Khai trương Nam Hải (250 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
-                            "Tập Đoàn Sun Group",
-                            500,
-                            "Meliá Hà Nội 5 sao",
-                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Gala Sun Group Meliá (500 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Hội Nghị Thượng Đỉnh AI FPT Software",
-                            "FPT Software Toàn Cầu",
-                            400,
-                            "Trung tâm Hội nghị Quốc gia NCC",
-                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Hội Nghị FPT NCC (400 khách)
-                      </button>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      placeholder="VD: Nhấn mạnh Trường Hải Event trực tiếp sở hữu tổng kho Line Array, LED P2.5; báo giá bóc tách theo quy mô, hotline 0844 198 333..."
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                    />
                   </div>
                 </form>
 
                 {/* Batch Progress Bar khi đang chạy Radar hàng loạt */}
                 {isBatchRunning && (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#0A1E5E]/80 border border-[#D4AF37]/40 space-y-3 animate-in fade-in">
+                  <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-3 animate-in fade-in shadow-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center space-x-2 font-bold text-[#D4AF37]">
-                        <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                      <div className="flex items-center space-x-2 font-bold text-amber-800">
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
                         <span>Đang chạy Radar tự động: Bài {batchProgress.current} / {batchProgress.total}</span>
                       </div>
-                      <div className="text-[11px] text-slate-300 truncate max-w-md">
-                        Đang xử lý: <span className="font-semibold text-white">{batchProgress.currentTitle}</span>
+                      <div className="text-[11px] text-slate-600 truncate max-w-md">
+                        Đang xử lý: <span className="font-semibold text-slate-900">{batchProgress.currentTitle}</span>
                       </div>
                     </div>
 
                     {/* Progress Track */}
-                    <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden relative">
+                    <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden relative">
                       <div
-                        className="h-full bg-gradient-to-r from-[#D4AF37] to-emerald-400 transition-all duration-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-[#D4AF37] to-emerald-500 transition-all duration-500 rounded-full"
                         style={{
                           width: `${Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%`,
                         }}
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span>Tiến độ: {Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%</span>
                       <div className="flex items-center space-x-3">
-                        <span className="text-emerald-400 font-medium">✓ Thành công: {batchProgress.successCount}</span>
+                        <span className="text-emerald-700 font-medium">✓ Thành công: {batchProgress.successCount}</span>
                         {batchProgress.errorCount > 0 && (
-                          <span className="text-rose-400 font-medium">✕ Lỗi: {batchProgress.errorCount}</span>
+                          <span className="text-rose-600 font-medium">✕ Lỗi: {batchProgress.errorCount}</span>
                         )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* IDLE STATE: KHI CHƯA THỰC HIỆN QUÉT SITEMAP (BẢNG ĐIỀU HÀNH THỰC TẾ) */}
+                {!scannedResult && !isScanningDomain && (
+                  <div className="pt-4 border-t border-slate-200 space-y-4 animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2 text-xs font-bold text-slate-900">
+                        <Activity className="w-4 h-4 text-amber-600" />
+                        <span>Tổng quan dữ liệu Radar SEO đang vận hành</span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                        <span>🎯 <strong>9</strong> đối thủ mục tiêu</span>
+                        <span>•</span>
+                        <span>📑 <strong>{postsList.length}</strong> bài viết trong kho</span>
+                        <span>•</span>
+                        <span className="text-emerald-600 font-medium">● Sẵn sàng dò sitemap</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      {/* CỘT TRÁI (7 COLS): BÀI VIẾT GẦN ĐÂY TRONG KHO */}
+                      <div className="lg:col-span-7 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Bài viết gần đây trong Kho SEO</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveNavSection("posts")}
+                            className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                          >
+                            <span>Xem tất cả ({postsList.length})</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {postsList.slice(0, 3).map((post) => (
+                            <div
+                              key={post.id}
+                              className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-3 group shadow-2xs"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-800 truncate transition-colors">
+                                  {post.title}
+                                </h4>
+                                <div className="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
+                                  <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                    post.status === "published"
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                                  }`}>
+                                    {post.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                                  </span>
+                                  {post.focus_keyword && (
+                                    <span className="truncate">Từ khóa: <strong className="text-slate-700">{post.focus_keyword}</strong></span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditPost(post)}
+                                className="px-2.5 py-1.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                <span>Mở sửa</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* CỘT PHẢI (5 COLS): TOP ĐỐI THỦ MỤC TIÊU */}
+                      <div className="lg:col-span-5 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                            <Globe className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Top đối thủ mục tiêu</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveNavSection("competitors")}
+                            className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                          >
+                            <span>Danh bạ 9 đối thủ</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {DEFAULT_COMPETITOR_PRESETS.slice(0, 3).map((comp) => (
+                            <div
+                              key={comp.id}
+                              className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-2 shadow-2xs"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="text-xs font-bold text-slate-900 block truncate">
+                                  {comp.name}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono block truncate">
+                                  {comp.domain.replace(/^https?:\/\//, "")}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (scanMode !== "domain") setScanMode("domain");
+                                  handleSelectCompetitorPreset(comp, true);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-[11px] font-bold border border-[#D4AF37]/40 transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                              >
+                                <Zap className="w-3 h-3 fill-current" />
+                                <span>Quét</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1306,25 +1457,25 @@ export default function RadarSeoAdminPage() {
 
                 {/* KẾT QUẢ QUÉT SITEMAP & DANH SÁCH BÀI VIẾT */}
                 {scannedResult && (
-                  <div className="space-y-4 pt-2 border-t border-white/10 animate-in fade-in">
+                  <div className="space-y-4 pt-2 border-t border-slate-200 animate-in fade-in">
                     {/* =========================================================
                         BATCH ACTION BAR: THANH CÔNG CỤ CHẠY HÀNG LOẠT TRÊN CÙNG
                     ========================================================= */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-white/[0.08] border border-white/15 shadow-xl space-y-4">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-4">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                            <h3 className="text-sm font-bold text-white tracking-wide">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                            <h3 className="text-sm font-bold text-slate-900 tracking-wide">
                               Tìm thấy {scannedResult.totalFound} bài viết chi tiết từ {scannedResult.domain}
                             </h3>
                           </div>
-                          <p className="text-xs text-slate-300">
+                          <p className="text-xs text-slate-500">
                             {scannedResult.sitemapFound
                               ? `Nguồn: ${scannedResult.sitemapFound}`
                               : "Đã lọc qua Recursive Sitemap & Category Crawler"} •{" "}
-                            <span className="text-emerald-400 font-bold">{scannedResult.unscrapedCount} bài mới</span> chưa cào •{" "}
-                            Đã chọn <span className="text-[#D4AF37] font-extrabold text-sm">{selectedUrls.length}</span> / {scannedResult.totalFound} bài
+                            <span className="text-emerald-700 font-bold">{scannedResult.unscrapedCount} bài mới</span> chưa cào •{" "}
+                            Đã chọn <span className="text-amber-700 font-extrabold text-sm">{selectedUrls.length}</span> / {scannedResult.totalFound} bài
                           </p>
                         </div>
 
@@ -1334,7 +1485,7 @@ export default function RadarSeoAdminPage() {
                             type="button"
                             disabled={isBatchRunning || selectedUrls.length === 0}
                             onClick={handleRunBatchRadar}
-                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] hover:from-amber-300 hover:to-[#D4AF37] text-[#0A1E5E] font-black text-xs shadow-xl shadow-[#D4AF37]/30 flex items-center justify-center space-x-2.5 disabled:opacity-40 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] hover:brightness-105 text-[#0A1E5E] font-black text-xs shadow-md shadow-amber-500/20 flex items-center justify-center space-x-2.5 disabled:opacity-40 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                           >
                             {isBatchRunning ? (
                               <>
@@ -1352,10 +1503,10 @@ export default function RadarSeoAdminPage() {
                       </div>
 
                       {/* THANH ĐIỀU KHIỂN CHỌN BÀI & BỘ LỌC */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
                         {/* Checkbox Chọn tất cả */}
                         <div className="flex items-center space-x-3">
-                          <label className="flex items-center space-x-2 cursor-pointer font-semibold text-slate-200 hover:text-white select-none">
+                          <label className="flex items-center space-x-2 cursor-pointer font-semibold text-slate-700 hover:text-slate-900 select-none">
                             <input
                               type="checkbox"
                               checked={
@@ -1375,7 +1526,7 @@ export default function RadarSeoAdminPage() {
                                   handleDeselectAllUrls();
                                 }
                               }}
-                              className="w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
+                              className="w-4 h-4 rounded text-amber-600 bg-white border-slate-300 focus:ring-amber-500 cursor-pointer"
                             />
                             <span>Chọn tất cả danh sách đang hiển thị</span>
                           </label>
@@ -1388,7 +1539,7 @@ export default function RadarSeoAdminPage() {
                                 .map((u) => u.url);
                               handleSelectAllUrls(unscraped);
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 text-[11px] transition cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-[11px] border border-slate-200 transition cursor-pointer"
                           >
                             Chỉ chọn bài chưa cào ({scannedResult.unscrapedCount})
                           </button>
@@ -1396,7 +1547,7 @@ export default function RadarSeoAdminPage() {
 
                         {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
                         <div className="flex items-center space-x-1.5">
-                          <span className="text-slate-400 font-medium flex items-center mr-1">
+                          <span className="text-slate-500 font-medium flex items-center mr-1">
                             <ListFilter className="w-3.5 h-3.5 mr-1 text-slate-400" /> Xem:
                           </span>
                           <button
@@ -1404,8 +1555,8 @@ export default function RadarSeoAdminPage() {
                             onClick={() => setDomainFilter("all")}
                             className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                               domainFilter === "all"
-                                ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow"
-                                : "bg-white/5 text-slate-400 hover:text-white"
+                                ? "bg-amber-500 text-slate-900 font-bold shadow-xs"
+                                : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
                             }`}
                           >
                             Tất cả ({scannedResult.totalFound})
@@ -1415,8 +1566,8 @@ export default function RadarSeoAdminPage() {
                             onClick={() => setDomainFilter("unscraped")}
                             className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                               domainFilter === "unscraped"
-                                ? "bg-emerald-500 text-white font-bold shadow"
-                                : "bg-white/5 text-slate-400 hover:text-white"
+                                ? "bg-emerald-600 text-white font-bold shadow-xs"
+                                : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
                             }`}
                           >
                             Chưa cào ({scannedResult.unscrapedCount})
@@ -1426,7 +1577,7 @@ export default function RadarSeoAdminPage() {
                     </div>
 
                     {/* DANH SÁCH BÀI VIẾT VỚI TRẠNG THÁI TIẾN TRÌNH THỜI GIAN THỰC */}
-                    <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-white/10 p-2.5 bg-black/30">
+                    <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-slate-200 p-2.5 bg-slate-50/60">
                       {scannedResult.urls
                         .filter((item) => domainFilter === "all" || !item.isScraped)
                         .map((item, idx) => {
@@ -1436,16 +1587,16 @@ export default function RadarSeoAdminPage() {
                               key={item.url}
                               className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                                 item.status === "scraping"
-                                  ? "bg-sky-500/15 border-sky-400/50 ring-1 ring-sky-400/40"
+                                  ? "bg-sky-50 border-sky-300 ring-1 ring-sky-300"
                                   : item.status === "generating"
-                                  ? "bg-amber-500/15 border-amber-400/50 ring-1 ring-amber-400/40"
+                                  ? "bg-amber-50 border-amber-300 ring-1 ring-amber-300"
                                   : item.status === "waiting"
-                                  ? "bg-white/10 border-white/20 opacity-80"
+                                  ? "bg-slate-100 border-slate-200 opacity-80"
                                   : item.status === "success"
-                                  ? "bg-emerald-500/15 border-emerald-500/40"
+                                  ? "bg-emerald-50 border-emerald-300"
                                   : isSelected
-                                  ? "bg-white/10 border-[#D4AF37]/50"
-                                  : "bg-white/5 border-white/5 hover:bg-white/10"
+                                  ? "bg-amber-50/60 border-amber-300"
+                                  : "bg-white border-slate-200 hover:bg-slate-50"
                               }`}
                             >
                               {/* Cột Trái: Checkbox + Tiêu đề + Link */}
@@ -1456,12 +1607,12 @@ export default function RadarSeoAdminPage() {
                                   checked={isSelected}
                                   onChange={() => handleToggleSelectUrl(item.url)}
                                   disabled={isBatchRunning}
-                                  className="mt-1 w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
+                                  className="mt-1 w-4 h-4 rounded text-amber-600 bg-white border-slate-300 focus:ring-amber-500 cursor-pointer"
                                 />
                                 <div className="min-w-0 flex-1 space-y-0.5">
                                   <label
                                     htmlFor={`checkbox-${idx}`}
-                                    className="text-xs font-semibold text-white block truncate cursor-pointer hover:text-[#D4AF37] transition"
+                                    className="text-xs font-semibold text-slate-900 block truncate cursor-pointer hover:text-amber-700 transition"
                                     title={item.title}
                                   >
                                     {item.title}
@@ -1470,7 +1621,7 @@ export default function RadarSeoAdminPage() {
                                     href={item.url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-[11px] text-slate-400 hover:text-slate-200 truncate flex items-center space-x-1"
+                                    className="text-[11px] text-slate-500 hover:text-slate-700 truncate flex items-center space-x-1"
                                   >
                                     <span className="truncate">{item.url}</span>
                                     <ExternalLink className="w-3 h-3 shrink-0" />
@@ -1482,39 +1633,39 @@ export default function RadarSeoAdminPage() {
                               <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
                                 {/* Trạng thái Queue Runner chi tiết */}
                                 {item.status === "waiting" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
-                                    <Clock className="w-3 h-3 text-amber-400" />
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1.5">
+                                    <Clock className="w-3 h-3 text-amber-600" />
                                     <span>Chờ xử lý...</span>
                                   </span>
                                 ) : item.status === "scraping" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center space-x-1.5 animate-pulse">
-                                    <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200 flex items-center space-x-1.5 animate-pulse">
+                                    <Loader2 className="w-3 h-3 animate-spin text-sky-600" />
                                     <span>Đang cào & phân tích</span>
                                   </span>
                                 ) : item.status === "generating" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center space-x-1.5 animate-pulse">
-                                    <Sparkles className="w-3 h-3 animate-spin text-[#D4AF37]" />
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1.5 animate-pulse">
+                                    <Sparkles className="w-3 h-3 animate-spin text-amber-600" />
                                     <span>Đang sinh bài (AI)</span>
                                   </span>
                                 ) : item.status === "success" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1.5 shadow-sm">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1.5 shadow-2xs">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                     <span>Hoàn thành (Đã lưu nháp)</span>
                                   </span>
                                 ) : item.status === "error" ? (
                                   <span
-                                    className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center space-x-1.5"
+                                    className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 flex items-center space-x-1.5"
                                     title={item.error}
                                   >
-                                    <AlertCircle className="w-3 h-3 text-rose-400" />
+                                    <AlertCircle className="w-3 h-3 text-rose-600" />
                                     <span>Lỗi xử lý</span>
                                   </span>
                                 ) : item.isScraped ? (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                     Đã cào trước đó
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                     Chưa cào
                                   </span>
                                 )}
@@ -1536,14 +1687,14 @@ export default function RadarSeoAdminPage() {
                                         setActiveResultTab("article");
                                       }
                                     }}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-bold transition cursor-pointer flex items-center space-x-1"
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-bold border border-emerald-200 transition cursor-pointer flex items-center space-x-1"
                                     title="Xem bản nháp đã lưu trong Database"
                                   >
                                     <span>Xem nháp</span>
                                     <Eye className="w-3 h-3" />
                                   </button>
                                 ) : item.status === "scraping" || item.status === "generating" ? (
-                                  <span className="text-[11px] text-amber-300 italic px-2 py-1">
+                                  <span className="text-[11px] text-amber-700 italic px-2 py-1">
                                     Đang xử lý ngầm...
                                   </span>
                                 ) : (
@@ -1551,7 +1702,7 @@ export default function RadarSeoAdminPage() {
                                     type="button"
                                     disabled={isBatchRunning || isAnalyzing}
                                     onClick={() => handleRunSingleInPlace(item.url, item.title)}
-                                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A1E5E] text-slate-200 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
                                     title="Chạy ngầm bài này ngay tại đây và lưu bản nháp"
                                   >
                                     <span>Chạy riêng bài này</span>
@@ -1568,103 +1719,32 @@ export default function RadarSeoAdminPage() {
             )}
 
             {/* =====================================================================
-                CHẾ ĐỘ 1: NHẬP LINK BÀI VIẾT ĐƠN LẺ (GIỮ NGUYÊN TOÀN BỘ TÍNH NĂNG)
+                CHẾ ĐỘ BÓC TÁCH 1 BÀI VIẾT ĐƠN LẺ TỪ URL
             ===================================================================== */}
             {scanMode === "single" && (
               <div className="space-y-6">
-                {/* Sample Buttons theo từng Search Intent */}
-                <div className="flex flex-wrap items-center gap-1.5 text-xs pb-3 border-b border-white/5">
-                  <span className="text-slate-400 text-[11px] font-medium mr-1">Mẫu test v2.4.5:</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://hoabinhevents.com/chi-phi-to-chuc-le-khanh-thanh-nha-may-la-bao-nhieu",
-                        "báo giá tổ chức lễ khánh thành nhà máy",
-                        "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan, múa lân sư rồng và kho thiết bị Line Array nhập khẩu trực tiếp."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🎉 Lễ Khai trương
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://vietnamevents.com/to-chuc-year-end-party",
-                        "tổ chức year end party công ty",
-                        "Tập trung vào concept Gatsby / Oscar, visual 3D mapping, kịch bản vinh danh 3 cung bậc cảm xúc, hotline 0844 198 333."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🥂 Year End Party
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://vietranstour.com/tour-team-building-doanh-nghiep",
-                        "tour team building kết hợp gala dinner",
-                        "Nhấn mạnh mô hình Hybrid Event & Travel một đầu mối, sở hữu đội xe 16-45 chỗ đời mới, bao trọn khâu đưa đón và sân khấu gala bãi biển."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🏖️ Team Building
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://marcom.com.vn/to-chuc-hoi-nghi-hoi-thao-chuyen-nghiep",
-                        "tổ chức hội thảo chuyên đề doanh nghiệp",
-                        "Tập trung vào hệ thống micro cổ ngỗng UHF 16 kênh chống nhiễu, màn hình LED P2.5 trong nhà độ mịn cao không lóa mắt, teabreak VIP."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🎤 Hội nghị / Tọa đàm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://chothueamthanhas.com/bang-gia-thue-am-thanh-anh-sang-ha-noi",
-                        "báo giá thuê âm thanh ánh sáng màn hình led hà nội",
-                        "Báo giá gốc từ kho, không qua trung gian, thông số loa Line Array nhập khẩu, màn LED P2.5/P3.91, kỹ thuật trực chiến 100%."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🔊 Thuê thiết bị kho
-                  </button>
-                </div>
-
                 <form onSubmit={handleScanAndGenerate} className="space-y-4">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                     {/* URL Input */}
                     <div className="lg:col-span-7">
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        URL bài viết đối thủ cạnh tranh <span className="text-[#D4AF37]">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        URL bài viết đối thủ cạnh tranh (URL mẫu) <span className="text-amber-600">*</span>
                       </label>
                       <div className="relative">
                         <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                         <input
                           type="url"
-                          required
                           placeholder="https://doithu.com/bai-viet-to-chuc-su-kien"
                           value={competitorUrl}
                           onChange={(e) => setCompetitorUrl(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
                         />
                       </div>
                     </div>
 
                     {/* Target Keyword */}
                     <div className="lg:col-span-5">
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Từ khóa mục tiêu (Focus keyword)
                       </label>
                       <input
@@ -1672,235 +1752,44 @@ export default function RadarSeoAdminPage() {
                         placeholder="VD: tổ chức lễ khánh thành nhà máy"
                         value={targetKeyword}
                         onChange={(e) => setTargetKeyword(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
                       />
                     </div>
                   </div>
 
-                  {/* =========================================================================
-                      BỘ KẾT NỐI HỒ SƠ SỰ KIỆN THỰC TẾ & BẰNG CHỨNG E-E-A-T DOANH NGHIỆP
-                  ========================================================================= */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.04] border border-[#D4AF37]/35 shadow-xl space-y-3.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/10">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
-                          <ShieldCheck className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                            <span>Liên kết Hồ Sơ Sự Kiện Thực Tế</span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-[#D4AF37] text-[#0A1E5E]">
-                              E-E-A-T Độc Bản
-                            </span>
-                          </h4>
-                          <p className="text-[11px] text-slate-300">
-                            Tự động lấy ảnh hiện trường, bóc tách chi phí thật và trích dẫn khách hàng vào bài viết SEO
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Dropdown Selector */}
-                      <div className="sm:w-72">
-                        <select
-                          value={selectedEventId}
-                          onChange={(e) => setSelectedEventId(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl bg-[#0A1E5E] border border-[#D4AF37]/40 text-[#D4AF37] text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37] transition cursor-pointer"
-                        >
-                          <option value="auto">🎯 AI Tự Động Chọn Theo Từ Khóa</option>
-                          {availableProfiles.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              [{p.categoryLabel || p.category}] {p.title.slice(0, 32)}... ({p.guestCount} khách)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Active Event Preview Card */}
-                    {activeEventProfile && (
-                      <div className="p-3 sm:p-3.5 rounded-xl bg-black/25 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5">
-                        <div className="flex items-start sm:items-center space-x-3 min-w-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={activeEventProfile.coverImage}
-                            alt={activeEventProfile.title}
-                            className="w-16 h-14 sm:w-20 sm:h-16 rounded-lg object-cover border border-white/15 shrink-0 shadow-md"
-                          />
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
-                                {activeEventProfile.categoryLabel || activeEventProfile.category}
-                              </span>
-                              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Đã hoàn thành ({activeEventProfile.guestCount} khách VIP)
-                              </span>
-                            </div>
-                            <h5 className="text-xs sm:text-sm font-bold text-white truncate max-w-md">
-                              {activeEventProfile.title}
-                            </h5>
-                            <p className="text-[11px] text-slate-300 truncate">
-                              🏢 {activeEventProfile.client?.company} • 📍 {activeEventProfile.location?.venue}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Dải ảnh hiện trường & Tùy chọn */}
-                        <div className="flex flex-wrap md:flex-col items-start md:items-end gap-2 shrink-0">
-                          <div className="flex items-center space-x-1.5">
-                            <span className="text-[10px] text-slate-400 mr-1 hidden sm:inline">Ảnh hiện trường:</span>
-                            {(activeEventProfile.gallery || []).slice(0, 3).map((img: any, gIdx: number) => (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                key={gIdx}
-                                src={img.url}
-                                alt={img.caption}
-                                title={img.caption}
-                                className="w-8 h-8 rounded-md object-cover border border-white/20 hover:scale-125 transition-transform cursor-pointer"
-                              />
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setActiveAdminTab("events")}
-                            className="text-[11px] text-[#D4AF37] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                          >
-                            <span>Xem chi tiết hồ sơ sự kiện</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Checkbox Options */}
-                    <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-200">
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeRealImages}
-                          onChange={(e) => setIncludeRealImages(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>🖼️ Nhúng ảnh thực tế hiện trường</span>
-                      </label>
-
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeRealPricing}
-                          onChange={(e) => setIncludeRealPricing(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>💰 Bóc tách báo giá & dự toán chi phí thật</span>
-                      </label>
-
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeTestimonial}
-                          onChange={(e) => setIncludeTestimonial(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>⭐ Đánh giá của khách hàng (Social proof)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Custom Prompt Instructions */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
-                      <label className="text-xs font-semibold text-slate-300">
-                        Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
-                      </label>
-                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
-                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
-                      </span>
-                    </div>
-
-                    {/* Quick inject pills from event profiles */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Lễ Khai Trương Showroom Nam Hải Auto",
-                            "Công ty Cổ phần Ô tô Nam Hải",
-                            250,
-                            "Cầu Giấy, Hà Nội",
-                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Khai trương Nam Hải (250 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
-                            "Tập Đoàn Sun Group",
-                            500,
-                            "Meliá Hà Nội 5 sao",
-                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Gala Sun Group Meliá (500 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Hội Nghị Thượng Đỉnh AI FPT Software",
-                            "FPT Software Toàn Cầu",
-                            400,
-                            "Trung tâm Hội nghị Quốc gia NCC",
-                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Hội Nghị FPT NCC (400 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Teambuilding Viettel Telecom",
-                            "Viettel Telecom",
-                            350,
-                            "Flamingo Đại Lải 5 sao",
-                            "Game tool liên hoàn hơi độc quyền, Âm thanh JBL ngoài trời, Flycam 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Teambuilding Viettel (350 khách)
-                      </button>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      placeholder="VD: Nhấn mạnh uy tín từng tổ chức sự kiện cho Vinpearl, Vietcombank, Cầu Thăng Long; lồng ghép hotline 0844 198 333..."
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                    />
+                  {/* DÒNG GỢI Ý MẪU THỬ NGHIỆM */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-[11px] text-slate-500 font-medium flex items-center mr-1">
+                      <Sparkles className="w-3 h-3 text-amber-600 mr-1" /> Thử nghiệm mẫu:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompetitorUrl("https://viet-power.vn/to-chuc-teambuilding-bai-bien");
+                        setTargetKeyword("tổ chức teambuilding bãi biển");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer"
+                    >
+                      🏃 Teambuilding bãi biển (Viet Power)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompetitorUrl("https://sukienachau.com/to-chuc-le-khai-truong");
+                        setTargetKeyword("tổ chức lễ khai trương trọn gói");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer"
+                    >
+                      🎪 Lễ khai trương trọn gói (Á Châu)
+                    </button>
                   </div>
 
                   {/* Submit CTA */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
-                    <div className="text-xs text-slate-400 flex items-center space-x-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      <span>Quy trình tự động: Cào qua Jina ➔ Phân tích H1-H3 và lỗ hổng ➔ Tái tạo bài viết</span>
-                    </div>
-
+                  <div className="flex justify-end pt-2">
                     <button
                       type="submit"
-                      disabled={isAnalyzing || !competitorUrl}
-                      className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                      disabled={isAnalyzing || !competitorUrl.trim()}
+                      className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
                     >
                       {isAnalyzing ? (
                         <>
@@ -1916,30 +1805,153 @@ export default function RadarSeoAdminPage() {
                     </button>
                   </div>
                 </form>
+
+                {/* Dashboard vận hành khi chưa bấm phân tích */}
+                {!isAnalyzing && (
+                  <div className="pt-4 border-t border-slate-200 space-y-4 animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2 text-xs font-bold text-slate-900">
+                        <Activity className="w-4 h-4 text-amber-600" />
+                        <span>Tổng quan dữ liệu Radar SEO đang vận hành</span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                        <span>🎯 <strong>9</strong> đối thủ mục tiêu</span>
+                        <span>•</span>
+                        <span>📑 <strong>{postsList.length}</strong> bài viết trong kho</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      {/* CỘT TRÁI (7 COLS): BÀI VIẾT GẦN ĐÂY */}
+                      <div className="lg:col-span-7 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Bài viết gần đây trong Kho SEO</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveNavSection("posts")}
+                            className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                          >
+                            <span>Xem tất cả ({postsList.length})</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {postsList.slice(0, 3).map((post) => (
+                            <div
+                              key={post.id}
+                              className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-3 group shadow-2xs"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-800 truncate transition-colors">
+                                  {post.title}
+                                </h4>
+                                <div className="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
+                                  <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                    post.status === "published"
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                                  }`}>
+                                    {post.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                                  </span>
+                                  {post.focus_keyword && (
+                                    <span className="truncate">Từ khóa: <strong className="text-slate-700">{post.focus_keyword}</strong></span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditPost(post)}
+                                className="px-2.5 py-1.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                <span>Mở sửa</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* CỘT PHẢI (5 COLS): TOP ĐỐI THỦ MỤC TIÊU */}
+                      <div className="lg:col-span-5 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                            <Globe className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Top đối thủ mục tiêu</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveNavSection("competitors")}
+                            className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                          >
+                            <span>Danh bạ 9 đối thủ</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {DEFAULT_COMPETITOR_PRESETS.slice(0, 3).map((comp) => (
+                            <div
+                              key={comp.id}
+                              className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-2 shadow-2xs"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="text-xs font-bold text-slate-900 block truncate">
+                                  {comp.name}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono block truncate">
+                                  {comp.domain.replace(/^https?:\/\//, "")}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setScanMode("domain");
+                                  handleSelectCompetitorPreset(comp, true);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-[11px] font-bold border border-[#D4AF37]/40 transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                              >
+                                <Zap className="w-3 h-3 fill-current" />
+                                <span>Quét</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Visual Step Progress Indicator chuẩn Skill System Content v2.4.5 (13 Bước Workflow Tự Động) */}
             {isAnalyzing && (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 animate-in fade-in duration-300">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 animate-in fade-in duration-300 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-[#D4AF37] flex items-center">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
+                  <div className="text-xs font-bold text-amber-800 flex items-center">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2 text-amber-600" />
                     Skill System Content v2.4.5 — 13 Bước Workflow Tự Động:
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="text-[10px] text-emerald-700 font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
                     Bước {processStep}/6: Đang thực thi
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 1
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep > 1
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                        : processStep === 1
+                        ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       1
                     </span>
                     <span className="truncate text-[11px]">Intent & SERP</span>
@@ -1947,12 +1959,14 @@ export default function RadarSeoAdminPage() {
 
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 2
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep > 2
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                        : processStep === 2
+                        ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       2
                     </span>
                     <span className="truncate text-[11px]">Gap Analysis</span>
@@ -1960,25 +1974,29 @@ export default function RadarSeoAdminPage() {
 
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 3
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm ring-1 ring-[#D4AF37]/50"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep > 3
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                        : processStep === 3
+                        ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs ring-1 ring-amber-400"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       3
                     </span>
-                    <span className="truncate text-[11px] font-medium text-[#D4AF37]">Outline Planning</span>
+                    <span className="truncate text-[11px] font-medium text-amber-800">Outline Planning</span>
                   </div>
 
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 4
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep > 4
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                        : processStep === 4
+                        ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       4
                     </span>
                     <span className="truncate text-[11px]">Specificity Deep</span>
@@ -1986,12 +2004,14 @@ export default function RadarSeoAdminPage() {
 
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 5
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep > 5
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                        : processStep === 5
+                        ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       5
                     </span>
                     <span className="truncate text-[11px]">Extractability & AI</span>
@@ -1999,12 +2019,12 @@ export default function RadarSeoAdminPage() {
 
                   <div
                     className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 6
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
+                      processStep === 6
+                        ? "bg-emerald-100 border-emerald-400 text-emerald-900 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       6
                     </span>
                     <span className="truncate text-[11px]">QA & Final Output</span>
@@ -2014,44 +2034,46 @@ export default function RadarSeoAdminPage() {
             )}
 
             {errorMsg && (
-              <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center">
-                <AlertCircle className="w-4 h-4 mr-2 text-rose-400 shrink-0" />
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center shadow-xs">
+                <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
           </div>
         </div>
+          </div>
+        )}
 
-        {/* =====================================================================
-            RESULTS WORKSPACE: BÁO CÁO PHÂN TÍCH ĐỐI THỦ & TRÌNH BIÊN TẬP
-        ===================================================================== */}
-        {(analysisResult || editablePost) && (
-          <div id="radar-results-editor" className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+        {/* PHÂN HỆ 2: AI STUDIO & BIÊN TẬP (EDITOR) */}
+        {activeNavSection === "editor" && (
+          <div className="space-y-6">
+            {(analysisResult || editablePost) ? (
+              <div id="radar-results-editor" className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             {editingPostId && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs gap-2 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-800 text-xs gap-2 animate-in fade-in">
                 <span className="font-semibold flex items-center">
-                  <Edit3 className="w-4 h-4 mr-2 text-amber-400" />
+                  <Edit3 className="w-4 h-4 mr-2 text-amber-600" />
                   Đang ở chế độ chỉnh sửa bài viết đã có trong Database
                 </span>
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-all w-fit"
+                  className="px-3 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-medium border border-slate-200 transition-all w-fit cursor-pointer shadow-2xs"
                 >
                   ✕ Hủy chỉnh sửa
                 </button>
               </div>
             )}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
               {/* Tab Selector: Analysis Tab is clear & primary */}
-              <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setActiveResultTab("analysis")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
                     activeResultTab === "analysis"
-                      ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md"
-                      : "text-slate-300 hover:text-white"
+                      ? "bg-amber-500 text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
@@ -2061,10 +2083,10 @@ export default function RadarSeoAdminPage() {
                 <button
                   type="button"
                   onClick={() => setActiveResultTab("article")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
                     activeResultTab === "article"
-                      ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md"
-                      : "text-slate-300 hover:text-white"
+                      ? "bg-amber-500 text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -2077,10 +2099,10 @@ export default function RadarSeoAdminPage() {
                 <button
                   type="button"
                   onClick={() => handleSaveToSupabase("draft")}
-                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/20 font-bold flex items-center space-x-1.5 transition-all"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
                   title="Lưu bản nháp"
                 >
-                  <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <Save className="w-3.5 h-3.5 text-amber-600" />
                   <span>Lưu nháp</span>
                 </button>
 
@@ -2088,17 +2110,17 @@ export default function RadarSeoAdminPage() {
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(true)}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 font-bold flex items-center space-x-1.5 transition-all"
+                  className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
                   title="Hẹn giờ đăng bài tự động"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Hẹn lịch đăng</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleSaveToSupabase("published")}
-                  className="px-4 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#edd47a] text-[#0A1E5E] font-black flex items-center space-x-1.5 shadow-md transition-all"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5 text-[#0A1E5E]" />
                   <span>Xuất bản ngay</span>
@@ -2107,8 +2129,8 @@ export default function RadarSeoAdminPage() {
             </div>
 
             {saveStatus && (
-              <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center">
-                <CheckCircle2 className="w-4 h-4 mr-2 shrink-0 text-emerald-400" />
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center shadow-xs">
+                <CheckCircle2 className="w-4 h-4 mr-2 shrink-0 text-emerald-600" />
                 <span>{saveStatus}</span>
               </div>
             )}
@@ -2118,56 +2140,56 @@ export default function RadarSeoAdminPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
                   {/* Cột 1: Bối cảnh bài đối thủ */}
-                  <div className="lg:col-span-5 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                      <h3 className="font-bold text-white text-sm flex items-center">
-                        <Layers className="w-4 h-4 mr-2 text-[#D4AF37]" />
+                  <div className="lg:col-span-5 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                      <h3 className="font-bold text-slate-900 text-sm flex items-center">
+                        <Layers className="w-4 h-4 mr-2 text-amber-600" />
                         Bối cảnh và cấu trúc đối thủ
                       </h3>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                         Điểm SEO: {analysisResult.seoScore || 65}/100
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Tiêu đề H1 của đối thủ:</span>
-                      <p className="font-bold text-white text-xs mt-1 bg-black/20 p-2.5 rounded-xl border border-white/5">
+                      <span className="text-slate-500 block text-[11px]">Tiêu đề H1 của đối thủ:</span>
+                      <p className="font-bold text-slate-900 text-xs mt-1 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
                         {analysisResult.h1 || "Không xác định"}
                       </p>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block text-[11px] mb-1.5">
+                      <span className="text-slate-500 block text-[11px] mb-1.5">
                         Dàn ý các phân đoạn chính (H2, H3):
                       </span>
-                      <ul className="space-y-1.5 text-slate-300 max-h-56 overflow-y-auto pr-1">
+                      <ul className="space-y-1.5 text-slate-700 max-h-56 overflow-y-auto pr-1">
                         {analysisResult.headings?.map((h: string, hIdx: number) => (
-                          <li key={hIdx} className="flex items-start bg-white/5 p-2 rounded-lg">
-                            <span className="text-[#D4AF37] font-bold mr-2 shrink-0">#</span>
+                          <li key={hIdx} className="flex items-start bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
+                            <span className="text-amber-600 font-bold mr-2 shrink-0">#</span>
                             <span className="leading-snug">{h}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between text-slate-400">
-                      <span>Dung lượng bài đối thủ: ~<strong>{analysisResult.wordCountEstimate || 500}</strong> từ</span>
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-slate-500">
+                      <span>Dung lượng bài đối thủ: ~<strong className="text-slate-800">{analysisResult.wordCountEstimate || 500}</strong> từ</span>
                     </div>
                   </div>
 
                   {/* Cột 2: Ma trận Lỗ hổng vs Vũ khí Trường Hải */}
-                  <div className="lg:col-span-7 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                      <h3 className="font-bold text-amber-300 text-sm flex items-center">
-                        <ShieldAlert className="w-4 h-4 mr-2 text-amber-400" />
+                  <div className="lg:col-span-7 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                      <h3 className="font-bold text-slate-900 text-sm flex items-center">
+                        <ShieldAlert className="w-4 h-4 mr-2 text-amber-600" />
                         Ma trận đối soát: Lỗ hổng đối thủ vs vũ khí Trường Hải
                       </h3>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-500 font-semibold">
                         {analysisResult.weaknesses?.length || 0} điểm phát hiện
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-light">
+                    <p className="text-[11px] text-slate-600 leading-relaxed font-normal">
                       Hệ thống đã phân tích bối cảnh bài đối thủ và đề xuất các luận điểm thế mạnh độc quyền để bài viết mới của Trường Hải hoàn toàn vượt trội:
                     </p>
 
@@ -2181,22 +2203,22 @@ export default function RadarSeoAdminPage() {
                           return (
                             <div
                               key={wIdx}
-                              className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 hover:border-white/20 transition-colors"
+                              className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5 hover:border-slate-300 transition-colors shadow-2xs"
                             >
                               <div className="flex items-start space-x-2.5">
-                                <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 font-bold text-[10px] shrink-0 border border-rose-500/30">
+                                <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 font-bold text-[10px] shrink-0 border border-rose-200">
                                   Lỗ hổng đối thủ
                                 </span>
-                                <p className="text-slate-300 text-xs leading-relaxed">
+                                <p className="text-slate-700 text-xs leading-relaxed">
                                   {competitorWeakness}
                                 </p>
                               </div>
 
-                              <div className="flex items-start space-x-2.5 pt-2 border-t border-white/5">
-                                <span className="px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#D4AF37] font-bold text-[10px] shrink-0 border border-[#D4AF37]/30">
+                              <div className="flex items-start space-x-2.5 pt-2 border-t border-slate-100">
+                                <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px] shrink-0 border border-amber-200">
                                   Vũ khí Trường Hải
                                 </span>
-                                <p className="text-white text-xs font-semibold leading-relaxed">
+                                <p className="text-slate-900 text-xs font-semibold leading-relaxed">
                                   {truongHaiAdvantage}
                                 </p>
                               </div>
@@ -2207,7 +2229,7 @@ export default function RadarSeoAdminPage() {
                         return (
                           <div
                             key={wIdx}
-                            className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-200 text-xs leading-relaxed"
+                            className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed"
                           >
                             {w.replace(/⚠️/g, "").replace(/🎯/g, "")}
                           </div>
@@ -2215,12 +2237,12 @@ export default function RadarSeoAdminPage() {
                       })}
                     </div>
 
-                    <div className="pt-3 border-t border-white/10 flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 text-[11px]">Từ khóa liên quan:</span>
+                    <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                      <span className="text-slate-500 text-[11px]">Từ khóa liên quan:</span>
                       {analysisResult.targetKeywords?.map((kw: string, kIdx: number) => (
                         <span
                           key={kIdx}
-                          className="px-2 py-0.5 rounded bg-white/10 text-slate-300 text-[10px] font-mono"
+                          className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 text-[10px] font-mono shadow-2xs"
                         >
                           #{kw}
                         </span>
@@ -2230,13 +2252,13 @@ export default function RadarSeoAdminPage() {
                 </div>
 
                 {/* Hộp chuyển hướng hành động sang viết bài */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0A1E5E] to-[#122868] border border-[#D4AF37]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-amber-50 border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
                   <div className="space-y-1 text-center sm:text-left">
-                    <h4 className="font-bold text-white text-sm flex items-center justify-center sm:justify-start space-x-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
+                    <h4 className="font-bold text-slate-900 text-sm flex items-center justify-center sm:justify-start space-x-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Đã hoàn tất phân tích đối soát lỗ hổng đối thủ!</span>
                     </h4>
-                    <p className="text-xs text-slate-300 font-light">
+                    <p className="text-xs text-slate-600">
                       Bài viết mới chuẩn SEO đã được tạo sẵn với đầy đủ các vũ khí và cam kết của Trường Hải Event.
                     </p>
                   </div>
@@ -2244,7 +2266,7 @@ export default function RadarSeoAdminPage() {
                   <button
                     type="button"
                     onClick={() => setActiveResultTab("article")}
-                    className="px-6 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-black text-xs flex items-center space-x-2 shadow-lg shrink-0 cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black text-xs flex items-center space-x-2 shadow-sm shrink-0 cursor-pointer"
                   >
                     <span>Xem và biên tập bài viết mới</span>
                     <ArrowRight className="w-4 h-4" />
@@ -2258,7 +2280,7 @@ export default function RadarSeoAdminPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <div className="lg:col-span-8">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Tiêu đề bài viết SEO
                     </label>
                     <input
@@ -2267,12 +2289,12 @@ export default function RadarSeoAdminPage() {
                       onChange={(e) =>
                         setEditablePost({ ...editablePost, title: e.target.value })
                       }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
                     />
                   </div>
 
                   <div className="lg:col-span-4">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Từ khóa chính (Focus keyword)
                     </label>
                     <input
@@ -2284,14 +2306,14 @@ export default function RadarSeoAdminPage() {
                           focus_keyword: e.target.value,
                         })
                       }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <div className="lg:col-span-6">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Đường dẫn tĩnh (Slug URL)
                     </label>
                     <input
@@ -2300,12 +2322,12 @@ export default function RadarSeoAdminPage() {
                       onChange={(e) =>
                         setEditablePost({ ...editablePost, slug: e.target.value })
                       }
-                      className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-slate-300 text-xs font-mono outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs font-mono outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
                     />
                   </div>
 
                   <div className="lg:col-span-6">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Meta description (tóm tắt chuẩn SEO)
                     </label>
                     <input
@@ -2317,7 +2339,7 @@ export default function RadarSeoAdminPage() {
                           meta_description: e.target.value,
                         })
                       }
-                      className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
                     />
                   </div>
                 </div>
@@ -2332,25 +2354,25 @@ export default function RadarSeoAdminPage() {
                 />
 
                 <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-white/10 gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-slate-200 gap-2">
                     <div className="flex items-center space-x-2">
-                      <label className="text-xs font-bold text-white">
+                      <label className="text-xs font-bold text-slate-900">
                         Nội dung bài viết chuẩn SEO
                       </label>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-slate-500">
                         ({editablePost.content?.length || 0} ký tự)
                       </span>
                     </div>
 
                     {/* Bộ chuyển đổi: Xem trước trực quan vs Soạn thảo mã nguồn */}
-                    <div className="inline-flex p-1 rounded-xl bg-white/10 border border-white/15 text-xs">
+                    <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs">
                       <button
                         type="button"
                         onClick={() => setArticlePreviewMode("preview")}
-                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
+                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                           articlePreviewMode === "preview"
-                            ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm"
-                            : "text-slate-300 hover:text-white"
+                            ? "bg-amber-500 text-slate-900 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
                         }`}
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -2360,10 +2382,10 @@ export default function RadarSeoAdminPage() {
                       <button
                         type="button"
                         onClick={() => setArticlePreviewMode("edit")}
-                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
+                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
                           articlePreviewMode === "edit"
-                            ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm"
-                            : "text-slate-300 hover:text-white"
+                            ? "bg-amber-500 text-slate-900 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
                         }`}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -2373,12 +2395,12 @@ export default function RadarSeoAdminPage() {
                   </div>
 
                   {articlePreviewMode === "preview" ? (
-                    <div className="p-6 sm:p-8 rounded-3xl bg-white text-slate-800 shadow-2xl border border-slate-200 max-h-[600px] overflow-y-auto">
-                      <div className="pb-4 mb-6 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 text-slate-800 shadow-xs border border-slate-200 max-h-[600px] overflow-y-auto">
+                      <div className="pb-4 mb-6 border-b border-slate-200 flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Bản xem trước như hiển thị trên trang tin tức
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                           Đã tối ưu cấu trúc & loại bỏ ký tự thừa
                         </span>
                       </div>
@@ -2391,7 +2413,7 @@ export default function RadarSeoAdminPage() {
                       onChange={(e) =>
                         setEditablePost({ ...editablePost, content: e.target.value })
                       }
-                      className="w-full p-4 rounded-2xl bg-white/5 border border-white/15 text-slate-200 text-xs font-mono leading-relaxed outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                      className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-mono leading-relaxed outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
                       placeholder="Nội dung bài viết..."
                     />
                   )}
@@ -2399,242 +2421,73 @@ export default function RadarSeoAdminPage() {
               </div>
             )}
           </div>
-        )}
-
-        {/* MODAL HẸN LỊCH ĐĂNG BÀI */}
-        {showScheduleModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0A1E5E] border border-[#D4AF37]/40 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4">
-              <div className="flex items-center space-x-2 text-white">
-                <Calendar className="w-5 h-5 text-[#D4AF37]" />
-                <h3 className="font-bold text-base">Hẹn lịch đăng bài tự động</h3>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 shadow-sm text-center space-y-5">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div className="max-w-md mx-auto space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">Chưa có bài viết hoặc kết quả quét nào đang mở</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Bạn có thể bắt đầu bằng cách quét một đối thủ mới từ thanh công cụ bên trái để AI bóc tách & viết bài, hoặc chọn một bài viết có sẵn trong Kho bài viết để chỉnh sửa và tối ưu hóa SEO.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveNavSection("scanner")}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] font-bold text-xs flex items-center space-x-2 shadow-sm hover:scale-105 transition-all cursor-pointer"
+                  >
+                    <Radar className="w-4 h-4" />
+                    <span>⚡ Bắt đầu Quét đối thủ mới</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveNavSection("posts")}
+                    className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs flex items-center space-x-2 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-amber-600" />
+                    <span>📝 Chọn bài từ Kho bài viết SEO ({postsList.length})</span>
+                  </button>
+                </div>
               </div>
-
-              <p className="text-xs text-slate-300">
-                Chọn ngày và giờ bạn muốn bài viết này tự động được xuất bản lên chuyên mục Tin tức & Cẩm nang:
-              </p>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  Thời gian xuất bản dự kiến:
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowScheduleModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/10 text-slate-300 text-xs font-semibold hover:bg-white/15"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  disabled={!scheduledTime}
-                  onClick={() => handleSaveToSupabase("scheduled")}
-                  className="px-5 py-2 rounded-xl bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold hover:bg-amber-400 disabled:opacity-50"
-                >
-                  Xác nhận hẹn lịch
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* =====================================================================
-            DASHBOARD METRIC CARDS (BỘ 4 CHỈ SỐ CỐT LÕI RADAR SEO)
-        ===================================================================== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Số lượng đối thủ đang theo dõi */}
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-              <Globe className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Đối thủ đang theo dõi</p>
-              <div className="flex items-baseline space-x-1.5">
-                <h3 className="text-2xl font-black text-white">
-                  {trackedCompetitors.filter((c) => c.isActive).length}
-                </h3>
-                <span className="text-[11px] text-slate-400">/{trackedCompetitors.length} tổng</span>
+        {/* PHÂN HỆ 3: KHO BÀI VIẾT SEO (POSTS) */}
+        {activeNavSection === "posts" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-bold text-slate-900">
+                  Danh sách bài viết SEO trên website ({postsList.length})
+                </h2>
               </div>
-            </div>
-          </div>
-
-          {/* Card 2: Tổng số trang/bài viết đã quét của đối thủ */}
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-              <Radar className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Tổng bài đối thủ đã quét</p>
-              <h3 className="text-2xl font-black text-emerald-400">
-                {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)} bài
-              </h3>
-            </div>
-          </div>
-
-          {/* Card 3: Khoảng trống SEO (Content Gap) phát hiện được */}
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] shrink-0">
-              <Compass className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Khoảng trống SEO (Gaps)</p>
-              <h3 className="text-2xl font-black text-[#D4AF37]">
-                {contentGaps.filter((g) => g.ourSiteStatus === "missing").length} chủ đề
-              </h3>
-            </div>
-          </div>
-
-          {/* Card 4: Cảnh báo các bài viết/nội dung chưa đạt tiêu chuẩn cần xem lại */}
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Cảnh báo cần xem lại</p>
-              <div className="flex items-baseline space-x-1.5">
-                <h3 className="text-2xl font-black text-amber-400">
-                  {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
-                </h3>
-                <span className="text-[11px] text-amber-400/80 font-semibold">Ưu tiên cao</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* =====================================================================
-            MODULE 2: LẬP LỊCH QUÉT ĐỊNH KỲ (02:30 SÁNG) & BỘ 4 NÚT ĐIỀU KHIỂN
-        ===================================================================== */}
-        <RadarCronManager
-          onRefreshData={refreshRadarStats}
-          onRunLiveCrawl={refreshRadarStats}
-        />
-
-        {/* =====================================================================
-            CMS DATA WORKSPACE: POSTS MANAGEMENT & LEADS MANAGEMENT
-        ===================================================================== */}
-        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
-          {/* Main CMS Tab Switcher */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
-            <div className="inline-flex flex-wrap p-1 rounded-xl bg-white/5 border border-white/10 gap-1">
               <button
                 type="button"
-                onClick={() => setActiveAdminTab("posts")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "posts"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
+                onClick={fetchPosts}
+                className="inline-flex items-center text-xs text-amber-700 hover:underline self-end sm:self-auto cursor-pointer font-semibold"
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Quản Lý Bài Viết SEO ({postsList.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("leads")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "leads"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Khách Hàng Đăng Ký Tư Vấn ({leadsList.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("competitors")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "competitors"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Đối Thủ Theo Dõi ({trackedCompetitors.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("content_gap")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "content_gap"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                <span>Khoảng Trống SEO & Xu Hướng ({contentGaps.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("activity_logs")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "activity_logs"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5" />
-                <span>Nhật Ký Ca Quét ({radarLogs.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("events")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "events"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>Hồ Sơ Sự Kiện ({eventProfilesCount})</span>
+                <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                Làm mới danh sách
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                fetchPosts();
-                fetchLeads();
-                if (typeof window !== "undefined") {
-                  setEventProfilesCount(getStoredEventProfiles().length);
-                }
-              }}
-              className="inline-flex items-center text-xs text-[#D4AF37] hover:underline self-end sm:self-auto"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              Làm mới dữ liệu
-            </button>
-          </div>
-
-          {activeAdminTab === "posts" ? (
             <div className="space-y-4">
               {/* Notice Banner khi Duyệt / Xuất bản bài viết */}
               {postNotice && (
                 <div
-                  className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-md transition-all ${
+                  className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-xs transition-all ${
                     postNotice.type === "success"
-                      ? "bg-emerald-950/70 border-emerald-500/40 text-emerald-300"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                       : postNotice.type === "error"
-                      ? "bg-rose-950/70 border-rose-500/40 text-rose-300"
-                      : "bg-blue-950/70 border-blue-500/40 text-blue-300"
+                      ? "bg-rose-50 border-rose-200 text-rose-800"
+                      : "bg-blue-50 border-blue-200 text-blue-800"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                     <span className="font-medium">{postNotice.text}</span>
                   </div>
                   <div className="flex items-center space-x-2 self-end sm:self-auto">
@@ -2642,7 +2495,7 @@ export default function RadarSeoAdminPage() {
                       <Link
                         href={`/tin-tuc/${postNotice.slug}`}
                         target="_blank"
-                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-400 text-[#0A1E5E] font-black text-xs inline-flex items-center space-x-1.5 shadow hover:brightness-110 transition shrink-0"
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-400 text-[#0A1E5E] font-black text-xs inline-flex items-center space-x-1.5 shadow-xs hover:brightness-105 transition shrink-0"
                       >
                         <span>Xem bài viết trên web</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -2651,7 +2504,7 @@ export default function RadarSeoAdminPage() {
                     <button
                       type="button"
                       onClick={() => setPostNotice(null)}
-                      className="text-slate-400 hover:text-white text-xs px-2 py-1"
+                      className="text-slate-500 hover:text-slate-800 text-xs px-2 py-1 cursor-pointer"
                       title="Đóng thông báo"
                     >
                       ✕
@@ -2669,13 +2522,13 @@ export default function RadarSeoAdminPage() {
                     placeholder="Tìm kiếm theo tiêu đề, từ khóa, slug..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-500 transition"
+                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-400 transition"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs p-1 cursor-pointer"
                     >
                       ✕
                     </button>
@@ -2683,14 +2536,14 @@ export default function RadarSeoAdminPage() {
                 </div>
 
                 {/* Filter Pills */}
-                <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-white/5 border border-white/10 self-start sm:self-auto">
+                <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 self-start sm:self-auto">
                   <button
                     type="button"
                     onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       statusFilter === "all"
-                        ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm font-bold"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-amber-500 text-slate-900 shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Tất cả ({postsList.length})
@@ -2699,10 +2552,10 @@ export default function RadarSeoAdminPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("published")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
                       statusFilter === "published"
-                        ? "bg-emerald-500 text-white shadow-sm font-bold"
-                        : "text-emerald-400 hover:bg-emerald-500/10"
+                        ? "bg-emerald-600 text-white shadow-xs font-bold"
+                        : "text-emerald-700 hover:bg-emerald-50"
                     }`}
                   >
                     <span>Đã duyệt ({publishedCount})</span>
@@ -2711,40 +2564,20 @@ export default function RadarSeoAdminPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("draft")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
                       statusFilter === "draft"
-                        ? "bg-amber-500 text-slate-900 shadow-sm font-bold"
-                        : "text-amber-400 hover:bg-amber-500/10"
+                        ? "bg-amber-500 text-slate-900 shadow-xs font-bold"
+                        : "text-amber-800 hover:bg-amber-50"
                     }`}
                   >
                     <span>Nháp ({draftCount})</span>
                   </button>
                 </div>
               </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-2">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center">
-                <FileText className="w-5 h-5 mr-2 text-[#D4AF37]" />
-                Quản lý bài viết SEO (bảng 'posts')
-              </h2>
-              <p className="text-xs text-slate-400">
-                Theo dõi các bài viết được Radar AI tạo ra, duyệt chuyển trạng thái, hẹn lịch hoặc xóa bài viết
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={fetchPosts}
-              className="inline-flex items-center text-xs text-[#D4AF37] hover:underline"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              Làm mới danh sách
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 uppercase text-[10px] text-slate-600 font-bold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Tiêu đề bài viết</th>
                   <th className="py-3 px-4">Từ khóa chính</th>
@@ -2753,12 +2586,12 @@ export default function RadarSeoAdminPage() {
                   <th className="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredPosts.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center space-y-2">
-                        <FileText className="w-8 h-8 text-slate-600" />
+                        <FileText className="w-8 h-8 text-slate-400" />
                         <p className="text-xs">
                           {searchQuery
                             ? `Không tìm thấy bài viết nào khớp với từ khóa "${searchQuery}"`
@@ -2769,37 +2602,37 @@ export default function RadarSeoAdminPage() {
                   </tr>
                 ) : (
                   filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-white max-w-xs truncate">
+                  <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs truncate">
                       {post.title}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-300">
-                      <span className="px-2 py-0.5 rounded bg-white/10 text-[11px]">
+                    <td className="py-3.5 px-4 text-slate-700">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-medium">
                         {post.focus_keyword || "N/A"}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {post.status === "published" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                           Published
                         </span>
                       ) : post.status === "scheduled" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                          <Calendar className="w-3 h-3 mr-1" />
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                          <Calendar className="w-3 h-3 mr-1 text-indigo-600" />
                           Lên lịch
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                          <Clock className="w-3 h-3 mr-1" />
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <Clock className="w-3 h-3 mr-1 text-amber-600" />
                           Draft (Nháp)
                         </span>
                       )}
                     </td>
                     {/* HIỂN THỊ RÕ GIỜ : PHÚT : GIÂY VÀ NGÀY/THÁNG/NĂM */}
-                    <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap font-mono text-[11px]">
-                      <span className="flex items-center text-slate-300">
-                        <Clock className="w-3 h-3 text-[#D4AF37] mr-1.5 shrink-0" />
+                    <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap font-mono text-[11px]">
+                      <span className="flex items-center text-slate-600">
+                        <Clock className="w-3 h-3 text-amber-600 mr-1.5 shrink-0" />
                         {formatFullDateTime(post.created_at)}
                       </span>
                     </td>
@@ -2808,10 +2641,10 @@ export default function RadarSeoAdminPage() {
                       <button
                         type="button"
                         onClick={() => handleToggleStatus(post)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-2xs ${
                           post.status === "published"
-                            ? "bg-white/10 hover:bg-white/20 text-slate-300"
-                            : "bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-bold"
+                            ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                            : "bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E]"
                         }`}
                       >
                         {post.status === "published" ? "Thu hồi nháp" : "Duyệt đăng"}
@@ -2821,7 +2654,7 @@ export default function RadarSeoAdminPage() {
                       <button
                         type="button"
                         onClick={() => handleStartEditPost(post)}
-                        className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 inline-flex items-center transition-all ml-1"
+                        className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center transition-all ml-1 cursor-pointer"
                         title="Chỉnh sửa bài viết"
                       >
                         <Edit3 className="w-3 h-3" />
@@ -2831,7 +2664,7 @@ export default function RadarSeoAdminPage() {
                       <Link
                         href={`/tin-tuc/${post.slug}`}
                         target="_blank"
-                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center ml-1"
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center ml-1"
                         title="Xem bài viết"
                       >
                         <ExternalLink className="w-3 h-3" />
@@ -2841,7 +2674,7 @@ export default function RadarSeoAdminPage() {
                       <button
                         type="button"
                         onClick={() => handleDeletePost(post)}
-                        className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 inline-flex items-center transition-colors"
+                        className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center transition-colors cursor-pointer"
                         title="Xóa bài viết này"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -2853,122 +2686,12 @@ export default function RadarSeoAdminPage() {
             </table>
           </div>
             </div>
-          ) : activeAdminTab === "leads" ? (
-            /* =====================================================================
-               LEADS MANAGEMENT TABLE (DANH SÁCH KHÁCH HÀNG BÁO GIÁ)
-            ===================================================================== */
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-6">
-                <ConversionFunnel leads={leadsList} showCardWrapper={true} />
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 text-slate-900">
-                  <CustomerSourcesChart leads={leadsList} />
-                </div>
-              </div>
+          </div>
+        )}
 
-              {/* LỊCH VẬN HÀNH SỰ KIỆN & ĐIỀU PHỐI (RADAR CALENDAR) */}
-              <div className="text-slate-900">
-                <EventCalendar leads={leadsList} onRefreshLeads={fetchLeads} showWrapperCard={true} />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-400">
-                  Danh sách khách hàng điền form nhận báo giá từ website Trường Hải Event & Travel
-                </p>
-                <span className="text-xs text-emerald-400 font-semibold flex items-center">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1.5" />
-                  Đồng bộ Real-time từ Supabase
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
-                    <tr>
-                      <th className="py-3 px-4">Khách hàng</th>
-                      <th className="py-3 px-4">Thông tin liên hệ</th>
-                      <th className="py-3 px-4">Nhu cầu sự kiện</th>
-                      <th className="py-3 px-4">Ghi chú chi tiết</th>
-                      <th className="py-3 px-4 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {leadsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">
-                          <div className="flex flex-col items-center justify-center space-y-2">
-                            <Users className="w-8 h-8 text-slate-600" />
-                            <p className="text-xs">Chưa có khách hàng nào để lại yêu cầu tư vấn</p>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      leadsList.map((lead) => (
-                        <tr key={lead.id || Math.random()} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-white">
-                            <div>
-                              <span>{lead.full_name}</span>
-                              <span className="block text-[10px] text-slate-400 font-normal">
-                                {lead.created_at
-                                  ? formatFullDateTime(lead.created_at)
-                                  : "Mới gửi"}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <div className="space-y-1">
-                              <a
-                                href={`tel:${lead.phone}`}
-                                className="flex items-center text-[#D4AF37] hover:underline font-bold"
-                              >
-                                <PhoneCall className="w-3 h-3 mr-1" />
-                                {lead.phone}
-                              </a>
-                              {lead.email && (
-                                <a
-                                  href={`mailto:${lead.email}`}
-                                  className="flex items-center text-slate-400 hover:text-slate-200 text-[11px]"
-                                >
-                                  <Mail className="w-3 h-3 mr-1" />
-                                  {lead.email}
-                                </a>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <span className="px-2.5 py-1 rounded-lg bg-[#0A1E5E] border border-[#D4AF37]/30 text-[#D4AF37] font-semibold text-[11px] inline-block">
-                              {lead.event_type}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-4 text-slate-300 max-w-sm">
-                            <p className="line-clamp-2 text-xs">
-                              {lead.notes || "Không có ghi chú thêm."}
-                            </p>
-                          </td>
-
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLead(lead.id)}
-                              className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 inline-flex items-center transition-colors"
-                              title="Xóa yêu cầu tư vấn này"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : activeAdminTab === "competitors" ? (
-            /* =====================================================================
-               1. QUẢN LÝ DANH SÁCH ĐỐI THỦ CẠNH TRANH
-            ===================================================================== */
+        {/* PHÂN HỆ 5: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
+        {activeNavSection === "competitors" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <CompetitorsManager
               onSelectCompetitorForScan={(domain, name) => {
                 setDomainInput(domain);
@@ -2977,10 +2700,12 @@ export default function RadarSeoAdminPage() {
               }}
               onRefreshStats={refreshRadarStats}
             />
-          ) : activeAdminTab === "content_gap" ? (
-            /* =====================================================================
-               3. BẢN ĐỒ KHOẢNG TRỐNG SEO & GOM NHÓM XU HƯỚNG
-            ===================================================================== */
+          </div>
+        )}
+
+        {/* PHÂN HỆ 6: KHOẢNG TRỐNG SEO (CONTENT GAP) */}
+        {activeNavSection === "content_gap" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <ContentGapDashboard
               onGenerateDraftFromGap={(gap) => {
                 setCompetitorUrl(gap.competitorUrl);
@@ -2990,15 +2715,12 @@ export default function RadarSeoAdminPage() {
               }}
               onRefreshData={refreshRadarStats}
             />
-          ) : activeAdminTab === "activity_logs" ? (
-            /* =====================================================================
-               4. NHẬT KÝ HOẠT ĐỘNG RADAR SEO (ACTIVITY LOG)
-            ===================================================================== */
-            <RadarActivityLogs onRefreshData={refreshRadarStats} />
-          ) : (
-            /* =====================================================================
-               EVENT PROFILES MANAGEMENT & ARCHIVE (HỒ SƠ SỰ KIỆN & CASE STUDIES)
-            ===================================================================== */
+          </div>
+        )}
+
+        {/* PHÂN HỆ 7: HỒ SƠ SỰ KIỆN (EVENTS) */}
+        {activeNavSection === "events" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <EventProfileArchive
               onOpenInRadarEditor={(post) => {
                 setEditablePost(post);
@@ -3014,9 +2736,89 @@ export default function RadarSeoAdminPage() {
                 fetchPosts();
               }}
             />
-          )}
+          </div>
+        )}
+
+        {/* PHÂN HỆ 8: CHỈ SỐ & LẬP LỊCH TỰ ĐỘNG (CRON) */}
+        {activeNavSection === "cron" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Số lượng đối thủ đang theo dõi */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+              <Globe className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Đối thủ đang theo dõi</p>
+              <div className="flex items-baseline space-x-1.5">
+                <h3 className="text-2xl font-black text-slate-900">
+                  {trackedCompetitors.filter((c) => c.isActive).length}
+                </h3>
+                <span className="text-[11px] text-slate-500">/{trackedCompetitors.length} tổng</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Tổng số trang/bài viết đã quét của đối thủ */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+              <Radar className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Tổng bài đối thủ đã quét</p>
+              <h3 className="text-2xl font-black text-emerald-700">
+                {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)} bài
+              </h3>
+            </div>
+          </div>
+
+          {/* Card 3: Khoảng trống SEO (Content Gap) phát hiện được */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <Compass className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Khoảng trống SEO (Gaps)</p>
+              <h3 className="text-2xl font-black text-amber-700">
+                {contentGaps.filter((g) => g.ourSiteStatus === "missing").length} chủ đề
+              </h3>
+            </div>
+          </div>
+
+          {/* Card 4: Cảnh báo các bài viết/nội dung chưa đạt tiêu chuẩn cần xem lại */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Cảnh báo cần xem lại</p>
+              <div className="flex items-baseline space-x-1.5">
+                <h3 className="text-2xl font-black text-amber-700">
+                  {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
+                </h3>
+                <span className="text-[11px] text-amber-700 font-semibold">Ưu tiên cao</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* =====================================================================
+            MODULE 2: LẬP LỊCH QUÉT ĐỊNH KỲ (02:30 SÁNG) & BỘ 4 NÚT ĐIỀU KHIỂN
+        ===================================================================== */}
+        <RadarCronManager
+          onRefreshData={refreshRadarStats}
+          onRunLiveCrawl={refreshRadarStats}
+        />
+          </div>
+        )}
+
+        {/* PHÂN HỆ 9: NHẬT KÝ CA QUÉT (LOGS) */}
+        {activeNavSection === "logs" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+            <RadarActivityLogs onRefreshData={refreshRadarStats} />
+          </div>
+        )}
+      </main>
     </div>
   );
 }
