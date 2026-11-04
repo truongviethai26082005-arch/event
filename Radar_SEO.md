@@ -12,8 +12,7 @@
 * **Framework:** Next.js (App Router) + TypeScript
 * **Giao diện (Styling):** Tailwind CSS + Lucide React (Icon)
 * **Cơ sở dữ liệu (Database & Backend):** Supabase
-* **Công nghệ Radar SEO (0 đồng):** 
-  * Cào dữ liệu web: `https://r.jina.ai/[URL_ĐỐI_THỦ]`
+* **Công nghệ Radar SEO/[URL_ĐỐI_THỦ]`
   * Trí tuệ nhân tạo phân tích & viết bài: Google Gemini API (hoặc OpenAI API)
 
 ---

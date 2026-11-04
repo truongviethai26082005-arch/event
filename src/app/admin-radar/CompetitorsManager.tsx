@@ -140,42 +140,42 @@ export default function CompetitorsManager({
     <div className="space-y-6">
       {/* HEADER & THỐNG KÊ NHANH CỦA MODULE ĐỐI THỦ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700">
             <Globe className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] text-slate-400">Tổng đối thủ theo dõi</p>
-            <h4 className="text-xl font-black text-white">{competitors.length}</h4>
+            <p className="text-[11px] text-slate-500">Tổng đối thủ theo dõi</p>
+            <h4 className="text-xl font-black text-slate-900">{competitors.length}</h4>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700">
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] text-slate-400">Đang tự động quét ngầm</p>
-            <h4 className="text-xl font-black text-emerald-400">{activeCount} đối thủ</h4>
+            <p className="text-[11px] text-slate-500">Đang tự động quét ngầm</p>
+            <h4 className="text-xl font-black text-emerald-700">{activeCount} đối thủ</h4>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-300 flex items-center justify-center text-blue-700">
             <Radar className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] text-slate-400">Tổng bài viết đã trích xuất</p>
-            <h4 className="text-xl font-black text-blue-300">{totalScanned} bài</h4>
+            <p className="text-[11px] text-slate-500">Tổng bài viết đã trích xuất</p>
+            <h4 className="text-xl font-black text-blue-700">{totalScanned} bài</h4>
           </div>
         </div>
       </div>
 
       {/* FORM THÊM ĐỐI THỦ MỚI */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+      <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 shadow-xs">
         <div className="flex items-center space-x-2">
-          <Building className="w-4 h-4 text-[#D4AF37]" />
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+          <Building className="w-4 h-4 text-amber-600" />
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
             Thêm tên miền & đối thủ cạnh tranh mới
           </h3>
         </div>
@@ -183,7 +183,7 @@ export default function CompetitorsManager({
         <form onSubmit={handleAddCompetitor} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
+              <label className="block text-[11px] text-slate-700 mb-1 font-semibold">
                 Tên hiển thị đối thủ *
               </label>
               <input
@@ -191,12 +191,12 @@ export default function CompetitorsManager({
                 placeholder="VD: Viet Power Event"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-500"
+                className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-400"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
+              <label className="block text-[11px] text-slate-700 mb-1 font-semibold">
                 Tên miền (Domain) *
               </label>
               <input
@@ -204,18 +204,18 @@ export default function CompetitorsManager({
                 placeholder="VD: viet-power.vn"
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-500"
+                className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-400"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
+              <label className="block text-[11px] text-slate-700 mb-1 font-semibold">
                 Phân loại dịch vụ
               </label>
               <select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-[#07133C] border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
               >
                 <option value="tron-goi">Sự kiện trọn gói & Khai trương</option>
                 <option value="teambuilding">Teambuilding & Tour trải nghiệm</option>
@@ -226,7 +226,7 @@ export default function CompetitorsManager({
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
+              <label className="block text-[11px] text-slate-700 mb-1 font-semibold">
                 Nhãn ưu tiên / Đặc điểm
               </label>
               <input
@@ -234,19 +234,19 @@ export default function CompetitorsManager({
                 placeholder="VD: Top 1 Teambuilding bãi biển"
                 value={newBadge}
                 onChange={(e) => setNewBadge(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-500"
+                className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] placeholder-slate-400"
               />
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <p className="text-[11px] text-slate-400 italic">
+            <p className="text-[11px] text-slate-500 italic">
               * Hệ thống quét ngầm sẽ tự động đọc sitemap.xml của domain này lúc 02:30 sáng hàng ngày để trích xuất bài viết mới.
             </p>
 
             <button
               type="submit"
-              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] text-xs font-bold hover:brightness-110 flex items-center justify-center space-x-1.5 shadow-lg shadow-[#D4AF37]/20 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] text-xs font-bold hover:brightness-105 flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Thêm vào danh sách theo dõi</span>
@@ -255,15 +255,15 @@ export default function CompetitorsManager({
         </form>
 
         {formError && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 shadow-2xs">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span>{formError}</span>
           </div>
         )}
 
         {formSuccess && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2 shadow-2xs">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
             <span>{formSuccess}</span>
           </div>
         )}
@@ -278,7 +278,7 @@ export default function CompetitorsManager({
             placeholder="Tìm theo tên hoặc domain đối thủ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-[#D4AF37]"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
           />
         </div>
 
@@ -293,10 +293,10 @@ export default function CompetitorsManager({
             <button
               key={tab.id}
               onClick={() => setCategoryFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 categoryFilter === tab.id
-                  ? "bg-[#D4AF37] text-[#0A1E5E] font-bold"
-                  : "bg-white/5 text-slate-300 hover:text-white"
+                  ? "bg-amber-500 text-slate-900 font-bold shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200"
               }`}
             >
               {tab.label}
@@ -306,10 +306,10 @@ export default function CompetitorsManager({
       </div>
 
       {/* BẢNG DANH SÁCH ĐỐI THỦ ĐANG THEO DÕI */}
-      <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#06123B]">
+      <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-white/5 uppercase text-[10px] text-slate-400 font-bold border-b border-white/10">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 uppercase text-[10px] text-slate-600 font-bold border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3.5">Đối thủ cạnh tranh</th>
                 <th className="px-4 py-3.5">Tên miền (Domain)</th>
@@ -320,7 +320,7 @@ export default function CompetitorsManager({
                 <th className="px-4 py-3.5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100">
               {filteredCompetitors.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
@@ -330,18 +330,18 @@ export default function CompetitorsManager({
               ) : (
                 filteredCompetitors.map((comp) => {
                   return (
-                    <tr key={comp.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={comp.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3.5">
-                        <div className="font-bold text-white flex items-center space-x-1.5">
+                        <div className="font-bold text-slate-900 flex items-center space-x-1.5">
                           <span>{comp.name}</span>
                           {comp.priorityBadge && (
-                            <span className="px-2 py-0.5 rounded text-[9px] font-semibold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
                               {comp.priorityBadge}
                             </span>
                           )}
                         </div>
                         {comp.notes && (
-                          <p className="text-[10px] text-slate-400 truncate max-w-xs mt-0.5">
+                          <p className="text-[10px] text-slate-500 truncate max-w-xs mt-0.5">
                             {comp.notes}
                           </p>
                         )}
@@ -352,7 +352,7 @@ export default function CompetitorsManager({
                           href={comp.domain}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[#D4AF37] hover:underline flex items-center space-x-1"
+                          className="text-amber-700 hover:text-amber-900 hover:underline flex items-center space-x-1 font-semibold"
                         >
                           <span>{comp.domain.replace(/^https?:\/\//, "")}</span>
                           <ExternalLink className="w-3 h-3 text-slate-400" />
@@ -360,7 +360,7 @@ export default function CompetitorsManager({
                       </td>
 
                       <td className="px-4 py-3.5">
-                        <span className="px-2 py-1 rounded text-[10px] font-semibold bg-white/5 border border-white/10 text-slate-300">
+                        <span className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-700">
                           {comp.category === "tron-goi" && "Trọn gói"}
                           {comp.category === "teambuilding" && "Teambuilding"}
                           {comp.category === "thiet-bi" && "Kho Thiết bị"}
@@ -373,10 +373,10 @@ export default function CompetitorsManager({
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(comp.id)}
-                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all cursor-pointer ${
                             comp.isActive
-                              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
-                              : "bg-slate-500/15 border-slate-500/30 text-slate-400 hover:bg-slate-500/25"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                              : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
                           }`}
                         >
                           {comp.isActive ? (
@@ -393,16 +393,16 @@ export default function CompetitorsManager({
                         </button>
                       </td>
 
-                      <td className="px-4 py-3.5 text-center font-bold text-white">
-                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[#D4AF37]">
+                      <td className="px-4 py-3.5 text-center font-bold text-slate-900">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-800">
                           {comp.scannedPagesCount || 0} bài
                         </span>
                       </td>
 
-                      <td className="px-4 py-3.5 text-slate-400 text-[11px]">
+                      <td className="px-4 py-3.5 text-slate-500 text-[11px]">
                         {comp.lastScannedAt ? (
-                          <div className="flex items-center space-x-1 text-slate-300">
-                            <Clock className="w-3 h-3 text-[#D4AF37]" />
+                          <div className="flex items-center space-x-1 text-slate-600">
+                            <Clock className="w-3 h-3 text-amber-600" />
                             <span>
                               {new Date(comp.lastScannedAt).toLocaleTimeString("vi-VN", {
                                 hour: "2-digit",
@@ -413,7 +413,7 @@ export default function CompetitorsManager({
                             </span>
                           </div>
                         ) : (
-                          <span className="italic text-slate-500">Chưa quét</span>
+                          <span className="italic text-slate-400">Chưa quét</span>
                         )}
                       </td>
 
@@ -423,7 +423,7 @@ export default function CompetitorsManager({
                             <button
                               type="button"
                               onClick={() => onSelectCompetitorForScan(comp.domain, comp.name)}
-                              className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#0A1E5E] font-bold text-[10px] transition-all flex items-center space-x-1 border border-[#D4AF37]/30"
+                              className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 hover:bg-amber-100 font-bold text-[10px] transition-all flex items-center space-x-1 border border-amber-200 cursor-pointer shadow-2xs"
                               title="Tải vào máy quét Domain ngay"
                             >
                               <Radar className="w-3 h-3" />
@@ -434,7 +434,7 @@ export default function CompetitorsManager({
                           <button
                             type="button"
                             onClick={() => handleDelete(comp.id, comp.name)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Xóa đối thủ"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
