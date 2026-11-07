@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "id": "A8",
+    "title": "Bộ từ khóa test",
+    "how_to_use": "Mỗi lần sửa prompt hoặc quy tắc, chạy lại cả 5 từ khóa. So kết quả B11 (số tiêu chí đạt) và đọc lại bài với lần chạy trước. Ghi kết quả vào 'history'.",
+    "why_these": "5 từ khóa phủ đủ 3 loại ý định tìm kiếm và 5 cụm chủ đề có giá trị cao."
+  },
+  "keywords": [
+    { "id": "T1", "keyword": "tổ chức year end party", "cluster_id": "year-end-party-gala", "expected_intent": "tim_thong_tin", "why": "Từ khóa chủ lực mùa cuối năm; dễ bị AI viết thành bài brochure" },
+    { "id": "T2", "keyword": "kịch bản lễ khai trương", "cluster_id": "khai-truong-khanh-thanh", "expected_intent": "tim_thong_tin", "why": "Bài phải có kịch bản dùng được, không được chèn bảng giá thiết bị" },
+    { "id": "T3", "keyword": "chi phí tổ chức hội nghị", "cluster_id": "hoi-nghi-hoi-thao", "expected_intent": "can_nhac", "why": "Kiểm tra AI có bịa giá hay không (Trường Hải không có giá công khai)" },
+    { "id": "T4", "keyword": "cho thuê màn hình led hà nội", "cluster_id": "thiet-bi-su-kien", "expected_intent": "muon_thue", "why": "Ý định thuê rõ ràng, bài phải ngắn, gần trang dịch vụ" },
+    { "id": "T5", "keyword": "tour du lịch doanh nghiệp", "cluster_id": "tour-doanh-nghiep", "expected_intent": "can_nhac", "why": "Kiểm tra AI có dùng đúng dự án LABCO/TL K11 trong A3 làm minh họa" }
+  ],
+  "history": []
+}

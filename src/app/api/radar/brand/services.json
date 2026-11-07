@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "id": "A2",
+    "title": "Danh mục dịch vụ",
+    "source": "src/lib/company-data.ts (SERVICES_DATA) và anchor trên trang src/app/dich-vu/page.tsx",
+    "rule": "Mỗi bài phải link về đúng 'page_url' của dịch vụ liên quan. Không có giá công khai: AI không được tự đưa con số giá, chỉ ghi theo 'price_policy'.",
+    "note": "Nội dung 'offerings' đã bỏ bớt tính từ quảng cáo so với bản gốc để AI không chép lại giọng brochure."
+  },
+  "services": [
+    {
+      "id": "khai-truong-khanh-thanh",
+      "name": "Lễ kỷ niệm, khánh thành, khai trương, khởi công – động thổ",
+      "page_url": "/dich-vu#khai-truong-khanh-thanh",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "offerings": [
+        "Lên kịch bản nghi thức",
+        "Nhà bạt, cổng hơi, bộ cắt băng khánh thành",
+        "MC, PG, đội lân sư rồng",
+        "Teabreak và quà tặng khách mời"
+      ],
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "tiec-tat-nien-yep",
+      "name": "Tiệc tất niên Year End Party, Gala Dinner",
+      "page_url": "/dich-vu#tiec-tat-nien-yep",
+      "cluster_ids": ["year-end-party-gala"],
+      "offerings": [
+        "Lên concept theo câu chuyện thương hiệu của từng công ty",
+        "Game và hoạt động gắn kết trong tiệc",
+        "Âm thanh, ánh sáng, nội dung màn hình LED",
+        "Ban nhạc acoustic, vũ đoàn, ca sĩ khách mời"
+      ],
+      "price_policy": "Liên hệ nhận báo giá trọn gói"
+    },
+    {
+      "id": "hoi-nghi-hoi-thao-bds",
+      "name": "Sự kiện mở bán bất động sản, hội nghị, hội thảo",
+      "page_url": "/dich-vu#hoi-nghi-hoi-thao-bds",
+      "cluster_ids": ["hoi-nghi-hoi-thao"],
+      "offerings": [
+        "Âm thanh, ánh sáng cho hội nghị và hội thảo",
+        "Sân khấu ra mắt dự án, màn hình LED P2.5, 3D mapping",
+        "Check-in bằng mã QR, lễ tân đón khách",
+        "Điều phối phiên giao dịch tại sự kiện mở bán"
+      ],
+      "price_policy": "Dự toán theo quy mô"
+    },
+    {
+      "id": "team-building-tour-mice",
+      "name": "Team building, tour doanh nghiệp và du lịch MICE",
+      "page_url": "/dich-vu#team-building-tour-mice",
+      "cluster_ids": ["teambuilding", "tour-doanh-nghiep"],
+      "offerings": [
+        "Thiết kế tour theo ngân sách của doanh nghiệp, kết hợp team building và gala dinner",
+        "Điểm đến thường làm: Hạ Long, Đà Nẵng, Phú Quốc, Sapa, Quy Nhơn",
+        "Khách sạn, resort 4–5 sao liên kết",
+        "Hướng dẫn viên và bảo hiểm du lịch"
+      ],
+      "price_policy": "Liên hệ nhận báo giá theo đầu người"
+    },
+    {
+      "id": "cho-thue-trang-thiet-bi",
+      "name": "Cho thuê thiết bị âm thanh, ánh sáng, sân khấu, màn hình LED",
+      "page_url": "/dich-vu#cho-thue-trang-thiet-bi",
+      "cluster_ids": ["thiet-bi-su-kien"],
+      "offerings": [
+        "Loa line array, micro không dây",
+        "Màn hình LED trong nhà và ngoài trời, P2.5 đến P3.91",
+        "Đèn moving head beam, laser, par LED",
+        "Kỹ thuật viên vận hành trong suốt sự kiện"
+      ],
+      "price_policy": "Liên hệ báo giá thiết bị"
+    },
+    {
+      "id": "family-day-trung-thu",
+      "name": "Trung thu, Tết thiếu nhi, ngày hội gia đình, họp lớp",
+      "page_url": "/dich-vu#su-kien",
+      "cluster_ids": ["family-day-le-hoi"],
+      "offerings": [
+        "Nhân vật Chú Cuội, Chị Hằng, chú hề, ảo thuật",
+        "Gian trò chơi dân gian và quà cho trẻ",
+        "Mâm cỗ trung thu, phá cỗ",
+        "Photobooth"
+      ],
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "van-tai-xe-du-lich",
+      "name": "Vận tải, cho thuê xe du lịch",
+      "page_url": "/dich-vu#du-lich",
+      "cluster_ids": ["van-tai-xe"],
+      "offerings": [
+        "Xe 7, 16, 29, 35, 45 chỗ và limousine",
+        "Đưa đón hội nghị, chuyên gia, sân bay, tuyến tour",
+        "Hợp đồng và hóa đơn VAT"
+      ],
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "du-lich-trai-nghiem-thien-nguyen",
+      "name": "Du lịch tham quan, học tập, trải nghiệm và thiện nguyện",
+      "page_url": "/dich-vu#du-lich",
+      "cluster_ids": ["du-lich-trai-nghiem"],
+      "offerings": [
+        "Tour giáo dục thực tế cho học sinh, sinh viên",
+        "Trao quà, hỗ trợ điểm trường vùng cao Tây Bắc, Đông Bắc",
+        "Giao lưu văn hóa bản địa",
+        "Giấy chứng nhận tham gia hoạt động xã hội"
+      ],
+      "price_policy": "Liên hệ nhận báo giá"
+    }
+  ]
+}
