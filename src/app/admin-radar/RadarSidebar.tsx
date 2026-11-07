@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Radar,
@@ -15,6 +15,8 @@ import {
   LogOut,
   Brain,
   CheckSquare,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { signOut } from "@/app/admin-radar/actions";
 
@@ -48,9 +50,12 @@ export interface NavItem {
 export interface RadarSidebarProps {
   activeSection: RadarNavSection;
   onSelectSection: (section: RadarNavSection) => void;
+  currentPostStatusFilter?: "all" | "published" | "draft" | "scheduled";
+  onSelectPostStatusFilter?: (status: "all" | "published" | "draft") => void;
   counts: {
     posts: number;
     drafts?: number;
+    published?: number;
     competitors: number;
     gaps: number;
     events: number;
@@ -68,6 +73,8 @@ export interface RadarSidebarProps {
 export default function RadarSidebar({
   activeSection,
   onSelectSection,
+  currentPostStatusFilter,
+  onSelectPostStatusFilter,
   counts,
   hasActiveEditor,
   activeEditorTitle,
@@ -77,6 +84,7 @@ export default function RadarSidebar({
   mobileOpen,
   onCloseMobile,
 }: RadarSidebarProps) {
+  const [isPostSubmenuOpen, setIsPostSubmenuOpen] = useState(false);
   const draftCount = counts.drafts ?? 0;
 
   // 5 Canonical Items requested by the user
@@ -85,7 +93,7 @@ export default function RadarSidebar({
       id: "viet_bai",
       number: "1",
       label: "Viết bài",
-      subtitle: "Nhập từ khóa & AI tạo nháp",
+      subtitle: "",
       icon: Sparkles,
       badge: isScanning ? "Đang quét" : hasActiveEditor ? "Đang mở" : undefined,
       badgeVariant: isScanning
@@ -95,17 +103,17 @@ export default function RadarSidebar({
     {
       id: "duyet_bai",
       number: "2",
-      label: draftCount > 0 ? `Duyệt bài (${draftCount})` : "Duyệt bài",
-      subtitle: "Soát [CẦN SỐ LIỆU] & Đăng",
+      label: "Kho bài viết",
+      subtitle: "",
       icon: CheckSquare,
-      count: draftCount > 0 ? draftCount : undefined,
+      count: draftCount > 0 ? draftCount : counts.posts,
       highlightCount: draftCount > 0,
     },
     {
       id: "bo_nao",
       number: "3",
       label: "Bộ não thương hiệu",
-      subtitle: "Dự án thật, thiết bị & Quy tắc",
+      subtitle: "",
       icon: Brain,
       count: counts.events,
     },
@@ -113,7 +121,7 @@ export default function RadarSidebar({
       id: "doi_thu",
       number: "4",
       label: "Đối thủ",
-      subtitle: "Tìm đối thủ & Đọc sitemap",
+      subtitle: "",
       icon: Globe,
       count: counts.competitors,
     },
@@ -121,7 +129,7 @@ export default function RadarSidebar({
       id: "ke_hoach",
       number: "5",
       label: "Kế hoạch nội dung",
-      subtitle: "Bản đồ khoảng trống & Đề bài",
+      subtitle: "",
       icon: Compass,
       count: counts.gaps,
     },
@@ -156,6 +164,11 @@ export default function RadarSidebar({
   };
 
   const handleItemClick = (id: RadarNavSection) => {
+    if (id === "duyet_bai" || id === "posts") {
+      setIsPostSubmenuOpen((prev: boolean) => !prev);
+    } else {
+      setIsPostSubmenuOpen(false);
+    }
     onSelectSection(id);
     onCloseMobile();
   };
@@ -227,105 +240,173 @@ export default function RadarSidebar({
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-200">
         <div className="flex items-center justify-between px-3 pb-1">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            Thanh công cụ (5 mục)
+            Thanh công cụ
           </p>
-          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-            Trực quan & Tinh gọn
-          </span>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {navItems.map((item) => {
             const isActive = isItemActive(item.id);
-            const IconComponent = item.icon;
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleItemClick(item.id)}
-                className={`w-full text-left px-3 py-3 rounded-2xl flex items-center justify-between transition-all group cursor-pointer border ${
-                  isActive
-                    ? "bg-gradient-to-r from-amber-50 via-amber-100/60 to-white border-[#D4AF37] text-slate-900 shadow-sm"
-                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 border-transparent"
-                }`}
-              >
-                <div className="flex items-center space-x-3 min-w-0">
-                  {/* Item Number + Icon Container */}
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors relative ${
-                      isActive
-                        ? "bg-[#0A1E5E] text-[#D4AF37] font-bold shadow-xs"
-                        : "bg-slate-100 text-slate-600 group-hover:text-amber-700 group-hover:bg-[#D4AF37]/15"
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
+              <div key={item.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => handleItemClick(item.id)}
+                  className={`w-full text-left px-3 py-2.5 rounded-2xl flex items-center justify-between transition-all group cursor-pointer border ${
+                    isActive
+                      ? "bg-gradient-to-r from-amber-50 via-amber-100/60 to-white border-[#D4AF37] text-slate-900 shadow-sm"
+                      : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    {/* Số thứ tự thay cho icon hộp cồng kềnh */}
                     <span
-                      className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center border ${
+                      className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center shrink-0 transition-colors border ${
                         isActive
-                          ? "bg-[#D4AF37] text-[#0A1E5E] border-white shadow-xs"
-                          : "bg-white text-slate-500 border-slate-200 group-hover:border-amber-400 group-hover:text-amber-700"
+                          ? "bg-[#0A1E5E] text-[#D4AF37] border-[#0A1E5E] shadow-xs"
+                          : "bg-slate-100 text-slate-600 border-slate-200 group-hover:bg-[#D4AF37]/20 group-hover:border-amber-400 group-hover:text-amber-900"
                       }`}
                     >
                       {item.number}
                     </span>
-                  </div>
 
-                  {/* Label & Subtitle */}
-                  <div className="min-w-0">
-                    <p
-                      className={`text-xs font-black truncate leading-tight ${
+                    {/* Tên danh mục rõ ràng, không dòng chú thích nhỏ */}
+                    <span
+                      className={`text-xs truncate ${
                         isActive
-                          ? "text-slate-900"
-                          : "text-slate-700 group-hover:text-slate-900"
+                          ? "font-black text-slate-900"
+                          : "font-bold text-slate-700 group-hover:text-slate-900"
                       }`}
                     >
                       {item.label}
-                    </p>
-                    <p
-                      className={`text-[10px] truncate leading-tight mt-0.5 ${
-                        isActive
-                          ? "text-amber-800 font-semibold"
-                          : "text-slate-400 group-hover:text-slate-500"
-                      }`}
-                    >
-                      {item.subtitle}
-                    </p>
+                    </span>
                   </div>
-                </div>
 
-                {/* Right Badges / Counts */}
-                <div className="flex items-center space-x-1.5 shrink-0 ml-2">
-                  {item.badge && (
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${item.badgeVariant}`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
+                  {/* Right Badges / Counts */}
+                  <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                    {item.badge && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${item.badgeVariant}`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
 
-                  {typeof item.count === "number" && (
-                    <span
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
-                        item.highlightCount
-                          ? "bg-amber-500 text-slate-950 border-amber-600 shadow-xs animate-pulse"
+                    {typeof item.count === "number" && (
+                      <span
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
+                          item.highlightCount
+                            ? "bg-amber-500 text-slate-950 border-amber-600 shadow-xs animate-pulse"
+                            : isActive
+                            ? "bg-[#D4AF37] text-[#0A1E5E] border-[#D4AF37]"
+                            : "bg-slate-100 text-slate-600 border-slate-200 group-hover:bg-slate-200"
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 transition-transform ${
+                        item.id === "duyet_bai" && isPostSubmenuOpen
+                          ? "rotate-90 text-[#D4AF37]"
                           : isActive
-                          ? "bg-[#D4AF37] text-[#0A1E5E] border-[#D4AF37]"
-                          : "bg-slate-100 text-slate-600 border-slate-200 group-hover:bg-slate-200"
+                          ? "text-[#D4AF37] translate-x-0.5"
+                          : "text-slate-400 opacity-0 group-hover:opacity-100"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* 3 MỤC NHỎ: MẶC ĐỊNH ẨN, CHỈ HIỆN KHI BẤM VÀO KHO BÀI VIẾT, KHÔNG CÓ ICON RƯỜM RÀ */}
+                {item.id === "duyet_bai" && isPostSubmenuOpen && (
+                  <div className="ml-5 mr-1 my-1 space-y-1 border-l-2 border-amber-300 pl-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {/* 1. Bài chờ duyệt */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectPostStatusFilter) {
+                          onSelectPostStatusFilter("draft");
+                        }
+                        onCloseMobile();
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer ${
+                        isActive && currentPostStatusFilter === "draft"
+                          ? "bg-[#0A1E5E] text-[#D4AF37] shadow-xs"
+                          : "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
                       }`}
                     >
-                      {item.count}
-                    </span>
-                  )}
+                      <span>Bài chờ duyệt</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
+                          isActive && currentPostStatusFilter === "draft"
+                            ? "bg-[#D4AF37] text-[#0A1E5E]"
+                            : "bg-amber-100 text-amber-900"
+                        }`}
+                      >
+                        {counts.drafts ?? 0}
+                      </span>
+                    </button>
 
-                  <ChevronRight
-                    className={`w-3.5 h-3.5 transition-transform ${
-                      isActive
-                        ? "text-[#D4AF37] translate-x-0.5"
-                        : "text-slate-400 opacity-0 group-hover:opacity-100"
-                    }`}
-                  />
-                </div>
-              </button>
+                    {/* 2. Bài đã xuất bản */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectPostStatusFilter) {
+                          onSelectPostStatusFilter("published");
+                        }
+                        onCloseMobile();
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer ${
+                        isActive && currentPostStatusFilter === "published"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>Bài đã xuất bản</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
+                          isActive && currentPostStatusFilter === "published"
+                            ? "bg-emerald-800 text-white"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {counts.published ?? 0}
+                      </span>
+                    </button>
+
+                    {/* 3. Tất cả bài viết */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectPostStatusFilter) {
+                          onSelectPostStatusFilter("all");
+                        }
+                        onCloseMobile();
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer ${
+                        isActive && currentPostStatusFilter === "all"
+                          ? "bg-slate-800 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>Tất cả bài viết</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
+                          isActive && currentPostStatusFilter === "all"
+                            ? "bg-slate-950 text-white"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {counts.posts ?? 0}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

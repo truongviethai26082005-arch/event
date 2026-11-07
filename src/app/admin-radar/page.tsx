@@ -1255,7 +1255,6 @@ export default function RadarSeoAdminPage() {
         onSelectSection={(section) => {
           setActiveNavSection(section);
           if (section === "duyet_bai" || section === "posts") {
-            setStatusFilter("draft");
             setActiveAdminTab("posts");
           } else if (section === "bo_nao" || section === "events") {
             setActiveAdminTab("events");
@@ -1271,9 +1270,16 @@ export default function RadarSeoAdminPage() {
             setActiveAdminTab("activity_logs");
           }
         }}
+        currentPostStatusFilter={statusFilter}
+        onSelectPostStatusFilter={(status) => {
+          setActiveNavSection("duyet_bai");
+          setActiveAdminTab("posts");
+          setStatusFilter(status);
+        }}
         counts={{
           posts: postsList.length,
           drafts: draftCount,
+          published: publishedCount,
           competitors: trackedCompetitors.length,
           gaps: contentGaps.length,
           events: eventProfilesCount,
@@ -1316,7 +1322,7 @@ export default function RadarSeoAdminPage() {
                     "1. Viết Bài & Sáng Tạo Nội Dung AI"}
                   {(activeNavSection === "duyet_bai" ||
                     activeNavSection === "posts") &&
-                    "2. Duyệt Bài & Kiểm Soát Chất Lượng (QA)"}
+                    "2. Kho Bài Viết & Duyệt Bài (QA)"}
                   {(activeNavSection === "bo_nao" ||
                     activeNavSection === "events") &&
                     "3. Bộ Não Thương Hiệu (Brand Brain)"}
@@ -2762,10 +2768,10 @@ export default function RadarSeoAdminPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900">
-                    Duyệt bài & Kiểm soát chất lượng (QA)
+                    Kho bài viết & Duyệt chất lượng (QA)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Rà soát các thẻ [CẦN SỐ LIỆU], kiểm chứng thông số và tick checklist QA trước khi Đăng lên website.
+                    Quản lý kho bài đăng, rà soát [CẦN SỐ LIỆU] và kiểm định chất lượng trước khi Đăng lên website.
                   </p>
                 </div>
               </div>
@@ -2867,8 +2873,7 @@ export default function RadarSeoAdminPage() {
                         : "text-amber-900 hover:bg-amber-100/50"
                     }`}
                   >
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Chờ duyệt / Nháp ({draftCount})</span>
+                    <span>Bài chờ duyệt ({draftCount})</span>
                   </button>
 
                   <button
@@ -2880,8 +2885,7 @@ export default function RadarSeoAdminPage() {
                         : "text-emerald-700 hover:bg-emerald-50"
                     }`}
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Đã xuất bản ({publishedCount})</span>
+                    <span>Bài đã xuất bản ({publishedCount})</span>
                   </button>
 
                   <button
@@ -2893,7 +2897,7 @@ export default function RadarSeoAdminPage() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    Tất cả ({postsList.length})
+                    Tất cả bài viết ({postsList.length})
                   </button>
                 </div>
               </div>
