@@ -86,7 +86,8 @@ export default function EventCalendar({
 }: EventCalendarProps) {
   // Ngày thật, chỉ xác định ở trình duyệt (tránh lệch giữa máy chủ dựng trang và máy người xem)
   const [today, setToday] = useState<Date | null>(null);
-  const [calendarDate, setCalendarDate] = useState<Date>(() => new Date());
+  // Giá trị tạm cố định; ngày thật được gán trong useEffect (không đọc giờ hiện tại lúc dựng sẵn trang)
+  const [calendarDate, setCalendarDate] = useState<Date>(() => new Date(0));
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("month");
   const [filterType, setFilterType] = useState<"ALL" | CalendarEventCategory>("ALL");
   const [selectedEvent, setSelectedEvent] = useState<ExtendedCalendarEvent | null>(null);
