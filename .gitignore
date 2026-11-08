@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Báo giá cũ & bảng giá nội bộ: không đưa lên GitHub (repo public)
+bao-gia-cu/
