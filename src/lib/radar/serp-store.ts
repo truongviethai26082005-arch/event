@@ -10,7 +10,7 @@ export async function serperUsageThisMonth(client: SupabaseClient) {
     .from("radar_runs")
     .select("credits")
     .gte("created_at", monthStart)
-    .in("kind", ["serp-dry", "serp-live"]);
+    .in("kind", ["serp-dry", "serp-live", "cron"]);
   return (data ?? []).reduce((sum, row) => sum + (Number(row.credits) || 0), 0);
 }
 

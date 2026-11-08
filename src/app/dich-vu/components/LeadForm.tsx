@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { handleContactClick, trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick, landingInfo, trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
 import { BUDGET_OPTIONS, DEFAULT_BUDGET, DEFAULT_GUESTS, GUEST_OPTIONS } from "@/lib/lead-form-options";
 import { PromotionCombo } from "../data/services-data";
 import {
@@ -138,6 +138,7 @@ export default function LeadForm({
           promoCode: initialPromo?.code,
           promoTitle: initialPromo?.title,
           channel: "GG_FORM",
+          ...landingInfo(),
         }),
       });
 

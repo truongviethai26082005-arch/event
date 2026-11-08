@@ -224,3 +224,33 @@ YÊU CẦU:
 4. `npx tsc --noEmit` và `npx next build` phải có MÃ THOÁT 0 trước khi bàn giao.
 5. Bàn giao kèm kết quả chạy các kịch bản test tương ứng ở mục 6.
 ```
+
+---
+
+## 9. Trạng thái triển khai (11/2026) và cách dùng
+
+Toàn bộ dây chuyền 1–7 đã có trong `/admin-radar` → mục **"0. Dây chuyền SEO"** (mở mặc định).
+
+| Bước | Màn hình | Máy tự làm | Code chính |
+|---|---|---|---|
+| Hôm nay làm gì | Tab đầu tiên | Gom mọi việc cần người, xếp ưu tiên | `admin-radar/pipeline/RadarPipeline.tsx` |
+| 1–3 | Tab "Từ khóa · Top Google · Cào bài" | Serper top 10 (Hà Nội), lọc đối thủ, đọc bài (không tạo nội dung giả) | `lib/radar/serper.ts`, `page-reader.ts`, `run.ts` |
+| 4 So sánh | Tab "So sánh" | Code đo tín hiệu (số chữ, % có giá / FAQ / dự án, năm cập nhật) + AI ra A/B/C | `lib/radar/compare.ts` |
+| 5 Đề xuất | Tab "Đề xuất" | Viết mới / Viết lại + brief + điểm 0–100 có lý do | `lib/radar/compare.ts` (scoreProposal) |
+| 6 Viết & đăng | Tab "Viết & đăng" | AI viết theo brief chỉ từ chất liệu thật (dự án, Bảng đơn giá); QA code (từ cấm, [CẦN SỐ LIỆU], dàn ý); viết mới → Kho bài viết; viết lại → áp dụng giữ slug | `lib/radar/writer.ts` |
+| 7 Theo dõi | Tab "Theo dõi" | Lịch sử vị trí, phát hiện tụt hạng, bài → khách → hợp đồng → doanh thu | `pipeline/TrackTab.tsx`, `leads.landing_path` |
+| Lịch tự chạy | `vercel.json` (02:00 CN) | Quét → cào → so sánh → đề xuất | `api/radar/serp/cron` |
+
+**Migration cần chạy theo thứ tự:** `20261109020000_radar_serp.sql` → `20261109030000_radar_pipeline.sql`.
+
+**Biến môi trường:** `SERPER_API_KEY`, `GEMINI_API_KEY` (bắt buộc); `SERPER_MONTHLY_LIMIT` (mặc định 300);
+`CRON_SECRET` + `SUPABASE_SERVICE_ROLE_KEY` (để bật lịch tự chạy trên Vercel); `RADAR_OWN_DOMAINS`
+(tên miền của mình ngoài truonghaievent.com, cách nhau dấu phẩy) để nhận diện vị trí của mình.
+
+**Đã kiểm thử với dữ liệu thật** (từ khóa "tổ chức lễ khai trương"): top 10 đúng 9 đối thủ; đọc 8/8 bài;
+so sánh 15 giây ra 5 mục bắt buộc, 8 từ khóa top, 3 khe hở có chất liệu; đề xuất Viết lại bài
+`/tin-tuc/quy-trinh-to-chuc-le-khai-truong-tron-goi-tu-a-z` (70 điểm); AI viết 2.348 chữ trong 23 giây,
+0 cụm từ cấm, mọi dự án và mức giá trích dẫn khớp Bộ não và Bảng đơn giá.
+
+**Giới hạn đã biết:** khoảng 1/5 lần gọi, Google trả top 10 khác thường (nhiều video / báo), chưa rõ nguyên nhân;
+màn hình có nút "Tự đối chiếu trên Google". Thứ hạng chỉ đo trong top 10 (Serper `num: 10`).

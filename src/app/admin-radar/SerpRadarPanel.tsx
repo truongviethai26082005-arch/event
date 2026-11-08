@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -163,7 +163,7 @@ function TopTenTable({
 /* ------------------------------------------------------------------ */
 /* Khung chính                                                         */
 /* ------------------------------------------------------------------ */
-export default function SerpRadarPanel() {
+export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void } = {}) {
   const [status, setStatus] = useState<Status | null>(null);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [error, setError] = useState("");
@@ -238,6 +238,7 @@ export default function SerpRadarPanel() {
     } finally {
       setBusy(null);
       void load();
+      onChanged?.();
     }
   };
 
@@ -324,43 +325,15 @@ export default function SerpRadarPanel() {
   const inTop10 = keywords.filter((k) => k.our_position).length;
   const remainingCredits = status ? Math.max(status.monthlyLimit - status.usedThisMonth, 0) : 0;
 
-  const steps = useMemo(
-    () => [
-      { n: 1, label: "Từ khóa", sub: `${tracked} đang theo dõi`, done: tracked > 0 },
-      { n: 2, label: "Top Google", sub: `${scanned}/${keywords.length} đã quét`, done: scanned > 0 },
-      { n: 3, label: "Cào bài", sub: status ? `${status.queue.scraped} đã cào · ${status.queue.pending} chờ` : "…", done: (status?.queue.scraped ?? 0) > 0 },
-    ],
-    [tracked, scanned, keywords.length, status]
-  );
 
   return (
     <div className="space-y-5">
-      {/* Dây chuyền đợt 1 */}
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wider text-[#A78113]">Radar SEO · Đợt 1</p>
-        <h2 className="mt-1 text-lg font-black text-slate-900">Tìm bài đối thủ đang top Google và lấy nội dung của họ</h2>
+        <h2 className="text-base font-black text-slate-900">1–3. Từ khóa → Top Google → Cào bài</h2>
         <p className="mt-1 text-xs text-slate-500">
           Mỗi từ khóa: lấy 10 kết quả đầu trên Google (khu vực Hà Nội), lọc ra đối thủ thật (bỏ Facebook, YouTube, báo, sàn, cơ quan nhà nước),
-          rồi đọc nội dung các bài đó. Đây là dữ liệu cho bước so sánh &ldquo;họ có gì mình chưa có&rdquo; ở đợt 2.
+          rồi đọc nội dung các bài đó. Đây là dữ liệu cho bước 4 &ldquo;So sánh&rdquo;.
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {steps.map((s, i) => (
-            <div key={s.n} className="flex items-center gap-2">
-              <div className={`rounded-xl border px-3 py-2 ${s.done ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-                <p className="text-xs font-black text-slate-800">
-                  {s.n}. {s.label} {s.done && <CheckCircle2 className="inline h-3.5 w-3.5 text-emerald-600" />}
-                </p>
-                <p className="text-[10px] text-slate-500">{s.sub}</p>
-              </div>
-              {i < steps.length - 1 && <span className="text-slate-300">→</span>}
-            </div>
-          ))}
-          <span className="text-slate-300">→</span>
-          <div className="rounded-xl border border-dashed border-slate-300 px-3 py-2">
-            <p className="text-xs font-bold text-slate-400">4. So sánh · 5. Đề xuất · 6. Viết · 7. Theo dõi</p>
-            <p className="text-[10px] text-slate-400">các đợt sau</p>
-          </div>
-        </div>
       </div>
 
       {(error || notice) && (

@@ -49,6 +49,38 @@ export function handleContactClick(
   trackLandingLead(channel);
 }
 
+const LANDING_KEY = "lead_landing";
+
+/**
+ * Ghi lại TRANG ĐẦU TIÊN khách vào website và nguồn đến (google.com, facebook.com...) trong phiên.
+ * Dùng để biết bài viết nào mang về khách (Radar SEO bước 7). Gọi 1 lần khi website tải.
+ */
+export function rememberLanding() {
+  if (typeof window === "undefined" || isAdminPath()) return;
+  try {
+    if (window.sessionStorage.getItem(LANDING_KEY)) return;
+    let referrer = "";
+    try {
+      const host = document.referrer ? new URL(document.referrer).hostname : "";
+      if (host && host !== window.location.hostname) referrer = host.replace(/^www\./, "");
+    } catch {
+      // bỏ qua
+    }
+    window.sessionStorage.setItem(LANDING_KEY, JSON.stringify({ landingPath: window.location.pathname, referrer }));
+  } catch {
+    // trình duyệt chặn sessionStorage
+  }
+}
+
+/** Trang đầu tiên + nguồn đến của phiên hiện tại (gửi kèm khi tạo lead). */
+export function landingInfo(): { landingPath?: string; referrer?: string } {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(LANDING_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
 /** Đã điền form trong khoảng này thì không hiện popup nữa. */
 const FORM_SUBMITTED_SUPPRESS_MS = 7 * 24 * 60 * 60 * 1000;
 const FORM_SUBMITTED_KEY = "lead_form_submitted_at";
@@ -81,7 +113,7 @@ export function trackLandingLead(
   const token = fetch("/api/radar/track-lead", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, ...info }),
+    body: JSON.stringify({ source, ...info, ...landingInfo() }),
     keepalive: true,
   })
     .then((res) => (res.ok ? res.json() : null))

@@ -94,7 +94,7 @@ export default function RadarSidebar({
     {
       id: "top_google",
       number: "0",
-      label: "Top Google",
+      label: "Dây chuyền SEO",
       subtitle: "",
       icon: SearchCheck,
     },

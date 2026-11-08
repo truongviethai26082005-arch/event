@@ -60,7 +60,7 @@ import {
   Plus,
 } from "lucide-react";
 import RadarSidebar, { RadarNavSection } from "./RadarSidebar";
-import SerpRadarPanel from "./SerpRadarPanel";
+import RadarPipeline from "./pipeline/RadarPipeline";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorDropdown from "./CompetitorDropdown";
 import SeoScoreChecklist from "./SeoScoreChecklist";
@@ -1335,7 +1335,7 @@ export default function RadarSeoAdminPage() {
                     activeNavSection === "cron") &&
                     "5. Kế Hoạch Nội Dung & Khoảng Trống SEO"}
                   {activeNavSection === "logs" && "Nhật Ký Hoạt Động Ca Quét AI"}
-                  {activeNavSection === "top_google" && "0. Top Google: Từ Khóa, Đối Thủ Đang Top & Cào Bài"}
+                  {activeNavSection === "top_google" && "0. Dây Chuyền SEO: Vượt Đối Thủ Đang Top Google"}
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
                   AI v2.0
@@ -1362,7 +1362,7 @@ export default function RadarSeoAdminPage() {
                 {activeNavSection === "logs" &&
                   "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
                 {activeNavSection === "top_google" &&
-                  "Bước đầu của dây chuyền: biết ai đang đứng top Google cho từng từ khóa và họ viết gì."}
+                  "Top Google → cào bài đối thủ → so sánh → đề xuất viết mới / viết lại → AI viết → duyệt & đăng → theo dõi thứ hạng và khách."}
               </p>
             </div>
           </div>
@@ -3466,7 +3466,7 @@ export default function RadarSeoAdminPage() {
         )}
 
         {/* MỤC 0: TOP GOOGLE (Radar đợt 1: từ khóa → top Google → cào bài) */}
-        {activeNavSection === "top_google" && <SerpRadarPanel />}
+        {activeNavSection === "top_google" && <RadarPipeline onOpenPosts={() => setActiveNavSection("duyet_bai")} />}
 
         {/* MỤC 4: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
         {(activeNavSection === "doi_thu" || activeNavSection === "competitors") && (

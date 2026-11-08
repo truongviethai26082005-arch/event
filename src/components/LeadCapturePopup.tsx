@@ -6,6 +6,7 @@ import LeadCaptureForm from "@/components/LeadCaptureForm";
 import {
   LEAD_CAPTURE_EVENT,
   LeadCaptureDetail,
+  rememberLanding,
 } from "@/app/admin-radar/lead-tracker";
 
 /** Tên kênh chat theo link khách định mở. */
@@ -30,6 +31,7 @@ export default function LeadCapturePopup() {
     const open = (event: Event) => {
       setDetail((event as CustomEvent<LeadCaptureDetail>).detail);
     };
+    rememberLanding();
     window.addEventListener(LEAD_CAPTURE_EVENT, open);
     return () => window.removeEventListener(LEAD_CAPTURE_EVENT, open);
   }, []);
