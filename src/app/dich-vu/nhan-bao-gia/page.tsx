@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Clock, FileCheck2, ShieldCheck } from "lucide-react";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import { COMPANY_INFO } from "@/lib/company-data";
@@ -16,15 +17,27 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Link có dạng /dich-vu/nhan-bao-gia?ma=<form_token của lead>; khách điền xong
  * thông tin được ghi vào đúng lead đó trong CRM.
  */
-export default async function NhanBaoGiaPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+/** Đọc mã lead trên link (?ma=...) — nằm trong <Suspense> để phần còn lại của trang được dựng sẵn. */
+async function TokenForm({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const raw = Array.isArray(params.ma) ? params.ma[0] : params.ma;
   const token = raw && UUID_RE.test(raw) ? raw : null;
+  return <LeadCaptureForm token={token} />;
+}
 
+function FormSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Đang tải form">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="h-11 animate-pulse rounded-xl bg-slate-100" />
+      ))}
+    </div>
+  );
+}
+
+export default function NhanBaoGiaPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <section className="bg-gradient-to-b from-[#0A1E5E] to-slate-50 px-4 pb-16 pt-28 sm:pt-32">
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.8fr_1.2fr]">
@@ -47,7 +60,9 @@ export default async function NhanBaoGiaPage({
           </ul>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
-          <LeadCaptureForm token={token} />
+          <Suspense fallback={<FormSkeleton />}>
+            <TokenForm searchParams={searchParams} />
+          </Suspense>
         </div>
       </div>
     </section>
