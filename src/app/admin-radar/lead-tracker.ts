@@ -9,6 +9,44 @@ export interface LeadCaptureDetail {
   channel: LeadChannel;
   /** Token của lead vừa tạo khi khách bấm nút; form popup gửi kèm để cập nhật đúng lead đó. */
   token: Promise<string | null>;
+  /**
+   * Link kênh chat (Zalo / Facebook / Messenger) mà khách định mở.
+   * Có giá trị -> popup hiện TRƯỚC khi mở chat, kèm nút "Chat ... ngay".
+   */
+  continueUrl?: string;
+}
+
+/** Kênh mở tab mới (chat): hiện popup trước, khách tự chọn chat ngay hoặc để lại SĐT. */
+const CHAT_CHANNELS: LeadChannel[] = ["ZALO", "FACEBOOK"];
+
+const isAdminPath = () =>
+  /^\/(admin|admin-radar|admin-login|login)(\/|$)/.test(window.location.pathname);
+
+/**
+ * Dùng cho onClick của các nút liên hệ (thẻ <a>).
+ * - Zalo / Facebook / Messenger, lần đầu trong 24h và khách chưa gửi form: chặn mở chat,
+ *   hiện popup có nút "Chat ... ngay" + form để lại SĐT.
+ * - Các trường hợp khác (Hotline, đã bấm gần đây...): mở link như bình thường và ghi lead.
+ */
+export function handleContactClick(
+  event: { preventDefault: () => void; currentTarget: { href?: string } },
+  channel: LeadChannel
+) {
+  if (typeof window === "undefined") return;
+  const href = event.currentTarget.href;
+  const offerFirst =
+    CHAT_CHANNELS.includes(channel) &&
+    Boolean(href) &&
+    !isAdminPath() &&
+    !wasTrackedRecently(channel) &&
+    !wasFormSubmittedRecently();
+
+  if (offerFirst) {
+    event.preventDefault();
+    trackLandingLead(channel, undefined, { continueUrl: href });
+    return;
+  }
+  trackLandingLead(channel);
 }
 
 /** Đã điền form trong khoảng này thì không hiện popup nữa. */
@@ -30,11 +68,12 @@ export function trackLandingLead(
     email?: string;
     eventType?: string;
     notes?: string;
-  }
+  },
+  options?: { continueUrl?: string }
 ) {
   if (typeof window === "undefined") return;
   // Admin bấm Hotline / Zalo trên header, footer trang quản trị: không phải khách -> không ghi lead
-  if (/^\/(admin|admin-radar|admin-login|login)(\/|$)/.test(window.location.pathname)) return;
+  if (isAdminPath()) return;
 
   const isClickOnly = !info?.fullName || !info?.phone;
   if (isClickOnly && wasTrackedRecently(source)) return;
@@ -60,7 +99,9 @@ export function trackLandingLead(
   markTracked(source);
   if (!wasFormSubmittedRecently()) {
     window.dispatchEvent(
-      new CustomEvent<LeadCaptureDetail>(LEAD_CAPTURE_EVENT, { detail: { channel: source, token } })
+      new CustomEvent<LeadCaptureDetail>(LEAD_CAPTURE_EVENT, {
+        detail: { channel: source, token, continueUrl: options?.continueUrl },
+      })
     );
   }
 }
