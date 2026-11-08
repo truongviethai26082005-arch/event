@@ -55,6 +55,7 @@ export default function DossierRequestModal({
       trackLandingLead("GG_FORM", {
         fullName: formData.fullName,
         phone: formData.phone,
+        email: formData.email,
         eventType: `Yêu cầu gửi Profile: ${formData.packageType} (${formData.needsHardCopy ? "Bản In + PDF" : "Bản PDF"})`,
         notes: `Đơn vị: ${formData.companyName} | Email: ${formData.email} | Đ/C: ${formData.deliveryAddress} | Ghi chú: ${formData.notes}`,
       });

@@ -1,53 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { LEAD_SOURCE_LABELS } from "@/app/admin/_components/admin-types";
+import {
+  CHANNEL_TO_SOURCE,
+  LeadChannel,
+  PENDING_PHONE,
+  isLeadChannel,
+} from "@/lib/lead-funnel";
 
 /**
- * API GHI NHẬN TƯƠNG TÁC LEAD THẬT TỪ LANDING PAGE
- * Phân loại thành 4 nguồn: GG Form, Zalo, Hotline, Facebook
+ * CỔNG VÀO PHỄU CHO CÁC KÊNH LIÊN HỆ TRÊN WEBSITE
+ * Kênh (GG_FORM | ZALO | HOTLINE | FACEBOOK) -> lead mới trạng thái NEW trong bảng `leads`.
+ * Quy tắc ánh xạ nằm ở src/lib/lead-funnel.ts.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const rawSource = String(body.source || "").toUpperCase();
+    const rawChannel = String(body.source || "").toUpperCase();
+    const channel: LeadChannel = isLeadChannel(rawChannel) ? rawChannel : "GG_FORM";
+    const source = CHANNEL_TO_SOURCE[channel];
+    const channelName = LEAD_SOURCE_LABELS[source];
 
-    let dbSource = "WEBSITE_FORM";
-    let channelName = "GG Form / Website";
-    let defaultName = "Khách điền form báo giá";
-
-    if (rawSource.includes("ZALO")) {
-      dbSource = "ZALO_OA";
-      channelName = "Zalo";
-      defaultName = "Khách liên hệ qua Zalo";
-    } else if (rawSource.includes("HOTLINE") || rawSource.includes("CALL")) {
-      dbSource = "HOTLINE";
-      channelName = "Hotline";
-      defaultName = "Khách bấm gọi Hotline";
-    } else if (rawSource.includes("FACEBOOK") || rawSource.includes("FB")) {
-      dbSource = "REFERRAL";
-      channelName = "Facebook";
-      defaultName = "Khách liên hệ qua Facebook";
-    }
+    const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    const isFormSubmission = Boolean(fullName && phone);
+    const timestamp = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 
     const leadData = {
-      full_name: body.fullName || defaultName,
-      phone: body.phone || (rawSource.includes("HOTLINE") ? "0844 198 333" : "Chờ cập nhật"),
-      email: body.email || null,
+      full_name: fullName || `Khách bấm nút ${channelName}`,
+      phone: phone || PENDING_PHONE,
+      email: typeof body.email === "string" && body.email.trim() ? body.email.trim() : null,
       event_type: body.eventType || "Tư vấn sự kiện & báo giá",
-      notes: body.notes || `Khách hàng tương tác qua kênh ${channelName} từ Landing Page vào lúc ${new Date().toLocaleString("vi-VN")}`,
-      source: dbSource,
+      notes:
+        body.notes ||
+        (isFormSubmission
+          ? `Khách gửi form qua kênh ${channelName} lúc ${timestamp}`
+          : `[Lượt bấm nút ${channelName}] Khách bấm liên hệ lúc ${timestamp}. Chưa có số điện thoại, sale cần xác minh và cập nhật.`),
+      source,
       status: "NEW",
     };
 
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from("leads").insert([leadData]).select();
-      if (error) {
-        console.warn("Lỗi ghi nhận lead vào Supabase:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-      }
-      return NextResponse.json({ success: true, lead: data?.[0] });
+    if (!isSupabaseConfigured) {
+      return NextResponse.json({ success: true, message: "Ghi nhận lead (chưa cấu hình Supabase)" });
     }
 
-    return NextResponse.json({ success: true, message: "Ghi nhận lead tương tác" });
+    // Token để form popup (khách điền ngay sau khi bấm) cập nhật đúng lead này thay vì tạo lead mới
+    let formToken: string | null = crypto.randomUUID();
+    const insert = (row: Record<string, unknown>) => supabase.from("leads").insert([row]);
+
+    let { error } = await insert({ ...leadData, form_token: formToken });
+
+    // DB chưa chạy migration 20261108000000 (chưa có cột form_token)
+    if (error && (error.code === "PGRST204" || error.code === "42703")) {
+      formToken = null;
+      ({ error } = await insert(leadData));
+    }
+
+    // DB chưa chạy migration thêm nguồn FACEBOOK -> lưu tạm vào REFERRAL (ghi chú có chữ "Facebook"
+    // nên resolveLeadSource vẫn nhận đúng là Facebook).
+    if (error && error.code === "23514" && source === "FACEBOOK") {
+      ({ error } = await insert({
+        ...leadData,
+        ...(formToken ? { form_token: formToken } : {}),
+        source: "REFERRAL",
+        notes: `[Facebook] ${leadData.notes}`,
+      }));
+    }
+
+    if (error) {
+      console.warn("Lỗi ghi nhận lead vào Supabase:", error);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, token: formToken });
   } catch (error) {
     console.error("Lỗi track lead:", error);
     return NextResponse.json({ success: false, error: "Internal Error" }, { status: 500 });

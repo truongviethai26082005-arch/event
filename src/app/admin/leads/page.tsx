@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Building2,
   CalendarDays,
@@ -23,9 +22,18 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { LOST_REASONS, STAGE_GUIDE, countByPhone, normalizePhone, resolveLeadSource } from "@/lib/lead-funnel";
+import { isValidPhone } from "@/lib/lead-form-options";
+import LeadActivityPanel from "@/app/admin/_components/LeadActivityPanel";
+import LeadDuplicates from "@/app/admin/_components/LeadDuplicates";
+import AddLeadModal from "@/app/admin/_components/AddLeadModal";
 import {
   AdminLead,
   ADMIN_LEAD_SELECT,
+  ADMIN_LEAD_SELECT_FULL,
+  CRM_MIGRATION_NOTICE,
+  LeadQuote,
+  fetchAdminLeads,
   LEAD_SOURCES,
   LEAD_SOURCE_LABELS,
   LEAD_STATUSES,
@@ -112,7 +120,6 @@ function readVietnameseCurrency(amount: number): string {
 }
 
 export default function AdminLeadsPage() {
-  const router = useRouter();
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -125,6 +132,12 @@ export default function AdminLeadsPage() {
   const [dateTo, setDateTo] = useState("");
   const [selectedLead, setSelectedLead] = useState<AdminLead | null>(null);
   const [saving, setSaving] = useState(false);
+  const [crmReady, setCrmReady] = useState(true);
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [activityRefresh, setActivityRefresh] = useState(0);
+  const [statusDraft, setStatusDraft] = useState<{ id: string; status: LeadStatus } | null>(null);
+  const [lastSavedQuoteHash, setLastSavedQuoteHash] = useState("");
+  const [quoteSaveNotice, setQuoteSaveNotice] = useState("");
 
   // Proposal / Báo giá A4 state
   const [quoteLead, setQuoteLead] = useState<AdminLead | null>(null);
@@ -142,12 +155,9 @@ export default function AdminLeadsPage() {
     setError("");
     try {
       const supabase = createSupabaseBrowserClient();
-      const { data, error: queryError } = await supabase
-        .from("leads")
-        .select(ADMIN_LEAD_SELECT)
-        .order("created_at", { ascending: false });
-      if (queryError) throw queryError;
-      setLeads((data ?? []) as AdminLead[]);
+      const result = await fetchAdminLeads(supabase);
+      setLeads(result.leads);
+      setCrmReady(result.crmReady);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -164,6 +174,26 @@ export default function AdminLeadsPage() {
   useEffect(() => {
     void loadLeads();
   }, []);
+
+  /** Tải lại 1 lead (sau khi ghi nhận liên hệ / lưu báo giá) và làm mới lịch sử. */
+  const refreshLead = async (id: string) => {
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("leads")
+      .select(crmReady ? ADMIN_LEAD_SELECT_FULL : ADMIN_LEAD_SELECT)
+      .eq("id", id)
+      .single();
+    if (data) {
+      const fresh = data as unknown as AdminLead;
+      setLeads((previous) => previous.map((lead) => (lead.id === id ? fresh : lead)));
+      setSelectedLead((previous) => (previous?.id === id ? fresh : previous));
+    }
+    setActivityRefresh((n) => n + 1);
+  };
+
+  const phoneCounts = useMemo(() => countByPhone(leads), [leads]);
+  const selectedStatus: LeadStatus | undefined =
+    statusDraft && statusDraft.id === selectedLead?.id ? statusDraft.status : selectedLead?.status;
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -202,7 +232,7 @@ export default function AdminLeadsPage() {
       return (
         matchesSearch &&
         (statusFilter === "ALL" || lead.status === statusFilter) &&
-        (sourceFilter === "ALL" || lead.source === sourceFilter) &&
+        (sourceFilter === "ALL" || resolveLeadSource(lead) === sourceFilter) &&
         (eventTypeFilter === "ALL" || eventTypeLabel(lead.event_type) === eventTypeFilter) &&
         (!dateFrom || created >= dateFrom) &&
         (!dateTo || created <= dateTo)
@@ -243,6 +273,26 @@ export default function AdminLeadsPage() {
       setError("Trạng thái sự kiện không hợp lệ.");
       return;
     }
+    const phone = String(form.get("phone") || "").trim() || selectedLead.phone;
+    if (phone !== selectedLead.phone && !isValidPhone(phone)) {
+      setError("Số điện thoại không hợp lệ (9–11 chữ số).");
+      return;
+    }
+    const sourceValue = String(form.get("source") || "");
+    const lostReason = String(form.get("lost_reason") || "").trim();
+    if (crmReady && update.status === "LOST" && !lostReason) {
+      setError("Vui lòng nhập lý do “Không thành”.");
+      return;
+    }
+    const payload = {
+      ...update,
+      full_name: String(form.get("full_name") || "").trim() || selectedLead.full_name,
+      phone,
+      email: String(form.get("email") || "").trim() || null,
+      company_name: String(form.get("company_name") || "").trim() || null,
+      source: isLeadSource(sourceValue) ? sourceValue : selectedLead.source,
+      ...(crmReady ? { lost_reason: update.status === "LOST" ? lostReason : null } : {}),
+    };
     setSaving(true);
     setError("");
     setNotice("");
@@ -250,7 +300,7 @@ export default function AdminLeadsPage() {
       const supabase = createSupabaseBrowserClient();
       const { data, error: updateError } = await supabase
         .from("leads")
-        .update(update)
+        .update(payload)
         .eq("id", selectedLead.id)
         .select("*")
         .single();
@@ -260,6 +310,8 @@ export default function AdminLeadsPage() {
         previous.map((lead) => (lead.id === updatedLead.id ? updatedLead : lead))
       );
       setSelectedLead(updatedLead);
+      setStatusDraft(null);
+      setActivityRefresh((n) => n + 1);
       setNotice("Đã cập nhật hồ sơ khách hàng.");
     } catch (saveError) {
       setError(
@@ -279,8 +331,63 @@ export default function AdminLeadsPage() {
   const vatAmount = Math.round((afterDiscount * Math.max(0, vatPercent)) / 100);
   const totalQuote = afterDiscount + vatAmount;
 
+  /**
+   * Lưu báo giá thành 1 phiên bản mới khi gửi cho khách (Zalo / Email / PDF).
+   * DB tự đánh số phiên bản, ghi lịch sử và chuyển lead "Mới" -> "Đã báo giá".
+   * Nội dung không đổi so với lần lưu trước thì không lưu lại.
+   */
+  const saveQuote = async (sentVia: string) => {
+    if (!quoteLead || !crmReady) return;
+    const hash = JSON.stringify([quoteLead.id, quoteItems, discountValue, vatPercent, quoteNotes]);
+    if (hash === lastSavedQuoteHash) return;
+    const supabase = createSupabaseBrowserClient();
+    const { data, error: quoteError } = await supabase
+      .from("lead_quotes")
+      .insert([
+        {
+          lead_id: quoteLead.id,
+          items: quoteItems,
+          subtotal: subtotalQuote,
+          discount: discountAmount,
+          vat_percent: vatPercent,
+          total: totalQuote,
+          notes: quoteNotes || null,
+          sent_via: sentVia,
+        },
+      ])
+      .select("version")
+      .single();
+    if (quoteError) {
+      setQuoteSaveNotice(`Chưa lưu được báo giá: ${quoteError.message}`);
+      return;
+    }
+    setLastSavedQuoteHash(hash);
+    setQuoteSaveNotice(`Đã lưu báo giá v${data.version} (${sentVia})`);
+    void refreshLead(quoteLead.id);
+  };
+
+  const openSavedQuote = (quote: LeadQuote) => {
+    if (!selectedLead) return;
+    const items = (quote.items || []).map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+    }));
+    setQuoteLead(selectedLead);
+    setQuoteItems(items);
+    setQuoteNotes(quote.notes || "");
+    setVatPercent(Number(quote.vat_percent));
+    setDiscountValue(Number(quote.discount));
+    setQuoteViewTab("preview");
+    setLastSavedQuoteHash(
+      JSON.stringify([selectedLead.id, items, Number(quote.discount), Number(quote.vat_percent), quote.notes || ""])
+    );
+    setQuoteSaveNotice(`Đang xem báo giá v${quote.version}. Chỉnh sửa rồi gửi lại sẽ lưu thành phiên bản mới.`);
+  };
+
   const copyZaloSummary = () => {
     if (!quoteLead) return;
+    void saveQuote("Zalo");
     const lines = [
       `🌟 BẢNG BÁO GIÁ DỊCH VỤ SỰ KIỆN - TRƯỜNG HẢI EVENT & TRAVEL`,
       `👤 Kính gửi: ${quoteLead.full_name}${quoteLead.company_name ? ` (${quoteLead.company_name})` : ""}`,
@@ -321,6 +428,7 @@ export default function AdminLeadsPage() {
       setError("Khách hàng chưa có email để gửi báo giá.");
       return;
     }
+    void saveQuote("Email");
     const body = [
       `Kính gửi ${quoteLead.full_name},`,
       "",
@@ -369,13 +477,19 @@ export default function AdminLeadsPage() {
         </div>
         <button
           type="button"
-          onClick={() => router.push("/dich-vu#bao-gia")}
+          onClick={() => setShowAddLead(true)}
           className="inline-flex items-center gap-2 rounded-xl bg-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-white"
         >
           <Plus className="h-4 w-4" />
-          Nhận lead từ website
+          Thêm lead thủ công
         </button>
       </header>
+
+      {!loading && !crmReady && (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {CRM_MIGRATION_NOTICE}
+        </div>
+      )}
 
       {(error || notice) && (
         <div
@@ -520,12 +634,22 @@ export default function AdminLeadsPage() {
                         className="text-left"
                       >
                         <span className="block font-bold text-slate-900 hover:text-[#0A1E5E]">{lead.full_name}</span>
+                        {!normalizePhone(lead.phone) && (
+                          <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
+                            Chưa có SĐT
+                          </span>
+                        )}
+                        {(phoneCounts.get(normalizePhone(lead.phone)) || 0) > 1 && (
+                          <span className="ml-1 mt-1 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200">
+                            Trùng SĐT
+                          </span>
+                        )}
                         <span className="mt-1 block text-xs text-slate-500">{lead.company_name || "Khách hàng cá nhân"}</span>
                       </button>
                     </td>
                     <td className="max-w-56 px-4 py-3.5">
                       <span className="block truncate text-sm font-semibold text-slate-800">{eventTypeLabel(lead.event_type)}</span>
-                      <span className="mt-1 block text-xs text-slate-500">{LEAD_SOURCE_LABELS[lead.source] || LEAD_SOURCE_LABELS.OTHER}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{LEAD_SOURCE_LABELS[resolveLeadSource(lead)]}</span>
                     </td>
                     <td className="px-4 py-3.5 text-sm text-slate-700">
                       {lead.guest_count ? `${lead.guest_count} khách` : "Chưa rõ"}
@@ -554,6 +678,22 @@ export default function AdminLeadsPage() {
           </table>
         </div>
       </section>
+
+      {showAddLead && (
+        <AddLeadModal
+          leads={leads}
+          onClose={() => setShowAddLead(false)}
+          onOpenExisting={(lead) => {
+            setShowAddLead(false);
+            setSelectedLead(lead);
+          }}
+          onCreated={() => {
+            setShowAddLead(false);
+            setNotice("Đã thêm lead mới.");
+            void loadLeads();
+          }}
+        />
+      )}
 
       {selectedLead && (
         <div
@@ -596,7 +736,7 @@ export default function AdminLeadsPage() {
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl bg-slate-50 p-4 text-sm">
                 <LeadDetail label="Loại sự kiện" value={eventTypeLabel(selectedLead.event_type)} />
-                <LeadDetail label="Nguồn" value={LEAD_SOURCE_LABELS[selectedLead.source] || "Khác"} />
+                <LeadDetail label="Nguồn" value={LEAD_SOURCE_LABELS[resolveLeadSource(selectedLead)]} />
                 <LeadDetail label="Số khách" value={selectedLead.guest_count ? `${selectedLead.guest_count} khách` : "Chưa cập nhật"} />
                 <LeadDetail label="Ngân sách dự kiến" value={formatCurrency(selectedLead.budget)} />
                 <LeadDetail label="Ngày nhận yêu cầu" value={formatDate(selectedLead.created_at)} />
@@ -610,14 +750,94 @@ export default function AdminLeadsPage() {
                   {selectedLead.notes || "Khách hàng chưa để lại ghi chú."}
                 </p>
               </div>
+              <LeadDuplicates
+                lead={selectedLead}
+                leads={leads}
+                crmReady={crmReady}
+                onOpenLead={(lead) => setSelectedLead(lead)}
+                onMerged={(removedId) => {
+                  setLeads((previous) => previous.filter((lead) => lead.id !== removedId));
+                  setNotice("Đã gộp lead trùng.");
+                  void refreshLead(selectedLead.id);
+                }}
+              />
               <form key={selectedLead.id} onSubmit={saveLead} className="space-y-4 rounded-xl border border-slate-200 p-4">
-                <h3 className="text-sm font-extrabold text-slate-900">Trạng thái &amp; phân công</h3>
+                <h3 className="text-sm font-extrabold text-slate-900">Thông tin liên hệ</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Họ tên
+                    <input name="full_name" defaultValue={selectedLead.full_name} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800" />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Số điện thoại
+                    <input
+                      name="phone"
+                      inputMode="tel"
+                      defaultValue={normalizePhone(selectedLead.phone) ? selectedLead.phone : ""}
+                      placeholder="Nhập SĐT xin được từ khách"
+                      className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Email
+                    <input name="email" type="email" defaultValue={selectedLead.email || ""} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800" />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Công ty
+                    <input name="company_name" defaultValue={selectedLead.company_name || ""} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800" />
+                  </label>
+                </div>
+                <label className="block text-xs font-semibold text-slate-600">
+                  Nguồn
+                  <select name="source" defaultValue={resolveLeadSource(selectedLead)} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800">
+                    {LEAD_SOURCES.map((source) => <option key={source} value={source}>{LEAD_SOURCE_LABELS[source]}</option>)}
+                  </select>
+                </label>
+
+                <h3 className="border-t border-slate-100 pt-4 text-sm font-extrabold text-slate-900">Trạng thái &amp; phân công</h3>
                 <label className="block text-xs font-semibold text-slate-600">
                   Trạng thái lead
-                  <select name="status" defaultValue={selectedLead.status} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800">
+                  <select
+                    name="status"
+                    defaultValue={selectedLead.status}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (isLeadStatus(value)) setStatusDraft({ id: selectedLead.id, status: value });
+                    }}
+                    className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800"
+                  >
                     {LEAD_STATUSES.map((status) => <option key={status} value={status}>{LEAD_STATUS_LABELS[status]}</option>)}
                   </select>
                 </label>
+                {crmReady && selectedStatus === "LOST" && (
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Lý do không thành *
+                    <input
+                      name="lost_reason"
+                      list="lost-reasons"
+                      defaultValue={selectedLead.lost_reason || ""}
+                      placeholder="Chọn hoặc nhập lý do"
+                      className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800"
+                    />
+                    <datalist id="lost-reasons">
+                      {LOST_REASONS.map((reason) => <option key={reason} value={reason} />)}
+                    </datalist>
+                  </label>
+                )}
+                <details className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <summary className="cursor-pointer font-semibold text-[#0A1E5E]">
+                    Khi nào chuyển trạng thái? (quy trình phễu)
+                  </summary>
+                  <ol className="mt-2 space-y-1.5">
+                    {LEAD_STATUSES.map((status) => (
+                      <li key={status}>
+                        <strong className="text-slate-800">{LEAD_STATUS_LABELS[status]}:</strong>{" "}
+                        {STAGE_GUIDE[status].entryRule}{" "}
+                        <span className="text-slate-500">→ {STAGE_GUIDE[status].nextAction}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
                 <label className="block text-xs font-semibold text-slate-600">
                   Nhân viên phụ trách
                   <input name="assigned_to" defaultValue={selectedLead.assigned_to || ""} placeholder="Tên Sales / Account Executive" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800" />
@@ -668,6 +888,14 @@ export default function AdminLeadsPage() {
                   {saving ? "Đang lưu..." : "Lưu cập nhật hồ sơ"}
                 </button>
               </form>
+              {crmReady && (
+                <LeadActivityPanel
+                  lead={selectedLead}
+                  refreshKey={activityRefresh}
+                  onLeadTouched={() => void refreshLead(selectedLead.id)}
+                  onOpenQuote={openSavedQuote}
+                />
+              )}
             </div>
             <div className="border-t border-slate-100 p-4 sm:px-7">
               <button
@@ -701,6 +929,7 @@ export default function AdminLeadsPage() {
                   setVatPercent(8);
                   setDiscountValue(0);
                   setQuoteViewTab("preview");
+                  setQuoteSaveNotice("");
                 }}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-amber-50 px-4 py-2.5 text-sm font-bold text-[#66500E] hover:bg-amber-100 transition shadow-xs"
               >
@@ -739,6 +968,12 @@ export default function AdminLeadsPage() {
                   </div>
                   <p className="text-xs text-slate-500">
                     Khách hàng: <strong>{quoteLead.full_name}</strong> {quoteLead.company_name ? `(${quoteLead.company_name})` : ""} · {eventTypeLabel(quoteLead.event_type)}
+                  </p>
+                  <p className="text-[11px] font-semibold text-emerald-700">
+                    {quoteSaveNotice ||
+                      (crmReady
+                        ? "Báo giá tự lưu thành phiên bản mới khi Chép gửi Zalo / Soạn Email / In PDF."
+                        : "")}
                   </p>
                 </div>
               </div>
@@ -794,7 +1029,10 @@ export default function AdminLeadsPage() {
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    void saveQuote("PDF");
+                    window.print();
+                  }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A1E5E] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#142d75] transition"
                   title="Mở hộp thoại in hoặc lưu file PDF khổ A4"
                 >

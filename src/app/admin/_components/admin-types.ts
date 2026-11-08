@@ -1,8 +1,11 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export type LeadStatus = "NEW" | "QUOTED" | "NEGOTIATING" | "WON" | "LOST";
 export type LeadSource =
   | "WEBSITE_FORM"
   | "HOTLINE"
   | "ZALO_OA"
+  | "FACEBOOK"
   | "REFERRAL"
   | "OTHER";
 export type EventStatus =
@@ -32,10 +35,75 @@ export interface AdminLead {
   assigned_to: string | null;
   equipment_status: string | null;
   created_at: string;
+  // Các trường dưới đây có sau migration 20261108000000_lead_crm_phase_a.sql
+  quoted_at?: string | null;
+  negotiating_at?: string | null;
+  won_at?: string | null;
+  lost_at?: string | null;
+  lost_stage?: LeadStatus | null;
+  lost_reason?: string | null;
+  last_contacted_at?: string | null;
+  form_token?: string | null;
+  form_submitted_at?: string | null;
 }
 
 export const ADMIN_LEAD_SELECT =
   "id,full_name,company_name,phone,email,event_type,guest_count,budget,actual_revenue,event_date,event_time,event_status,location,notes,status,source,assigned_to,equipment_status,created_at";
+
+/** Bộ cột đầy đủ khi DB đã chạy migration CRM giai đoạn A. */
+export const ADMIN_LEAD_SELECT_FULL = `${ADMIN_LEAD_SELECT},quoted_at,negotiating_at,won_at,lost_at,lost_stage,lost_reason,last_contacted_at,form_token,form_submitted_at`;
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  type: string;
+  actor: string | null;
+  from_status: string | null;
+  to_status: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface LeadQuote {
+  id: string;
+  lead_id: string;
+  version: number;
+  items: { title: string; unit?: string; quantity: number; unitPrice: number }[];
+  subtotal: number;
+  discount: number;
+  vat_percent: number;
+  total: number;
+  notes: string | null;
+  sent_via: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** Lỗi do DB chưa có cột / bảng / hàm của migration mới. */
+export function isMissingSchemaError(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return (
+    ["42703", "42P01", "42883", "PGRST200", "PGRST202", "PGRST204", "PGRST205"].includes(error.code || "") ||
+    /column|schema cache|does not exist/i.test(error.message || "")
+  );
+}
+
+/**
+ * Tải toàn bộ lead cho trang quản trị. Thử bộ cột đầy đủ trước; nếu DB chưa chạy
+ * migration CRM giai đoạn A thì lùi về bộ cột cũ và báo `crmReady = false`.
+ */
+export async function fetchAdminLeads(supabase: Pick<SupabaseClient, "from">): Promise<{ leads: AdminLead[]; crmReady: boolean }> {
+  const full = await supabase.from("leads").select(ADMIN_LEAD_SELECT_FULL).order("created_at", { ascending: false });
+  if (!full.error) return { leads: (full.data ?? []) as AdminLead[], crmReady: true };
+  if (!isMissingSchemaError(full.error)) throw full.error;
+
+  const basic = await supabase.from("leads").select(ADMIN_LEAD_SELECT).order("created_at", { ascending: false });
+  if (basic.error) throw basic.error;
+  return { leads: (basic.data ?? []) as AdminLead[], crmReady: false };
+}
+
+export const CRM_MIGRATION_NOTICE =
+  "Cơ sở dữ liệu chưa chạy migration supabase/migrations/20261108000000_lead_crm_phase_a.sql: lịch sử hoạt động, mốc thời gian, lưu báo giá và gộp lead đang tạm tắt.";
 
 export interface AdminService {
   id: string;
@@ -74,7 +142,7 @@ export const LEAD_STATUSES: LeadStatus[] = [
 ];
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
-  NEW: "Mới",
+  NEW: "Mới tiếp nhận",
   QUOTED: "Đã báo giá",
   NEGOTIATING: "Đang thương lượng",
   WON: "Đã chốt",
@@ -85,6 +153,7 @@ export const LEAD_SOURCES: LeadSource[] = [
   "WEBSITE_FORM",
   "HOTLINE",
   "ZALO_OA",
+  "FACEBOOK",
   "REFERRAL",
   "OTHER",
 ];
@@ -99,7 +168,8 @@ export const EVENT_STATUSES: EventStatus[] = [
 export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
   WEBSITE_FORM: "Form website",
   HOTLINE: "Hotline",
-  ZALO_OA: "Zalo OA",
+  ZALO_OA: "Zalo",
+  FACEBOOK: "Facebook",
   REFERRAL: "Giới thiệu",
   OTHER: "Khác",
 };

@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabaseLead } from "@/lib/supabase";
-import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
+import { trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
+import { BUDGET_OPTIONS, DEFAULT_BUDGET, DEFAULT_GUESTS, GUEST_OPTIONS } from "@/lib/lead-form-options";
 import { PromotionCombo } from "../data/services-data";
 import {
   Send,
@@ -40,8 +40,8 @@ export default function LeadForm({
     phone: "",
     email: "",
     eventType: initialService || "Tổ chức Sự Kiện & Du Lịch Trọn Gói",
-    estimatedGuests: "100 - 300 khách",
-    budgetRange: "30.000.000đ - 70.000.000đ",
+    estimatedGuests: DEFAULT_GUESTS as string,
+    budgetRange: DEFAULT_BUDGET as string,
     eventDate: "",
     location: "Hà Nội",
     notes: "",
@@ -119,37 +119,37 @@ export default function LeadForm({
     }
 
     try {
-      // Build lead payload
-      const promoText = initialPromo ? ` [COMBO: ${initialPromo.code} - ${initialPromo.title}]` : "";
-      const eventTypeComposite = `${formData.eventType}${promoText} (Quy mô: ${formData.estimatedGuests} | Ngân sách: ${formData.budgetRange})`;
+      // Cổng vào phễu dùng chung: POST /api/leads.
+      // API tự lưu quy mô, ngân sách, ngày vào đúng cột và ghép phần chữ vào ghi chú.
+      const giftNote = initialPromo ? `Quà tặng áp dụng: ${initialPromo.giftItems.join(", ")}` : "";
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.fullName.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || undefined,
+          eventType: formData.eventType,
+          estimatedGuests: formData.estimatedGuests,
+          budgetRange: formData.budgetRange,
+          eventDate: formData.eventDate,
+          location: formData.location,
+          notes: [formData.notes, giftNote].filter(Boolean).join(" | "),
+          promoCode: initialPromo?.code,
+          promoTitle: initialPromo?.title,
+          channel: "GG_FORM",
+        }),
+      });
 
-      const detailedNotes = [
-        formData.notes ? `Yêu cầu: ${formData.notes}` : "",
-        formData.eventDate ? `Ngày dự kiến: ${formData.eventDate}` : "",
-        formData.location ? `Địa điểm: ${formData.location}` : "",
-        initialPromo ? `Quà tặng áp dụng: ${initialPromo.giftItems.join(", ")}` : "",
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
-      const leadRecord: DatabaseLead = {
-        full_name: formData.fullName.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim() || undefined,
-        event_type: eventTypeComposite,
-        notes: detailedNotes,
-      };
-
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.from("leads").insert([leadRecord]);
-        if (error) throw error;
-      } else {
+      if (response.status === 503) {
         // Fallback lưu offline trong localStorage khi chạy môi trường dev/chưa cấu hình Supabase
         const existing = JSON.parse(localStorage.getItem("offline_leads") || "[]");
-        existing.push({ ...leadRecord, created_at: new Date().toISOString() });
+        existing.push({ ...formData, created_at: new Date().toISOString() });
         localStorage.setItem("offline_leads", JSON.stringify(existing));
-        await new Promise((r) => setTimeout(r, 600));
+      } else if (!response.ok) {
+        throw new Error("Không thể lưu yêu cầu báo giá");
       }
+      markLeadFormSubmitted();
 
       setSubmitResult({
         type: "success",
@@ -193,8 +193,8 @@ export default function LeadForm({
         phone: "",
         email: "",
         eventType: "Tổ chức Lễ Khai trương, Khánh thành & Khởi công",
-        estimatedGuests: "100 - 300 khách",
-        budgetRange: "30.000.000đ - 70.000.000đ",
+        estimatedGuests: DEFAULT_GUESTS as string,
+        budgetRange: DEFAULT_BUDGET as string,
         eventDate: "",
         location: "Hà Nội",
         notes: "",
@@ -494,11 +494,9 @@ export default function LeadForm({
                       }
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
                     >
-                      <option value="Dưới 50 khách (Sự kiện nhỏ / Cửa hàng)">Dưới 50 khách (Sự kiện nhỏ / Cửa hàng)</option>
-                      <option value="50 - 150 khách (Quy mô vừa)">50 - 150 khách (Quy mô vừa)</option>
-                      <option value="150 - 300 khách (Doanh nghiệp chuẩn)">150 - 300 khách (Doanh nghiệp chuẩn)</option>
-                      <option value="300 - 600 khách (Quy mô lớn)">300 - 600 khách (Quy mô lớn)</option>
-                      <option value="Trên 600 khách (Đại lễ / Festival / Hội nghị lớn)">Trên 600 khách (Đại lễ / Festival / Hội nghị lớn)</option>
+                      {GUEST_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -516,11 +514,9 @@ export default function LeadForm({
                       }
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
                     >
-                      <option value="Dưới 20.000.000đ (Tiết kiệm)">Dưới 20.000.000đ (Tiết kiệm)</option>
-                      <option value="20.000.000đ - 50.000.000đ">20.000.000đ - 50.000.000đ</option>
-                      <option value="50.000.000đ - 100.000.000đ">50.000.000đ - 100.000.000đ</option>
-                      <option value="100.000.000đ - 250.000.000đ">100.000.000đ - 250.000.000đ</option>
-                      <option value="Trên 250.000.000đ (VIP Đẳng cấp)">Trên 250.000.000đ (VIP Đẳng cấp)</option>
+                      {BUDGET_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
                     </select>
                   </div>
 

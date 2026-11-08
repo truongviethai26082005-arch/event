@@ -1,110 +1,98 @@
 import { NextResponse } from "next/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabasePublicConfig } from "@/lib/supabase/config";
+import {
+  LeadFormInput,
+  buildLeadNotes,
+  isValidPhone,
+  parseBudget,
+  parseEventDate,
+  parseGuestCount,
+} from "@/lib/lead-form-options";
+import { CHANNEL_TO_SOURCE, isLeadChannel } from "@/lib/lead-funnel";
 
-function parseGuestCount(text: string): number | null {
-  if (!text) return null;
-  if (text.includes("Dưới 50")) return 40;
-  if (text.includes("50 - 150")) return 100;
-  if (text.includes("150 - 300")) return 200;
-  if (text.includes("300 - 600")) return 450;
-  if (text.includes("Trên 600")) return 700;
-  const match = text.match(/\d+/);
-  return match ? parseInt(match[0], 10) : null;
-}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function parseBudget(text: string): number | null {
-  if (!text) return null;
-  if (text.includes("Dưới 20")) return 15_000_000;
-  if (text.includes("20.000.000") && text.includes("50.000.000")) return 35_000_000;
-  if (text.includes("50.000.000") && text.includes("100.000.000")) return 75_000_000;
-  if (text.includes("100.000.000") && text.includes("250.000.000")) return 175_000_000;
-  if (text.includes("Trên 250")) return 300_000_000;
-  return null;
-}
-
+/**
+ * CỔNG VÀO PHỄU CHO MỌI FORM "NHẬN KỊCH BẢN & BÁO GIÁ"
+ *  - Form trên /dich-vu
+ *  - Popup hiện khi khách bấm Hotline / Zalo / Facebook / Messenger
+ *  - Trang /dich-vu/nhan-bao-gia?ma=... (link sale gửi khách qua chat)
+ *
+ * Body: LeadFormInput + { token?: uuid, channel?: GG_FORM|ZALO|HOTLINE|FACEBOOK }
+ * Có token khớp lead cũ -> cập nhật lead đó (không tạo trùng). Không có -> tạo lead mới.
+ */
 export async function POST(request: Request) {
+  let body: LeadFormInput & { token?: string; channel?: string };
   try {
-    const body = await request.json();
-    const {
-      fullName,
-      phone,
-      email,
-      eventType,
-      estimatedGuests,
-      budgetRange,
-      eventDate,
-      location,
-      notes,
-      promoCode,
-      promoTitle,
-    } = body;
-
-    if (!fullName || !phone) {
-      return NextResponse.json(
-        { error: "Họ tên và số điện thoại là bắt buộc" },
-        { status: 400 }
-      );
-    }
-
-    const config = getSupabasePublicConfig();
-    if (!config) {
-      return NextResponse.json(
-        { error: "Supabase chưa được cấu hình trên máy chủ." },
-        { status: 503 }
-      );
-    }
-
-    const supabase = createClient(config.url, config.key);
-
-    const guestCount = parseGuestCount(estimatedGuests || "");
-    const budget = parseBudget(budgetRange || "");
-
-    const detailedNotes = [
-      notes ? `Yêu cầu: ${notes}` : "",
-      estimatedGuests ? `Quy mô: ${estimatedGuests}` : "",
-      budgetRange ? `Ngân sách: ${budgetRange}` : "",
-      promoCode ? `Ưu đãi áp dụng: [${promoCode}] ${promoTitle || ""}` : "",
-    ]
-      .filter(Boolean)
-      .join(" | ");
-
-    const record = {
-      full_name: String(fullName).trim(),
-      phone: String(phone).trim(),
-      email: email ? String(email).trim() : null,
-      event_type: String(eventType || "Tư vấn sự kiện & tour").trim(),
-      guest_count: guestCount,
-      budget: budget,
-      event_date: eventDate ? String(eventDate).trim() : null,
-      location: location ? String(location).trim() : "Hà Nội",
-      notes: detailedNotes || null,
-      status: "NEW",
-      source: "WEBSITE_FORM",
-      event_status: "PENDING",
-    };
-
-    const { data, error } = await supabase.from("leads").insert([record]).select();
-
-    if (error) {
-      console.error("[/api/leads] Lỗi Supabase insert:", error);
-      // Fallback: nếu select bị RLS block nhưng insert thành công
-      if (error.code === "42501" && error.message?.includes("row-level security")) {
-        const insertOnly = await supabase.from("leads").insert([record]);
-        if (insertOnly.error) {
-          throw insertOnly.error;
-        }
-        return NextResponse.json({ success: true, message: "Ghi nhận thành công" });
-      }
-      throw error;
-    }
-
-    return NextResponse.json({ success: true, lead: data?.[0] || record });
-  } catch (error: any) {
-    console.error("[/api/leads] Ngoại lệ:", error);
-    return NextResponse.json(
-      { error: error?.message || "Không thể lưu thông tin khách hàng" },
-      { status: 500 }
-    );
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
   }
+
+  const fullName = String(body.fullName || "").trim();
+  const phone = String(body.phone || "").trim();
+  if (!fullName || !phone) {
+    return NextResponse.json({ error: "Họ tên và số điện thoại là bắt buộc" }, { status: 400 });
+  }
+  if (!isValidPhone(phone)) {
+    return NextResponse.json({ error: "Số điện thoại không hợp lệ" }, { status: 400 });
+  }
+
+  const config = getSupabasePublicConfig();
+  if (!config) {
+    return NextResponse.json({ error: "Supabase chưa được cấu hình trên máy chủ." }, { status: 503 });
+  }
+  const supabase = createClient(config.url, config.key);
+
+  const channel = String(body.channel || "").toUpperCase();
+  const lead = {
+    full_name: fullName,
+    phone,
+    email: body.email ? String(body.email).trim() : null,
+    company_name: body.companyName ? String(body.companyName).trim() : null,
+    event_type: String(body.eventType || "Tư vấn sự kiện & báo giá").trim(),
+    guest_count: parseGuestCount(body.estimatedGuests),
+    budget: parseBudget(body.budgetRange),
+    event_date: parseEventDate(body.eventDate),
+    location: body.location ? String(body.location).trim() : null,
+    notes: buildLeadNotes(body) || null,
+    source: isLeadChannel(channel) ? CHANNEL_TO_SOURCE[channel] : "WEBSITE_FORM",
+  };
+  const token = body.token && UUID_RE.test(body.token) ? body.token : null;
+
+  let { data: leadId, error } = await supabase.rpc("submit_lead_form", {
+    p_token: token,
+    p_lead: lead,
+  });
+
+  // DB chưa chạy migration thêm nguồn FACEBOOK -> lưu tạm vào REFERRAL
+  if (error?.code === "23514" && lead.source === "FACEBOOK") {
+    ({ data: leadId, error } = await supabase.rpc("submit_lead_form", {
+      p_token: token,
+      p_lead: { ...lead, source: "REFERRAL", notes: `[Facebook] ${lead.notes || ""}` },
+    }));
+  }
+
+  if (!error) {
+    return NextResponse.json({ success: true, leadId });
+  }
+
+  // DB chưa chạy migration 20261108000000 (chưa có hàm submit_lead_form) -> tạo lead mới như cũ
+  if (error.code === "PGRST202" || error.code === "42883") {
+    const insert = await supabase.from("leads").insert([{ ...lead, status: "NEW" }]);
+    if (!insert.error) return NextResponse.json({ success: true });
+    // DB cũ chưa có nguồn FACEBOOK
+    if (insert.error.code === "23514") {
+      const retry = await supabase
+        .from("leads")
+        .insert([{ ...lead, status: "NEW", source: "REFERRAL", notes: `[Facebook] ${lead.notes || ""}` }]);
+      if (!retry.error) return NextResponse.json({ success: true });
+    }
+    console.error("[/api/leads] Lỗi insert:", insert.error);
+    return NextResponse.json({ error: "Không thể lưu thông tin khách hàng" }, { status: 500 });
+  }
+
+  console.error("[/api/leads] Lỗi submit_lead_form:", error);
+  return NextResponse.json({ error: "Không thể lưu thông tin khách hàng" }, { status: 500 });
 }

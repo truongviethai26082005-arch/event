@@ -51,7 +51,8 @@ export const COMPANY_INFO = {
   website: "https://truonghaievent.com",
   workingHours: "08:00 - 18:00 (Thứ 2 - Thứ 7, Hỗ trợ sự kiện 24/7)",
   socials: {
-    facebook: "https://facebook.com/truonghaievent",
+    facebook: "https://www.facebook.com/truonghaisukienvadulich",
+    messenger: "https://m.me/truonghaisukienvadulich",
     zalo: "https://zalo.me/0844198333",
     youtube: "https://youtube.com/@truonghaievent",
   },
