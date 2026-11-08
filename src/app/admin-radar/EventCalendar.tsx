@@ -397,7 +397,7 @@ export default function EventCalendar({
       const supabase = createSupabaseBrowserClient();
       const newLeadData = {
         full_name: quickForm.fullName || "Khách đặt lịch nhanh",
-        phone: quickForm.phone || "0844 198 333",
+        phone: quickForm.phone || "Chờ cập nhật",
         company_name: quickForm.companyName || null,
         event_type: quickForm.eventType,
         guest_count: quickForm.guestCount ? Number(quickForm.guestCount) : null,

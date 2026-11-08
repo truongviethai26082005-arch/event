@@ -17,17 +17,12 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ConversionFunnel from "@/app/admin-radar/ConversionFunnel";
 import CustomerSourcesChart from "@/app/admin-radar/CustomerSourcesChart";
 import EventCalendar from "@/app/admin-radar/EventCalendar";
+import FollowUpTasks from "@/app/admin-radar/FollowUpTasks";
 import {
   AdminLead,
-  ADMIN_LEAD_SELECT,
-  LEAD_SOURCE_LABELS,
-  LEAD_SOURCES,
-  LEAD_STATUS_LABELS,
-  LEAD_STATUSES,
-  LeadSource,
   LeadStatus,
+  fetchAdminLeads,
   formatCurrency,
-  formatDate,
   getDatabaseError,
 } from "@/app/admin/_components/admin-types";
 
@@ -44,17 +39,14 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState("");
   const [now, setNow] = useState<Date | null>(null);
   const [selectedStage, setSelectedStage] = useState<LeadStatus | null>(null);
-  const [selectedSource, setSelectedSource] = useState<LeadSource | null>(null);
+  const [crmReady, setCrmReady] = useState(true);
 
   const loadLeads = useCallback(async () => {
     try {
       const supabase = createSupabaseBrowserClient();
-      const { data, error: queryError } = await supabase
-        .from("leads")
-        .select(ADMIN_LEAD_SELECT)
-        .order("created_at", { ascending: false });
-      if (queryError) throw queryError;
-      setLeads((data ?? []) as AdminLead[]);
+      const result = await fetchAdminLeads(supabase);
+      setLeads(result.leads);
+      setCrmReady(result.crmReady);
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -136,34 +128,6 @@ export default function AdminDashboardPage() {
     };
   }, [leads, now]);
 
-
-  const stageCounts = LEAD_STATUSES.map((status) => ({
-    status,
-    count: leads.filter((lead) => lead.status === status).length,
-  }));
-  const maxStage = Math.max(1, ...stageCounts.map((stage) => stage.count));
-  const sourceCounts = LEAD_SOURCES.map((source) => ({
-    source,
-    count: leads.filter((lead) => lead.source === source).length,
-  }));
-  const sourceTotal = sourceCounts.reduce((sum, source) => sum + source.count, 0);
-  const sourceColors = ["#0A1E5E", "#D4AF37", "#22c55e", "#f97316", "#94a3b8"];
-  let sourceOffset = 0;
-  const sourceGradient = sourceTotal
-    ? `conic-gradient(${sourceCounts
-        .map(({ count }, index) => {
-          const start = sourceOffset;
-          sourceOffset += (count / sourceTotal) * 100;
-          return `${sourceColors[index]} ${start}% ${sourceOffset}%`;
-        })
-        .join(", ")})`
-    : "#e2e8f0";
-  const selectedSourceData = sourceCounts.find(
-    (item) => item.source === selectedSource
-  );
-  const selectedStageData = stageCounts.find(
-    (item) => item.status === selectedStage
-  );
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
@@ -282,6 +246,8 @@ export default function AdminDashboardPage() {
           <CustomerSourcesChart leads={leads} />
         </div>
       </section>
+
+      <FollowUpTasks leads={leads} crmReady={crmReady} />
 
       <EventCalendar leads={leads} onRefreshLeads={loadLeads} />
     </div>

@@ -68,5 +68,9 @@ export interface DatabaseLead {
   email?: string;
   event_type: string;
   notes?: string;
+  /** Giai đoạn phễu, lead mới luôn là "NEW" (xem src/lib/lead-funnel.ts). */
+  status?: "NEW";
+  /** Nguồn vào phễu. */
+  source?: "WEBSITE_FORM" | "HOTLINE" | "ZALO_OA" | "FACEBOOK" | "REFERRAL" | "OTHER";
   created_at?: string;
 }

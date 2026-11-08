@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingContactWidget from "@/components/FloatingContactWidget";
+import LeadCapturePopup from "@/components/LeadCapturePopup";
 
 const openSans = Open_Sans({
   variable: "--font-open-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <FloatingContactWidget />
+        <LeadCapturePopup />
       </body>
     </html>
   );

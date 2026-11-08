@@ -44,7 +44,7 @@ export default function FloatingContactWidget() {
     {
       id: "messenger",
       label: "Nhắn tin Messenger",
-      href: "https://m.me/truonghaievent",
+      href: COMPANY_INFO.socials.messenger,
       bgClass: "bg-gradient-to-tr from-[#006AFF] via-[#00B2FF] to-[#A824FB] hover:opacity-95 shadow-[#006AFF]/30",
       leadSource: "FACEBOOK",
       icon: (

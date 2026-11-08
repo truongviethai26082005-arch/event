@@ -9,10 +9,14 @@ import {
   PhoneCall,
   Share2,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { FunnelLeadItem } from "./ConversionFunnel";
+import { LeadSource, LEAD_SOURCES, LEAD_SOURCE_LABELS } from "@/app/admin/_components/admin-types";
+import { SOURCE_ENTRY_RULES, resolveLeadSource } from "@/lib/lead-funnel";
 
-export type CustomerSourceType = "GG_FORM" | "ZALO" | "HOTLINE" | "FACEBOOK";
+/** Nguồn khách = cột `source` trong bảng leads (chuẩn hóa bởi resolveLeadSource). */
+export type CustomerSourceType = LeadSource;
 
 interface CustomerSourcesChartProps {
   leads: FunnelLeadItem[];
@@ -20,66 +24,20 @@ interface CustomerSourcesChartProps {
   onSelectSource?: (source: CustomerSourceType | null) => void;
 }
 
-interface SourceConfig {
-  type: CustomerSourceType;
-  label: string;
-  shortLabel: string;
-  color: string;
-  bgLight: string;
-  borderLight: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  crmQueryParam: string;
-}
-
-const SOURCES_CONFIG: Record<CustomerSourceType, SourceConfig> = {
-  GG_FORM: {
-    type: "GG_FORM",
-    label: "GG Form",
-    shortLabel: "GG Form",
-    color: "#0A1E5E", // Brand Navy Blue
-    bgLight: "bg-blue-50 text-blue-900 border-blue-200",
-    borderLight: "border-blue-200",
-    icon: FileText,
-    description: "Khách hàng điền form nhận báo giá trực tuyến trên Landing Page & GG Form",
-    crmQueryParam: "WEBSITE_FORM",
-  },
-  ZALO: {
-    type: "ZALO",
-    label: "Zalo",
-    shortLabel: "Zalo",
-    color: "#0068FF", // Zalo Official Blue
-    bgLight: "bg-sky-50 text-sky-900 border-sky-200",
-    borderLight: "border-sky-200",
-    icon: MessageSquare,
-    description: "Khách hàng nhấp vào nút Chat Zalo trực tiếp với chuyên viên tư vấn 1-1",
-    crmQueryParam: "ZALO_OA",
-  },
-  HOTLINE: {
-    type: "HOTLINE",
-    label: "Hotline",
-    shortLabel: "Hotline",
-    color: "#D4AF37", // Gold
-    bgLight: "bg-amber-50 text-amber-900 border-amber-200",
-    borderLight: "border-amber-200",
-    icon: PhoneCall,
-    description: "Khách hàng bấm gọi qua đường dây nóng Hotline 24/7 (0844 198 333)",
-    crmQueryParam: "HOTLINE",
-  },
-  FACEBOOK: {
-    type: "FACEBOOK",
-    label: "Facebook",
-    shortLabel: "Facebook",
-    color: "#1877F2", // Facebook Blue
-    bgLight: "bg-indigo-50 text-indigo-900 border-indigo-200",
-    borderLight: "border-indigo-200",
-    icon: Share2,
-    description: "Khách hàng liên hệ qua Fanpage Facebook Trường Hải Event & Travel",
-    crmQueryParam: "REFERRAL",
-  },
+const SOURCE_STYLE: Record<
+  CustomerSourceType,
+  { color: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  WEBSITE_FORM: { color: "#0A1E5E", icon: FileText },
+  ZALO_OA: { color: "#0068FF", icon: MessageSquare },
+  HOTLINE: { color: "#D4AF37", icon: PhoneCall },
+  FACEBOOK: { color: "#1877F2", icon: Share2 },
+  REFERRAL: { color: "#22C55E", icon: Users },
+  OTHER: { color: "#94A3B8", icon: Sparkles },
 };
 
-const SOURCE_ORDER: CustomerSourceType[] = ["GG_FORM", "ZALO", "HOTLINE", "FACEBOOK"];
+/** 4 kênh website luôn hiển thị; Giới thiệu / Khác chỉ hiện khi có dữ liệu. */
+const ALWAYS_SHOWN: CustomerSourceType[] = ["WEBSITE_FORM", "ZALO_OA", "HOTLINE", "FACEBOOK"];
 
 export default function CustomerSourcesChart({
   leads,
@@ -103,53 +61,29 @@ export default function CustomerSourcesChart({
     }
   };
 
-  // Phân loại nguồn lead từ dữ liệu thật
   const sourceStats = useMemo(() => {
-    const counts: Record<CustomerSourceType, number> = {
-      GG_FORM: 0,
-      ZALO: 0,
-      HOTLINE: 0,
-      FACEBOOK: 0,
-    };
-
+    const counts = Object.fromEntries(LEAD_SOURCES.map((s) => [s, 0])) as Record<
+      CustomerSourceType,
+      number
+    >;
     leads.forEach((lead) => {
-      const src = (lead.source || "").toUpperCase();
-      const notes = (lead.notes || "").toUpperCase();
-      const name = (lead.full_name || "").toUpperCase();
-
-      if (src.includes("ZALO") || notes.includes("ZALO") || name.includes("ZALO")) {
-        counts.ZALO += 1;
-      } else if (
-        src.includes("HOTLINE") ||
-        notes.includes("HOTLINE") ||
-        name.includes("HOTLINE") ||
-        notes.includes("GỌI")
-      ) {
-        counts.HOTLINE += 1;
-      } else if (
-        src.includes("FACEBOOK") ||
-        src.includes("FB") ||
-        notes.includes("FACEBOOK") ||
-        name.includes("FACEBOOK") ||
-        src === "REFERRAL"
-      ) {
-        counts.FACEBOOK += 1;
-      } else {
-        // Mặc định các form điền trên website
-        counts.GG_FORM += 1;
-      }
+      counts[resolveLeadSource(lead)] += 1;
     });
 
     const total = leads.length;
 
-    return SOURCE_ORDER.map((type) => {
-      const cfg = SOURCES_CONFIG[type];
+    return LEAD_SOURCES.filter(
+      (type) => ALWAYS_SHOWN.includes(type) || counts[type] > 0
+    ).map((type) => {
       const count = counts[type];
-      const percentage = total > 0 ? (count / total) * 100 : 0;
       return {
-        ...cfg,
+        type,
+        label: LEAD_SOURCE_LABELS[type],
+        color: SOURCE_STYLE[type].color,
+        icon: SOURCE_STYLE[type].icon,
+        description: SOURCE_ENTRY_RULES[type],
         count,
-        percentage,
+        percentage: total > 0 ? (count / total) * 100 : 0,
       };
     });
   }, [leads]);
@@ -157,18 +91,15 @@ export default function CustomerSourcesChart({
   const totalLeads = leads.length;
 
   // Tạo Conic Gradient cho biểu đồ tròn Donut
-  let cumulative = 0;
   const conicGradient = useMemo(() => {
     if (totalLeads === 0) return "#e2e8f0";
 
-    const slices = sourceStats
-      .filter((s) => s.count > 0)
-      .map((s) => {
-        const start = cumulative;
-        const slicePct = (s.count / totalLeads) * 100;
-        cumulative += slicePct;
-        return `${s.color} ${start.toFixed(1)}% ${cumulative.toFixed(1)}%`;
-      });
+    const nonEmpty = sourceStats.filter((s) => s.count > 0);
+    const slices = nonEmpty.map((s, i) => {
+      const start = nonEmpty.slice(0, i).reduce((sum, x) => sum + (x.count / totalLeads) * 100, 0);
+      const end = start + (s.count / totalLeads) * 100;
+      return `${s.color} ${start.toFixed(1)}% ${end.toFixed(1)}%`;
+    });
 
     return slices.length > 0 ? `conic-gradient(${slices.join(", ")})` : "#e2e8f0";
   }, [sourceStats, totalLeads]);
@@ -209,7 +140,7 @@ export default function CustomerSourcesChart({
           </div>
         </div>
 
-        {/* Danh sách 4 nguồn: GG Form, Zalo, Hotline, Facebook */}
+        {/* Danh sách nguồn vào phễu */}
         <div className="w-full space-y-1.5">
           {sourceStats.map((item) => {
             const isSelected = selectedSource === item.type;
@@ -261,7 +192,7 @@ export default function CustomerSourcesChart({
                 {selectedData.description}
               </p>
               <Link
-                href={`/admin/leads?source=${selectedData.crmQueryParam}`}
+                href={`/admin/leads?source=${selectedData.type}`}
                 className="inline-flex items-center gap-1 font-bold text-[#0A1E5E] hover:underline text-[11px] pt-1"
               >
                 <span>Xem danh sách lead nguồn này</span>
