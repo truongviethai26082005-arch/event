@@ -423,6 +423,30 @@ export default function AdminLeadsPage() {
     setQuoteSaveNotice(`Đang xem báo giá v${quote.version}. Chỉnh sửa rồi gửi lại sẽ lưu thành phiên bản mới.`);
   };
 
+  /**
+   * In / lưu PDF báo giá:
+   *  - luôn chuyển về bản xem trước A4 (tab "Chỉnh sửa" không có bản in)
+   *  - bật class "printing-quote" trên <html> CHỈ trong lúc in, để CSS in báo giá
+   *    không ảnh hưởng tới việc in các trang khác
+   */
+  const printQuote = () => {
+    void saveQuote("PDF");
+    setQuoteViewTab("preview");
+    const root = document.documentElement;
+    const cleanup = () => {
+      root.classList.remove("printing-quote");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    // Chờ React vẽ xong bản A4 rồi mới mở hộp thoại in
+    window.setTimeout(() => {
+      root.classList.add("printing-quote");
+      window.print();
+      // Một số trình duyệt không bắn afterprint: dọn dự phòng
+      window.setTimeout(cleanup, 1000);
+    }, 200);
+  };
+
   const copyZaloSummary = () => {
     if (!quoteLead) return;
     void saveQuote("Zalo");
@@ -1085,10 +1109,7 @@ export default function AdminLeadsPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    void saveQuote("PDF");
-                    window.print();
-                  }}
+                  onClick={printQuote}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A1E5E] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#142d75] transition"
                   title="Mở hộp thoại in hoặc lưu file PDF khổ A4"
                 >
@@ -1554,34 +1575,43 @@ export default function AdminLeadsPage() {
               )}
             </div>
 
-            {/* Print CSS Stylesheet */}
+            {/* Print CSS: chỉ có hiệu lực khi đang in báo giá (html.printing-quote) */}
             <style jsx global>{`
               @media print {
                 @page {
                   size: A4 portrait;
                   margin: 8mm 10mm 8mm 10mm;
                 }
-                body * {
-                  visibility: hidden !important;
+                /* Ẩn hẳn mọi thứ không chứa bản báo giá (không chiếm chỗ, không sinh trang trắng) */
+                html.printing-quote body *:not(:has(.quote-a4-document)):not(.quote-a4-document):not(.quote-a4-document *) {
+                  display: none !important;
                 }
-                .quote-a4-document,
-                .quote-a4-document * {
-                  visibility: visible !important;
+                /* Các khung bao ngoài bản báo giá (kể cả cửa sổ nổi .fixed mà globals.css ẩn khi in) */
+                html.printing-quote body *:has(.quote-a4-document) {
+                  display: block !important;
+                  position: static !important;
+                  inset: auto !important;
+                  overflow: visible !important;
+                  max-height: none !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  width: auto !important;
+                  max-width: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                  transform: none !important;
                 }
-                .quote-a4-document {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 100% !important;
+                html.printing-quote .quote-a4-document {
                   max-width: 100% !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   box-shadow: none !important;
                   border: none !important;
-                  background: white !important;
-                }
-                .quote-no-print {
-                  display: none !important;
+                  border-radius: 0 !important;
+                  background: #ffffff !important;
                 }
               }
             `}</style>
