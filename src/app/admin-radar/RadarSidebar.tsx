@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Radar,
   Sparkles,
+  SearchCheck,
   Compass,
   Globe,
   FileText,
@@ -21,6 +22,7 @@ import {
 import { signOut } from "@/app/admin-radar/actions";
 
 export type RadarNavSection =
+  | "top_google"
   | "viet_bai"
   | "duyet_bai"
   | "bo_nao"
@@ -89,6 +91,13 @@ export default function RadarSidebar({
 
   // 5 Canonical Items requested by the user
   const navItems: NavItem[] = [
+    {
+      id: "top_google",
+      number: "0",
+      label: "Top Google",
+      subtitle: "",
+      icon: SearchCheck,
+    },
     {
       id: "viet_bai",
       number: "1",
