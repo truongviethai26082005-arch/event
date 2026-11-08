@@ -1,24 +1,17 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock,
   Filter,
-  Layers,
   MapPin,
   Plus,
-  Search,
-  Sparkles,
-  Tag,
-  Trash2,
   Users,
   Wrench,
   X,
@@ -32,6 +25,7 @@ import {
   LeadStatus,
 } from "@/app/admin/_components/admin-types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { calendarKind } from "@/lib/lead-funnel";
 
 export type CalendarEventCategory = "su-kien" | "du-lich" | "thiet-bi";
 
@@ -56,152 +50,17 @@ export interface ExtendedCalendarEvent extends Partial<AdminLead> {
   equipment_status?: string | null;
   payment_status?: string;
   notes?: string | null;
+  /** true: lead Đã báo giá / Đang thương lượng có ngày dự kiến (chưa chốt) */
+  tentative?: boolean;
 }
 
 interface EventCalendarProps {
-  leads: any[];
+  leads: AdminLead[];
   onRefreshLeads?: () => void;
   showWrapperCard?: boolean;
 }
 
 type CalendarMode = "month" | "week";
-
-// Mẫu dữ liệu sự kiện vận hành thực tế của Trường Hải Event & Travel (Tháng 10/2026)
-// Đảm bảo có sự kiện Hôm nay (23/10), Sắp diễn ra trong 3 ngày (24-26/10), và sự kiện cảnh báo trùng lịch
-const DEFAULT_OPERATIONAL_EVENTS: ExtendedCalendarEvent[] = [
-  {
-    id: "evt-live-today",
-    full_name: "Trần Đình Nam",
-    company_name: "Công ty Cổ phần Ô tô Nam Hải",
-    phone: "0918 234 567",
-    email: "nam.td@namhai-auto.vn",
-    event_type: "Lễ Khai trương Showroom Ô tô Nam Hải",
-    category: "su-kien",
-    guest_count: 250,
-    budget: 85000000,
-    actual_revenue: 85000000,
-    event_date: "2026-10-23", // Hôm nay
-    event_time: "08:30:00",
-    end_time: "12:00:00",
-    event_status: "IN_PROGRESS", // Đang diễn ra (Màu xanh dương)
-    status: "WON",
-    location: "Showroom Nam Hải, Cầu Giấy, Hà Nội",
-    assigned_to: "Mr. Tuấn Anh (Lead Kỹ thuật)",
-    equipment_status: "Màn hình LED P3, Âm thanh Line Array RCF, Múa Lân Sư Rồng",
-    payment_status: "Đã đặt cọc 70% (59.500.000đ)",
-    notes: "Sự kiện chạy trực tiếp trong buổi sáng hôm nay. Đội kỹ thuật đã có mặt từ 06:00.",
-  },
-  {
-    id: "evt-urgent-24",
-    full_name: "Bà Nguyễn Thùy Dung",
-    company_name: "Tập đoàn FPT Telecom",
-    phone: "0904 123 987",
-    email: "dung.nt@fpt.com.vn",
-    event_type: "Hội nghị Tri ân Khách hàng VIP FPT 2026",
-    category: "su-kien",
-    guest_count: 400,
-    budget: 160000000,
-    actual_revenue: 160000000,
-    event_date: "2026-10-24", // Ngày mai (Khẩn cấp 24h - Màu đỏ)
-    event_time: "14:00:00",
-    end_time: "18:30:00",
-    event_status: "CONFIRMED",
-    status: "WON",
-    location: "Khách sạn Meliá Hà Nội (Sảnh Grand Ballroom)",
-    assigned_to: "Mr. Tuấn Anh (Lead Kỹ thuật)",
-    equipment_status: "Hệ thống ánh sáng Moving Head Beam, Micro Shure không dây",
-    payment_status: "Đã thanh toán 100% (160.000.000đ)",
-    notes: "Cảnh báo khẩn cấp: Diễn ra trong 24h tới! Cần tổng kiểm tra xe tải thiết bị tối nay.",
-  },
-  {
-    id: "evt-conflict-a",
-    full_name: "Mr. Lê Hoàng Long",
-    company_name: "Hội Doanh nhân Trẻ Hà Nội",
-    phone: "0903 112 233",
-    email: "long.lh@sunshine.vn",
-    event_type: "Gala Dinner Kết nối Doanh nhân Trẻ 2026",
-    category: "su-kien",
-    guest_count: 300,
-    budget: 120000000,
-    actual_revenue: 120000000,
-    event_date: "2026-10-25", // 2 ngày tới (Khẩn cấp & Xung đột)
-    event_time: "18:00:00",
-    end_time: "21:30:00",
-    event_status: "CONFIRMED",
-    status: "WON",
-    location: "Trung tâm Hội nghị Quốc gia (Sảnh Hoa Sen)",
-    assigned_to: "Ms. Mai Linh (Điều phối sự kiện)",
-    equipment_status: "Sân khấu 3D, Âm thanh biểu diễn ca nhạc",
-    payment_status: "Đã đặt cọc 50% (60.000.000đ)",
-    notes: "Cần chú ý trùng địa điểm và nhân sự với sự kiện Kỷ niệm DAMSAN!",
-  },
-  {
-    id: "evt-conflict-b",
-    full_name: "Mr. Vũ Minh Trí",
-    company_name: "Công ty Cổ phần DAMSAN",
-    phone: "0912 888 999",
-    email: "tri.vm@damsan.vn",
-    event_type: "Lễ Kỷ niệm 15 năm Thành lập DAMSAN",
-    category: "su-kien",
-    guest_count: 280,
-    budget: 110000000,
-    actual_revenue: 110000000,
-    event_date: "2026-10-25", // CÙNG NGÀY 25/10 - XUNG ĐỘT ĐỊA ĐIỂM & NHÂN SỰ
-    event_time: "17:30:00",
-    end_time: "21:00:00",
-    event_status: "CONFIRMED",
-    status: "WON",
-    location: "Trung tâm Hội nghị Quốc gia (Sảnh Hoa Sen)",
-    assigned_to: "Ms. Mai Linh (Điều phối sự kiện)",
-    equipment_status: "Màn hình LED, Backdrop chụp hình cánh hoa",
-    payment_status: "Đã đặt cọc 50% (55.000.000đ)",
-    notes: "Xung đột: Trùng sảnh Hoa Sen và trùng người điều phối Ms. Mai Linh vào tối 25/10!",
-  },
-  {
-    id: "evt-tour-28",
-    full_name: "Đỗ Hoàng Sơn",
-    company_name: "Công ty Dược phẩm Eco Pharma",
-    phone: "0988 555 444",
-    email: "son.dh@ecopharma.vn",
-    event_type: "Tour Du Lịch Teambuilding 3N2Đ Hạ Long",
-    category: "du-lich",
-    guest_count: 180,
-    budget: 210000000,
-    actual_revenue: 210000000,
-    event_date: "2026-10-28",
-    event_time: "07:00:00",
-    end_time: "19:00:00",
-    event_status: "CONFIRMED", // Xanh lá
-    status: "WON",
-    location: "Khu du lịch Bãi Cháy, Hạ Long, Quảng Ninh",
-    assigned_to: "Mr. Quốc Bảo (Tour Leader)",
-    equipment_status: "Áo đồng phục, Đồ chơi game bãi biển 10 trò, Sân khấu Gala",
-    payment_status: "Đã đặt cọc 50% (105.000.000đ)",
-    notes: "Đoàn khởi hành từ Hà Nội lúc 07:00 sáng. Yêu cầu 4 xe Universe 45 chỗ đời mới.",
-  },
-  {
-    id: "evt-maintenance-30",
-    full_name: "Đội Bảo Trì Nội Bộ",
-    company_name: "Trường Hải Event & Travel",
-    phone: "0844 198 333",
-    email: "kythuat@truonghai.vn",
-    event_type: "Khảo sát Sảnh tiệc & Bảo trì Thiết bị Âm thanh Ánh sáng",
-    category: "thiet-bi",
-    guest_count: null,
-    budget: 15000000,
-    actual_revenue: 15000000,
-    event_date: "2026-10-30",
-    event_time: "09:00:00",
-    end_time: "15:00:00",
-    event_status: "CONFIRMED",
-    status: "WON",
-    location: "Khách sạn Lotte Hà Nội (Liễu Giai)",
-    assigned_to: "Đội Kỹ thuật Âm thanh 2",
-    equipment_status: "Kiểm định giàn truss, bảo dưỡng loa sub, đèn laser sân khấu",
-    payment_status: "Chi phí nội bộ",
-    notes: "Bảo trì định kỳ chuẩn bị cho chuỗi sự kiện Noel & Year End Party cuối năm.",
-  },
-];
 
 function monthStart(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -225,65 +84,67 @@ export default function EventCalendar({
   onRefreshLeads,
   showWrapperCard = true,
 }: EventCalendarProps) {
-  const [calendarDate, setCalendarDate] = useState<Date>(new Date(2026, 9, 23)); // 23/10/2026
+  // Ngày thật, chỉ xác định ở trình duyệt (tránh lệch giữa máy chủ dựng trang và máy người xem)
+  const [today, setToday] = useState<Date | null>(null);
+  const [calendarDate, setCalendarDate] = useState<Date>(() => new Date());
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("month");
   const [filterType, setFilterType] = useState<"ALL" | CalendarEventCategory>("ALL");
   const [selectedEvent, setSelectedEvent] = useState<ExtendedCalendarEvent | null>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [quickAddDate, setQuickAddDate] = useState("2026-10-28");
   const [savingQuickAdd, setSavingQuickAdd] = useState(false);
 
   // Form thêm sự kiện nhanh
-  const [quickForm, setQuickForm] = useState({
+  // Không gán sẵn ngân sách / số khách: số giả sẽ bị cộng thẳng vào doanh thu
+  const emptyQuickForm = (date: string) => ({
     fullName: "",
     phone: "",
     companyName: "",
-    eventType: "Hội nghị khách hàng & Gala",
-    category: "su-kien" as CalendarEventCategory,
-    eventDate: "2026-10-28",
+    eventType: "",
+    eventDate: date,
     eventTime: "09:00",
-    location: "Trung tâm Hội nghị",
-    guestCount: "200",
-    budget: "80000000",
-    assignedTo: "Mr. Tuấn Anh (Lead Kỹ thuật)",
+    location: "",
+    guestCount: "",
+    budget: "",
+    assignedTo: "",
     notes: "",
   });
+  const [quickForm, setQuickForm] = useState(() => emptyQuickForm(""));
+  const [quickAddError, setQuickAddError] = useState("");
 
-  const now = new Date(2026, 9, 23); // Ngày hệ thống chuẩn 23/10/2026
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const current = new Date();
+      setToday(current);
+      setCalendarDate(current);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
-  // Hợp nhất dữ liệu sự kiện từ CRM leads và các sự kiện mẫu chuẩn
+  const now = today ?? new Date(0);
+
+  // Sự kiện trên lịch lấy 100% từ CRM:
+  //  - Đã chốt -> sự kiện chính thức
+  //  - Đã báo giá / Đang thương lượng có ngày -> "Dự kiến" (viền nét đứt)
+  //  - Mới tiếp nhận / Không thành / Đã hủy / chưa có ngày -> không lên lịch
   const allEvents: ExtendedCalendarEvent[] = useMemo(() => {
-    // 1. Trích xuất sự kiện từ leads
-    const extractedFromLeads: ExtendedCalendarEvent[] = leads
-      .filter((lead) => Boolean(lead.event_date) || (lead.notes && lead.notes.includes("Ngày dự kiến:")))
-      .map((lead) => {
-        let extractedDate = lead.event_date?.slice(0, 10);
-        if (!extractedDate && lead.notes) {
-          const match = lead.notes.match(/Ngày dự kiến:\s*(\d{4}-\d{2}-\d{2})/);
-          if (match) extractedDate = match[1];
-        }
-
-        const isTour =
-          lead.event_type.toLowerCase().includes("tour") ||
-          lead.event_type.toLowerCase().includes("teambuilding") ||
-          lead.event_type.toLowerCase().includes("du lịch");
-
-        return {
+    return leads.flatMap((lead) => {
+      const kind = calendarKind(lead);
+      if (!kind) return [];
+      const type = String(lead.event_type || "").toLowerCase();
+      const isTour = type.includes("tour") || type.includes("team building") || type.includes("teambuilding") || type.includes("du lịch");
+      const tentative = kind === "TENTATIVE";
+      return [
+        {
           ...lead,
           id: lead.id,
-          event_date: extractedDate || "2026-10-23",
+          event_date: String(lead.event_date).slice(0, 10),
           category: isTour ? "du-lich" : "su-kien",
-          event_status: lead.event_status || (lead.status === "WON" ? "CONFIRMED" : "PENDING"),
-          payment_status: lead.status === "WON" ? "Đã ký hợp đồng & cọc" : "Chờ chốt cọc",
-        };
-      });
-
-    // 2. Gộp với các sự kiện vận hành thực tế đã chuẩn bị
-    const map = new Map<string, ExtendedCalendarEvent>();
-    DEFAULT_OPERATIONAL_EVENTS.forEach((e) => map.set(e.id, e));
-    extractedFromLeads.forEach((e) => map.set(e.id, e));
-
-    return Array.from(map.values());
+          event_status: tentative ? "PENDING" : lead.event_status || "CONFIRMED",
+          payment_status: tentative ? "Chưa chốt: đang báo giá / thương lượng" : "Đã ký hợp đồng & nhận cọc",
+          tentative,
+        } as ExtendedCalendarEvent,
+      ];
+    });
   }, [leads]);
 
   // Bộ lọc theo loại hình
@@ -296,10 +157,11 @@ export default function EventCalendar({
   const conflictsMap = useMemo(() => {
     const conflicts = new Map<string, string[]>(); // eventId -> list of conflict reasons
 
-    for (let i = 0; i < allEvents.length; i++) {
-      for (let j = i + 1; j < allEvents.length; j++) {
-        const e1 = allEvents[i];
-        const e2 = allEvents[j];
+    const confirmed = allEvents.filter((e) => !e.tentative);
+    for (let i = 0; i < confirmed.length; i++) {
+      for (let j = i + 1; j < confirmed.length; j++) {
+        const e1 = confirmed[i];
+        const e2 = confirmed[j];
 
         // Nếu trùng ngày
         if (e1.event_date === e2.event_date) {
@@ -361,7 +223,7 @@ export default function EventCalendar({
   };
 
   const jumpToToday = () => {
-    setCalendarDate(new Date(2026, 9, 23));
+    setCalendarDate(new Date());
   };
 
   const calendarTitle = useMemo(() => {
@@ -377,48 +239,47 @@ export default function EventCalendar({
   }, [calendarDate, calendarDays, calendarMode]);
 
   // Mở popup thêm nhanh sự kiện vào ngày được nhấp đúp
-  const handleDayDoubleClick = (dateStr: string) => {
-    setQuickAddDate(dateStr);
-    setQuickForm((prev) => ({
-      ...prev,
-      eventDate: dateStr,
-      fullName: "",
-      phone: "",
-    }));
+  const openQuickAdd = (dateStr: string) => {
+    setQuickForm(emptyQuickForm(dateStr));
+    setQuickAddError("");
     setIsQuickAddOpen(true);
   };
+  const handleDayDoubleClick = (dateStr: string) => openQuickAdd(dateStr);
 
   // Lưu sự kiện mới vào Supabase / State
   const handleSaveQuickEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingQuickAdd(true);
 
+    setQuickAddError("");
     try {
       const supabase = createSupabaseBrowserClient();
+      // Sự kiện thêm thẳng vào lịch = hợp đồng ĐÃ CHỐT (khách đặt trực tiếp, không qua website)
       const newLeadData = {
-        full_name: quickForm.fullName || "Khách đặt lịch nhanh",
-        phone: quickForm.phone || "Chờ cập nhật",
-        company_name: quickForm.companyName || null,
-        event_type: quickForm.eventType,
+        full_name: quickForm.fullName.trim(),
+        phone: quickForm.phone.trim(),
+        company_name: quickForm.companyName.trim() || null,
+        event_type: quickForm.eventType.trim(),
         guest_count: quickForm.guestCount ? Number(quickForm.guestCount) : null,
-        budget: quickForm.budget ? Number(quickForm.budget) : null,
+        budget: quickForm.budget ? Number(String(quickForm.budget).replace(/[^\d]/g, "")) : null,
         event_date: quickForm.eventDate,
-        event_time: quickForm.eventTime ? `${quickForm.eventTime}:00` : "09:00:00",
+        event_time: quickForm.eventTime ? `${quickForm.eventTime}:00` : null,
         event_status: "CONFIRMED",
         status: "WON",
-        location: quickForm.location || "Hà Nội",
-        assigned_to: quickForm.assignedTo || "Mr. Tuấn Anh",
-        notes: `[Tạo nhanh từ Lịch] ${quickForm.notes || "Sự kiện được lập lịch trực tiếp"}`,
-        source: "WEBSITE_FORM",
+        location: quickForm.location.trim() || null,
+        assigned_to: quickForm.assignedTo.trim() || null,
+        notes: `[Tạo từ Lịch sự kiện] ${quickForm.notes}`.trim(),
+        source: "OTHER",
       };
 
-      await supabase.from("leads").insert([newLeadData]);
+      const { error } = await supabase.from("leads").insert([newLeadData]);
+      if (error) throw error;
       if (onRefreshLeads) onRefreshLeads();
+      setIsQuickAddOpen(false);
     } catch (err) {
-      console.warn("Lỗi lưu sự kiện vào DB:", err);
+      setQuickAddError(err instanceof Error ? err.message : "Không lưu được sự kiện.");
     } finally {
       setSavingQuickAdd(false);
-      setIsQuickAddOpen(false);
     }
   };
 
@@ -443,17 +304,24 @@ export default function EventCalendar({
 
   const content = (
     <div className="space-y-4">
-      {/* CẢNH BÁO XUNG ĐỘT TRÙNG LỊCH (COLLISION ALERT BANNER) */}
+      {/* CẢNH BÁO TRÙNG LỊCH: tự phát hiện từ các sự kiện ĐÃ CHỐT */}
       {conflictsMap.size > 0 && (
-        <div className="flex items-start gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900 shadow-sm animate-pulse">
+        <div className="flex items-start gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900 shadow-sm">
           <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
           <div className="flex-1 text-xs">
             <h4 className="font-extrabold text-rose-900 uppercase tracking-wide">
-              Phát hiện {conflictsMap.size / 2} xung đột vận hành (Trùng địa điểm &amp; Nhân sự)!
+              {conflictsMap.size} sự kiện đã chốt bị trùng địa điểm / nhân sự
             </h4>
-            <p className="mt-1 text-rose-800 leading-relaxed">
-              Vào ngày <strong>25/10/2026</strong>, hai sự kiện &ldquo;Gala Dinner Kết nối Doanh nhân Trẻ&rdquo; và &ldquo;Lễ Kỷ niệm 15 năm DAMSAN&rdquo; đang cùng chọn <strong>Trung tâm Hội nghị Quốc gia</strong> và cùng phân công <strong>Ms. Mai Linh</strong>. Vui lòng kiểm tra và điều phối lại!
-            </p>
+            <ul className="mt-1 list-disc pl-4 text-rose-800 leading-relaxed">
+              {allEvents
+                .filter((e) => conflictsMap.has(e.id))
+                .slice(0, 4)
+                .map((e) => (
+                  <li key={e.id}>
+                    <strong>{formatDate(e.event_date)}</strong> · {e.full_name}: {conflictsMap.get(e.id)?.[0]}
+                  </li>
+                ))}
+            </ul>
           </div>
         </div>
       )}
@@ -466,11 +334,16 @@ export default function EventCalendar({
               Lịch điều hành sự kiện &amp; Tour
             </h2>
             <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-[#0A1E5E]">
-              {filteredEvents.length} sự kiện
+              {filteredEvents.filter((e) => !e.tentative).length} đã chốt
             </span>
+            {filteredEvents.some((e) => e.tentative) && (
+              <span className="rounded-full border border-dashed border-slate-300 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                {filteredEvents.filter((e) => e.tentative).length} dự kiến
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-slate-500 capitalize">
-            {calendarTitle} &bull; Nhấp đúp vào ô ngày trống để thêm sự kiện nhanh
+            {calendarTitle} &bull; Lịch lấy từ CRM: sự kiện Đã chốt và lịch Dự kiến của khách đang báo giá / thương lượng
           </p>
         </div>
 
@@ -479,14 +352,11 @@ export default function EventCalendar({
           {/* Nút thêm sự kiện nhanh */}
           <button
             type="button"
-            onClick={() => {
-              setQuickAddDate("2026-10-28");
-              setIsQuickAddOpen(true);
-            }}
+            onClick={() => openQuickAdd(isoDate(today ?? new Date()))}
             className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A1E5E] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#152e7a]"
           >
             <Plus className="h-4 w-4 text-[#D4AF37]" />
-            <span>Thêm sự kiện nhanh</span>
+            <span>Thêm sự kiện đã chốt</span>
           </button>
 
           {/* Nút về Hôm nay */}
@@ -495,7 +365,7 @@ export default function EventCalendar({
             onClick={jumpToToday}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition"
           >
-            Hôm nay (23/10)
+            Hôm nay
           </button>
 
           {/* Bộ chuyển đổi góc nhìn Tháng / Tuần */}
@@ -585,17 +455,6 @@ export default function EventCalendar({
         >
           🚌 Lịch Tour &amp; Teambuilding ({allEvents.filter((e) => e.category === "du-lich").length})
         </button>
-        <button
-          type="button"
-          onClick={() => setFilterType("thiet-bi")}
-          className={`rounded-lg px-3 py-1 font-semibold transition ${
-            filterType === "thiet-bi"
-              ? "bg-amber-700 text-white"
-              : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-          }`}
-        >
-          🛠️ Lịch Khảo sát &amp; Bảo trì ({allEvents.filter((e) => e.category === "thiet-bi").length})
-        </button>
       </div>
 
       {/* GIAO DIỆN LỊCH 1: GÓC NHÌN THÁNG (MONTH VIEW) */}
@@ -646,7 +505,7 @@ export default function EventCalendar({
                     </span>
 
                     {/* Huy hiệu cảnh báo 3 ngày */}
-                    {isUrgent3Days && dayEvents.length > 0 && (
+                    {isUrgent3Days && dayEvents.some((e) => !e.tentative) && (
                       <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-700 animate-pulse">
                         <CircleAlert className="h-2.5 w-2.5" />
                         <span>Sắp diễn ra</span>
@@ -662,7 +521,9 @@ export default function EventCalendar({
 
                       // Phân loại màu sắc chuẩn theo mô tả
                       let badgeStyle = "bg-emerald-50 text-emerald-800 border-l-2 border-emerald-500 hover:bg-emerald-100";
-                      if (hasConflict) {
+                      if (event.tentative) {
+                        badgeStyle = "bg-white text-slate-500 border border-dashed border-slate-300 hover:bg-slate-50";
+                      } else if (hasConflict) {
                         badgeStyle = "bg-rose-100 text-rose-900 border-l-4 border-rose-600 ring-2 ring-rose-400 font-black animate-pulse";
                       } else if (isLiveToday) {
                         badgeStyle = "bg-blue-600 text-white font-bold shadow-xs hover:bg-blue-700";
@@ -681,7 +542,7 @@ export default function EventCalendar({
                         >
                           <div className="flex items-center justify-between gap-1">
                             <span className="truncate font-bold">
-                              {event.event_time ? `${event.event_time.slice(0, 5)} ` : ""}
+                              {event.tentative ? "Dự kiến · " : event.event_time ? `${event.event_time.slice(0, 5)} ` : ""}
                               {event.full_name}
                             </span>
                             {hasConflict && <AlertTriangle className="h-3 w-3 shrink-0 text-rose-600" />}
@@ -765,7 +626,7 @@ export default function EventCalendar({
                         return slotHour >= eventStartHour && slotHour < eventEndHour;
                       });
 
-                      const isCollision = slotEvents.length > 1;
+                      const isCollision = slotEvents.filter((e) => !e.tentative).length > 1;
 
                       return (
                         <div
@@ -784,14 +645,16 @@ export default function EventCalendar({
                                 type="button"
                                 onClick={() => setSelectedEvent(event)}
                                 className={`w-full text-left p-1.5 rounded-lg text-[10px] leading-tight mb-1 transition shadow-xs ${
-                                  hasConflict
+                                  event.tentative
+                                    ? "border border-dashed border-slate-300 bg-white text-slate-500"
+                                    : hasConflict
                                     ? "bg-rose-600 text-white font-extrabold"
                                     : event.event_status === "IN_PROGRESS"
                                       ? "bg-blue-600 text-white font-bold"
                                       : "bg-emerald-500 text-white font-semibold"
                                 }`}
                               >
-                                <div className="truncate font-black">{event.full_name}</div>
+                                <div className="truncate font-black">{event.tentative ? "Dự kiến · " : ""}{event.full_name}</div>
                                 <div className="truncate text-[9px] opacity-90">{event.event_type}</div>
                                 <div className="truncate text-[8px] opacity-80">{event.location}</div>
                               </button>
@@ -813,7 +676,12 @@ export default function EventCalendar({
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-md bg-emerald-500 shadow-xs" />
-            <strong className="text-slate-800">Màu xanh lá:</strong> Đã xác nhận (đã cọc / chốt ngày)
+            <strong className="text-slate-800">Màu xanh lá:</strong> Đã chốt (ký hợp đồng &amp; nhận cọc)
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-md border border-dashed border-slate-400 bg-white" />
+            <strong className="text-slate-800">Viền nét đứt:</strong> Dự kiến (đang báo giá / thương lượng, chưa chốt)
           </span>
 
           <span className="inline-flex items-center gap-1.5">
@@ -823,7 +691,7 @@ export default function EventCalendar({
 
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-md bg-blue-600 shadow-xs" />
-            <strong className="text-slate-800">Màu xanh dương:</strong> Đang diễn ra (hôm nay 23/10)
+            <strong className="text-slate-800">Màu xanh dương:</strong> Đang diễn ra hôm nay
           </span>
 
           <span className="inline-flex items-center gap-1.5">
@@ -861,9 +729,15 @@ export default function EventCalendar({
                   <span className="rounded-md bg-[#0A1E5E] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#D4AF37]">
                     {selectedEvent.category === "du-lich" ? "Tour Du Lịch" : "Sự kiện & Hội nghị"}
                   </span>
-                  <span className="text-xs font-bold text-slate-500">
-                    {EVENT_STATUS_LABELS[selectedEvent.event_status]}
-                  </span>
+                  {selectedEvent.tentative ? (
+                    <span className="rounded-md border border-dashed border-slate-400 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                      DỰ KIẾN · CHƯA CHỐT
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-500">
+                      {EVENT_STATUS_LABELS[selectedEvent.event_status]}
+                    </span>
+                  )}
                 </div>
                 <h3 className="mt-1 text-lg font-black text-slate-900">
                   {selectedEvent.event_type}
@@ -914,7 +788,7 @@ export default function EventCalendar({
                 <p className="text-slate-600 flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
                   <span>
-                    Khung giờ: {selectedEvent.event_time ? selectedEvent.event_time.slice(0, 5) : "08:30"} &ndash;{" "}
+                    Khung giờ: {selectedEvent.event_time ? selectedEvent.event_time.slice(0, 5) : "Chưa đặt giờ"} &ndash;{" "}
                     {selectedEvent.end_time ? selectedEvent.end_time.slice(0, 5) : "Chưa đặt giờ kết thúc"}
                   </span>
                 </p>
@@ -938,7 +812,7 @@ export default function EventCalendar({
                   <span>{selectedEvent.assigned_to || "Chưa phân công"}</span>
                 </p>
                 <p className="text-slate-500 pt-1">
-                  Tiến độ thanh toán: <strong>{selectedEvent.payment_status || "Đã đặt cọc 50%"}</strong>
+                  Tình trạng: <strong>{selectedEvent.payment_status}</strong>
                 </p>
               </div>
             </div>
@@ -950,7 +824,7 @@ export default function EventCalendar({
                 <span>Hạng mục thi công &amp; Thiết bị:</span>
               </p>
               <p className="text-[11px] leading-relaxed">
-                {selectedEvent.equipment_status || "Âm thanh, ánh sáng, màn hình LED tiêu chuẩn công ty."}
+                {selectedEvent.equipment_status || "Chưa cập nhật."}
               </p>
               {selectedEvent.notes && (
                 <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60 mt-1">
@@ -962,7 +836,8 @@ export default function EventCalendar({
             {/* Footer hành động */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <span className="text-xs font-bold text-slate-900">
-                Ngân sách: {selectedEvent.budget ? formatCurrency(selectedEvent.budget) : "Chưa cập nhật"}
+                {selectedEvent.tentative ? "Ngân sách khách khai" : "Giá trị hợp đồng"}:{" "}
+                {selectedEvent.budget ? formatCurrency(selectedEvent.budget) : "Chưa cập nhật"}
               </span>
 
               <div className="flex items-center gap-2">
@@ -1003,10 +878,10 @@ export default function EventCalendar({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
-                  Điều phối vận hành
+                  Khách đặt trực tiếp · lưu vào CRM với trạng thái Đã chốt
                 </span>
                 <h3 className="text-base font-black text-slate-900">
-                  Thêm sự kiện nhanh vào lịch ({quickForm.eventDate})
+                  Thêm sự kiện đã chốt ({formatDate(quickForm.eventDate)})
                 </h3>
               </div>
               <button
@@ -1057,16 +932,15 @@ export default function EventCalendar({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Loại hình</label>
-                  <select
-                    value={quickForm.category}
-                    onChange={(e) => setQuickForm({ ...quickForm, category: e.target.value as CalendarEventCategory })}
+                  <label className="block font-bold text-slate-700 mb-1">Giá trị hợp đồng (VNĐ)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="VD: 52000000"
+                    value={quickForm.budget}
+                    onChange={(e) => setQuickForm({ ...quickForm, budget: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-[#0A1E5E]"
-                  >
-                    <option value="su-kien">🎪 Sự kiện &amp; Gala</option>
-                    <option value="du-lich">🚌 Tour &amp; Teambuilding</option>
-                    <option value="thiet-bi">🛠️ Khảo sát &amp; Bảo trì</option>
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -1116,6 +990,18 @@ export default function EventCalendar({
               </div>
 
               <div>
+                <label className="block font-bold text-slate-700 mb-1">Số khách</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="VD: 200"
+                  value={quickForm.guestCount}
+                  onChange={(e) => setQuickForm({ ...quickForm, guestCount: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-[#0A1E5E]"
+                />
+              </div>
+
+              <div>
                 <label className="block font-bold text-slate-700 mb-1">Ghi chú vận hành</label>
                 <textarea
                   rows={2}
@@ -1126,6 +1012,9 @@ export default function EventCalendar({
                 />
               </div>
 
+              {quickAddError && (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-rose-700">{quickAddError}</p>
+              )}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -1149,13 +1038,19 @@ export default function EventCalendar({
     </div>
   );
 
+  const body = today ? (
+    content
+  ) : (
+    <div className="h-64 animate-pulse rounded-2xl bg-slate-100" aria-label="Đang tải lịch" />
+  );
+
   if (showWrapperCard) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        {content}
+        {body}
       </section>
     );
   }
 
-  return content;
+  return body;
 }

@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   Radar,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -18,6 +19,7 @@ import ConversionFunnel from "@/app/admin-radar/ConversionFunnel";
 import CustomerSourcesChart from "@/app/admin-radar/CustomerSourcesChart";
 import EventCalendar from "@/app/admin-radar/EventCalendar";
 import FollowUpTasks from "@/app/admin-radar/FollowUpTasks";
+import { summarizeRevenue } from "@/lib/lead-funnel";
 import {
   AdminLead,
   LeadStatus,
@@ -40,6 +42,8 @@ export default function AdminDashboardPage() {
   const [now, setNow] = useState<Date | null>(null);
   const [selectedStage, setSelectedStage] = useState<LeadStatus | null>(null);
   const [crmReady, setCrmReady] = useState(true);
+  /** Tổng báo giá gần nhất của từng lead (giá trị chính xác hơn ngân sách khách tự khai). */
+  const [latestQuoteTotals, setLatestQuoteTotals] = useState<Map<string, number>>(new Map());
 
   const loadLeads = useCallback(async () => {
     try {
@@ -47,6 +51,15 @@ export default function AdminDashboardPage() {
       const result = await fetchAdminLeads(supabase);
       setLeads(result.leads);
       setCrmReady(result.crmReady);
+      if (result.crmReady) {
+        const { data: quotes } = await supabase
+          .from("lead_quotes")
+          .select("lead_id,version,total")
+          .order("version", { ascending: true });
+        const totals = new Map<string, number>();
+        (quotes ?? []).forEach((q: { lead_id: string; total: number }) => totals.set(q.lead_id, Number(q.total)));
+        setLatestQuoteTotals(totals);
+      }
     } catch (loadError) {
       const message =
         loadError instanceof Error
@@ -87,46 +100,9 @@ export default function AdminDashboardPage() {
           ? 100
           : 0
         : Math.round(((leadsThisMonth - leadsLastMonth) / leadsLastMonth) * 100);
-    const monthlyEvents = leads.filter(
-      (lead) =>
-        (lead.event_status === "CONFIRMED" ||
-          lead.event_status === "IN_PROGRESS") &&
-        lead.event_date &&
-        lead.event_date.slice(0, 10) >= isoDate(startThisMonth) &&
-        lead.event_date.slice(0, 10) < isoDate(startNextMonth)
-    );
-    const scheduledThisMonth = leads.filter((lead) => {
-      if (!lead.event_date || lead.event_status === "CANCELLED") return false;
-      return (
-        lead.event_date.slice(0, 10) >= isoDate(startThisMonth) &&
-        lead.event_date.slice(0, 10) < isoDate(startNextMonth)
-      );
-    });
-    const estimated = scheduledThisMonth.reduce(
-      (sum, lead) => sum + Number(lead.budget || 0),
-      0
-    );
-    const reportedRevenue = scheduledThisMonth.filter(
-      (lead) =>
-        lead.status === "WON" &&
-        lead.actual_revenue !== null &&
-        lead.actual_revenue !== undefined
-    );
-    const actual = reportedRevenue.reduce(
-      (sum, lead) => sum + Number(lead.actual_revenue || 0),
-      0
-    );
-    return {
-      leadsThisMonth,
-      leadsLastMonth,
-      change,
-      monthlyEvents,
-      estimated,
-      actual,
-      reportedRevenueCount: reportedRevenue.length,
-      wonEventsCount: scheduledThisMonth.filter((lead) => lead.status === "WON").length,
-    };
-  }, [leads, now]);
+    const revenue = summarizeRevenue(leads, isoDate(startThisMonth), isoDate(startNextMonth), latestQuoteTotals);
+    return { leadsThisMonth, leadsLastMonth, change, ...revenue };
+  }, [leads, now, latestQuoteTotals]);
 
 
   return (
@@ -163,7 +139,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <section aria-label="Chỉ số kinh doanh" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Chỉ số kinh doanh" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <KpiCard
           title="Lead mới tháng này"
           value={loading ? "…" : String(metrics?.leadsThisMonth ?? 0)}
@@ -177,32 +153,39 @@ export default function AdminDashboardPage() {
           accent="blue"
         />
         <KpiCard
-          title="Sự kiện trong tháng"
-          value={loading ? "…" : String(metrics?.monthlyEvents.length ?? 0)}
-          detail="Đã xác nhận hoặc đang diễn ra"
+          title="Sự kiện đã chốt trong tháng"
+          value={loading ? "…" : String(metrics?.wonEventsInMonth ?? 0)}
+          detail="Đã ký hợp đồng & nhận cọc, tổ chức trong tháng"
           icon={CalendarDays}
           accent="gold"
         />
         <KpiCard
-          title="Doanh thu dự kiến"
-          value={loading ? "…" : formatCurrency(metrics?.estimated ?? 0)}
-          detail="Theo ngày tổ chức trong tháng"
+          title="Doanh thu đã chốt (tháng)"
+          value={loading ? "…" : formatCurrency(metrics?.wonRevenueInMonth ?? 0)}
+          detail="Tổng giá trị hợp đồng của sự kiện tổ chức trong tháng"
           icon={CircleDollarSign}
           accent="violet"
         />
         <KpiCard
-          title="Doanh thu thực tế"
-          value={
-            loading
-              ? "…"
-              : metrics?.reportedRevenueCount
-                ? formatCurrency(metrics.actual)
-                : "Chưa ghi nhận"
-          }
+          title="Doanh thu tiềm năng"
+          value={loading ? "…" : formatCurrency(metrics?.pipelineValue ?? 0)}
           detail={
-            metrics?.wonEventsCount
-              ? `${metrics.reportedRevenueCount}/${metrics.wonEventsCount} sự kiện đã chốt có doanh thu thực tế`
-              : "Nhập doanh thu tại hồ sơ khách hàng đã chốt"
+            metrics?.pipelineCount
+              ? `${metrics.pipelineCount} khách đang báo giá / thương lượng${
+                  metrics.pipelineWithoutValue ? ` (${metrics.pipelineWithoutValue} chưa có giá)` : ""
+                }`
+              : "Chưa có khách đang báo giá / thương lượng"
+          }
+          icon={TrendingUp}
+          accent="blue"
+        />
+        <KpiCard
+          title="Doanh thu thực tế (tháng)"
+          value={loading ? "…" : metrics?.actualCount ? formatCurrency(metrics.actualRevenueInMonth) : "Chưa ghi nhận"}
+          detail={
+            metrics?.wonEventsInMonth
+              ? `${metrics.actualCount}/${metrics.wonEventsInMonth} sự kiện đã nhập doanh thu thực tế`
+              : "Nhập sau khi tổ chức xong, tại hồ sơ khách"
           }
           icon={CircleDollarSign}
           accent="green"
