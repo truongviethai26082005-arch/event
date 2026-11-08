@@ -47,6 +47,7 @@ import {
   eventTypeLabel,
   formatCurrency,
   formatDate,
+  toVnDateKey,
 } from "@/app/admin/_components/admin-types";
 
 const statusColors: Record<LeadStatus, string> = {
@@ -228,7 +229,7 @@ export default function AdminLeadsPage() {
           .join(" ")
           .toLocaleLowerCase("vi")
           .includes(search);
-      const created = lead.created_at?.slice(0, 10) ?? "";
+      const created = toVnDateKey(lead.created_at);
       return (
         matchesSearch &&
         (statusFilter === "ALL" || lead.status === statusFilter) &&

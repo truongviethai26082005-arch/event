@@ -33,6 +33,8 @@ export function trackLandingLead(
   }
 ) {
   if (typeof window === "undefined") return;
+  // Admin bấm Hotline / Zalo trên header, footer trang quản trị: không phải khách -> không ghi lead
+  if (/^\/(admin|admin-radar|admin-login|login)(\/|$)/.test(window.location.pathname)) return;
 
   const isClickOnly = !info?.fullName || !info?.phone;
   if (isClickOnly && wasTrackedRecently(source)) return;

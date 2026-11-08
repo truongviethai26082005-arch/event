@@ -239,8 +239,9 @@ export default function Header() {
     return false;
   };
 
+  // Trang admin có thanh menu riêng (sticky): header không dính để khỏi che menu & nội dung
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/95 text-slate-800 shadow-lg border-b border-slate-200/90 backdrop-blur-md">
+    <header className={`${isAdminPage ? "relative" : "sticky top-0"} z-50 w-full bg-white/95 text-slate-800 shadow-lg border-b border-slate-200/90 backdrop-blur-md`}>
       {/* Top bar info */}
       <div className="bg-[#06123B] border-b border-white/10 text-xs py-1.5 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-slate-300">

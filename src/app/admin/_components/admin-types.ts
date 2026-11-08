@@ -203,9 +203,35 @@ export function formatCurrency(value: number | null | undefined) {
   }).format(value);
 }
 
+export const VN_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
+/** Giá trị chỉ có ngày ("2026-11-08"), không kèm giờ. */
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+/**
+ * Ngày theo giờ Việt Nam dạng yyyy-mm-dd, dùng để so sánh / lọc theo ngày.
+ * Thời điểm (created_at...) được đổi sang giờ VN; ngày thuần (event_date) giữ nguyên.
+ */
+export function toVnDateKey(value: string | null | undefined) {
+  if (!value) return "";
+  if (isDateOnly(value)) return value.trim();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  // en-CA cho định dạng yyyy-mm-dd
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: VN_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export function formatDate(value: string | null | undefined) {
   if (!value) return "Chưa xác định";
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const key = toVnDateKey(value);
+  const date = new Date(`${key}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "Chưa xác định";
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
