@@ -254,7 +254,8 @@ export type LeadActivityType =
   | "note"
   | "quote_sent"
   | "form_submitted"
-  | "merged";
+  | "merged"
+  | "ai_analysis";
 
 export const ACTIVITY_LABELS: Record<LeadActivityType, string> = {
   created: "Tiếp nhận lead",
@@ -266,6 +267,7 @@ export const ACTIVITY_LABELS: Record<LeadActivityType, string> = {
   quote_sent: "Gửi báo giá",
   form_submitted: "Khách điền form",
   merged: "Gộp lead trùng",
+  ai_analysis: "AI phân tích",
 };
 
 /** Các loại hoạt động sale tự ghi nhận bằng tay. */

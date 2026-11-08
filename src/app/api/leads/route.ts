@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import {
@@ -10,6 +10,10 @@ import {
   parseGuestCount,
 } from "@/lib/lead-form-options";
 import { CHANNEL_TO_SOURCE, isLeadChannel } from "@/lib/lead-funnel";
+import { runIntakeAutomation } from "@/lib/crm/automation";
+
+/** Cho phép tác vụ nền (AI phân tích + Telegram) chạy tối đa 60 giây. */
+export const maxDuration = 60;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -75,6 +79,15 @@ export async function POST(request: Request) {
   }
 
   if (!error) {
+    // Tự động hóa chạy nền sau khi đã trả kết quả cho khách
+    after(() =>
+      runIntakeAutomation({
+        kind: "form",
+        leadId: typeof leadId === "string" ? leadId : null,
+        origin: new URL(request.url).origin,
+        fallback: { fullName, phone, source: lead.source, eventType: lead.event_type },
+      })
+    );
     return NextResponse.json({ success: true, leadId });
   }
 

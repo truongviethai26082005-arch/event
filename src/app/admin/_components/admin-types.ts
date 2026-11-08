@@ -45,6 +45,23 @@ export interface AdminLead {
   last_contacted_at?: string | null;
   form_token?: string | null;
   form_submitted_at?: string | null;
+  // Có sau migration 20261109010000_crm_ai_pricing.sql
+  ai_score?: "HOT" | "WARM" | "COLD" | null;
+  ai_score_reason?: string | null;
+  ai_summary?: string | null;
+  ai_needs?: {
+    event_type?: string | null;
+    event_date?: string | null;
+    location?: string | null;
+    guest_count?: string | null;
+    budget?: string | null;
+    requirements?: string[];
+    missing_info?: string[];
+  } | null;
+  ai_suggested_package?: string | null;
+  ai_next_action?: string | null;
+  ai_message?: string | null;
+  ai_analyzed_at?: string | null;
 }
 
 export const ADMIN_LEAD_SELECT =
@@ -52,6 +69,9 @@ export const ADMIN_LEAD_SELECT =
 
 /** Bộ cột đầy đủ khi DB đã chạy migration CRM giai đoạn A. */
 export const ADMIN_LEAD_SELECT_FULL = `${ADMIN_LEAD_SELECT},quoted_at,negotiating_at,won_at,lost_at,lost_stage,lost_reason,last_contacted_at,form_token,form_submitted_at`;
+
+/** Bộ cột đầy đủ + kết quả AI (migration 20261109010000_crm_ai_pricing.sql). */
+export const ADMIN_LEAD_SELECT_AI = `${ADMIN_LEAD_SELECT_FULL},ai_score,ai_score_reason,ai_summary,ai_needs,ai_suggested_package,ai_next_action,ai_message,ai_analyzed_at`;
 
 export interface LeadActivity {
   id: string;
@@ -92,14 +112,20 @@ export function isMissingSchemaError(error: { code?: string; message?: string } 
  * Tải toàn bộ lead cho trang quản trị. Thử bộ cột đầy đủ trước; nếu DB chưa chạy
  * migration CRM giai đoạn A thì lùi về bộ cột cũ và báo `crmReady = false`.
  */
-export async function fetchAdminLeads(supabase: Pick<SupabaseClient, "from">): Promise<{ leads: AdminLead[]; crmReady: boolean }> {
+export async function fetchAdminLeads(
+  supabase: Pick<SupabaseClient, "from">
+): Promise<{ leads: AdminLead[]; crmReady: boolean; aiReady: boolean }> {
+  const ai = await supabase.from("leads").select(ADMIN_LEAD_SELECT_AI).order("created_at", { ascending: false });
+  if (!ai.error) return { leads: (ai.data ?? []) as unknown as AdminLead[], crmReady: true, aiReady: true };
+  if (!isMissingSchemaError(ai.error)) throw ai.error;
+
   const full = await supabase.from("leads").select(ADMIN_LEAD_SELECT_FULL).order("created_at", { ascending: false });
-  if (!full.error) return { leads: (full.data ?? []) as AdminLead[], crmReady: true };
+  if (!full.error) return { leads: (full.data ?? []) as AdminLead[], crmReady: true, aiReady: false };
   if (!isMissingSchemaError(full.error)) throw full.error;
 
   const basic = await supabase.from("leads").select(ADMIN_LEAD_SELECT).order("created_at", { ascending: false });
   if (basic.error) throw basic.error;
-  return { leads: (basic.data ?? []) as AdminLead[], crmReady: false };
+  return { leads: (basic.data ?? []) as AdminLead[], crmReady: false, aiReady: false };
 }
 
 export const CRM_MIGRATION_NOTICE =

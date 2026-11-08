@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { runIntakeAutomation } from "@/lib/crm/automation";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { LEAD_SOURCE_LABELS } from "@/app/admin/_components/admin-types";
 import {
@@ -71,6 +72,15 @@ export async function POST(req: NextRequest) {
       console.warn("Lỗi ghi nhận lead vào Supabase:", error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+    // Báo Telegram (và AI phân tích nếu là form có thông tin) chạy nền
+    after(() =>
+      runIntakeAutomation({
+        kind: isFormSubmission ? "form" : "click",
+        formToken,
+        origin: new URL(req.url).origin,
+        fallback: { fullName: leadData.full_name, phone, source, eventType: leadData.event_type },
+      })
+    );
     return NextResponse.json({ success: true, token: formToken });
   } catch (error) {
     console.error("Lỗi track lead:", error);

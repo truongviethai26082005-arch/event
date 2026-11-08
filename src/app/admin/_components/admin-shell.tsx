@@ -11,6 +11,7 @@ import {
   LogOut,
   Package,
   Radar,
+  Receipt,
 } from "lucide-react";
 import { signOut } from "@/app/admin-radar/actions";
 
@@ -19,6 +20,7 @@ const navigation = [
   { href: "/admin-radar", label: "Radar SEO", icon: Radar },
   { href: "/admin/leads", label: "Khách hàng tiềm năng", icon: ClipboardList },
   { href: "/admin/services", label: "Dịch vụ & gói", icon: Package },
+  { href: "/admin/bang-gia", label: "Bảng đơn giá", icon: Receipt },
   { href: "/admin/portfolio", label: "Hồ sơ sự kiện", icon: BriefcaseBusiness },
 ];
 
