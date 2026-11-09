@@ -1,16 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, type GenerationConfig } from "@google/generative-ai";
 
 /**
- * Danh sách model Gemini sắp xếp theo độ ưu tiên:
- * 1. gemini-2.5-flash: Model thế hệ mới chuẩn nhất theo hướng dẫn README.md của Radar SEO.
- * 2. gemini-2.0-flash: Phản hồi siêu tốc trong 2-3s.
- * 3. gemini-2.5-pro: Dự phòng chất lượng cao.
+ * Danh sách model Gemini sắp xếp theo độ ưu tiên (đã đo với API key ngày 09/11/2026).
+ * - Google đã ngừng gemini-1.5 / 2.0 / 2.5 cho tài khoản này (lỗi 404).
+ * - gemini-3.5-flash + suy nghĩ mức thấp: ~4 giây/lần (3.8-flash mất > 60 giây nên không dùng).
+ * - gemini-3.1-flash-lite: ~3 giây, dự phòng.
+ * - gemini-flash-latest: bí danh Google tự trỏ tới bản flash mới nhất, dự phòng cuối khi model cụ thể bị ngừng.
  */
 const CANDIDATE_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.5-pro",
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
 ];
+
+/** Mỗi model chờ tối đa 45 giây rồi chuyển model tiếp theo. */
+const REQUEST_TIMEOUT_MS = 45_000;
 
 interface CallGeminiParams {
   apiKey: string;
@@ -33,13 +37,18 @@ export async function callGeminiWithFallback({
 
   for (const modelName of CANDIDATE_MODELS) {
     try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-          responseMimeType,
-          temperature,
+      const model = genAI.getGenerativeModel(
+        {
+          model: modelName,
+          generationConfig: {
+            responseMimeType,
+            temperature,
+            // Gemini 3.x mặc định "suy nghĩ" lâu; mức thấp đủ cho phân tích / soạn nội dung và nhanh hơn nhiều
+            thinkingConfig: { thinkingLevel: "low" },
+          } as GenerationConfig,
         },
-      });
+        { timeout: REQUEST_TIMEOUT_MS }
+      );
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();

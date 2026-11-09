@@ -27,10 +27,12 @@ import { isValidPhone } from "@/lib/lead-form-options";
 import LeadActivityPanel from "@/app/admin/_components/LeadActivityPanel";
 import LeadDuplicates from "@/app/admin/_components/LeadDuplicates";
 import AddLeadModal from "@/app/admin/_components/AddLeadModal";
+import LeadAiPanel, { AI_SCORE_STYLE } from "@/app/admin/_components/LeadAiPanel";
 import {
   AdminLead,
   ADMIN_LEAD_SELECT,
   ADMIN_LEAD_SELECT_FULL,
+  ADMIN_LEAD_SELECT_AI,
   CRM_MIGRATION_NOTICE,
   LeadQuote,
   fetchAdminLeads,
@@ -47,6 +49,7 @@ import {
   eventTypeLabel,
   formatCurrency,
   formatDate,
+  toVnDateKey,
 } from "@/app/admin/_components/admin-types";
 
 const statusColors: Record<LeadStatus, string> = {
@@ -133,6 +136,8 @@ export default function AdminLeadsPage() {
   const [selectedLead, setSelectedLead] = useState<AdminLead | null>(null);
   const [saving, setSaving] = useState(false);
   const [crmReady, setCrmReady] = useState(true);
+  const [aiReady, setAiReady] = useState(false);
+  const [draftingQuote, setDraftingQuote] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
   const [activityRefresh, setActivityRefresh] = useState(0);
   const [statusDraft, setStatusDraft] = useState<{ id: string; status: LeadStatus } | null>(null);
@@ -158,6 +163,7 @@ export default function AdminLeadsPage() {
       const result = await fetchAdminLeads(supabase);
       setLeads(result.leads);
       setCrmReady(result.crmReady);
+      setAiReady(result.aiReady);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -180,7 +186,7 @@ export default function AdminLeadsPage() {
     const supabase = createSupabaseBrowserClient();
     const { data } = await supabase
       .from("leads")
-      .select(crmReady ? ADMIN_LEAD_SELECT_FULL : ADMIN_LEAD_SELECT)
+      .select(aiReady ? ADMIN_LEAD_SELECT_AI : crmReady ? ADMIN_LEAD_SELECT_FULL : ADMIN_LEAD_SELECT)
       .eq("id", id)
       .single();
     if (data) {
@@ -228,7 +234,7 @@ export default function AdminLeadsPage() {
           .join(" ")
           .toLocaleLowerCase("vi")
           .includes(search);
-      const created = lead.created_at?.slice(0, 10) ?? "";
+      const created = toVnDateKey(lead.created_at);
       return (
         matchesSearch &&
         (statusFilter === "ALL" || lead.status === statusFilter) &&
@@ -313,6 +319,8 @@ export default function AdminLeadsPage() {
       setStatusDraft(null);
       setActivityRefresh((n) => n + 1);
       setNotice("Đã cập nhật hồ sơ khách hàng.");
+      // Tự động: đổi bước phễu -> AI phân tích lại để tin nhắn soạn sẵn khớp bước mới
+      if (aiReady && selectedLead.status !== updatedLead.status) void autoReanalyze(updatedLead.id);
     } catch (saveError) {
       setError(
         saveError instanceof Error ? saveError.message : "Không thể cập nhật khách hàng."
@@ -330,6 +338,35 @@ export default function AdminLeadsPage() {
   const afterDiscount = subtotalQuote - discountAmount;
   const vatAmount = Math.round((afterDiscount * Math.max(0, vatPercent)) / 100);
   const totalQuote = afterDiscount + vatAmount;
+
+  /** Chạy nền: AI phân tích lại lead (sau khi đổi trạng thái / gửi báo giá). */
+  const autoReanalyze = async (id: string) => {
+    try {
+      const res = await fetch(`/api/crm/leads/${id}/analyze`, { method: "POST" });
+      if (res.ok) await refreshLead(id);
+    } catch {
+      // Bỏ qua: sale vẫn bấm "Phân tích lại" được
+    }
+  };
+
+  /** AI chọn hạng mục + số lượng từ Bảng đơn giá theo nhu cầu khách; sale duyệt rồi gửi. */
+  const draftQuoteWithAi = async () => {
+    if (!quoteLead) return;
+    setDraftingQuote(true);
+    setQuoteSaveNotice("AI đang lập báo giá nháp từ bảng đơn giá...");
+    try {
+      const res = await fetch(`/api/crm/leads/${quoteLead.id}/draft-quote`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "AI lập báo giá thất bại.");
+      setQuoteItems(data.items);
+      setQuoteViewTab("edit");
+      setQuoteSaveNotice(`AI đã lập ${data.items.length} hạng mục. ${data.rationale || ""} Kiểm tra số lượng rồi gửi khách.`);
+    } catch (err) {
+      setQuoteSaveNotice(err instanceof Error ? err.message : "AI lập báo giá thất bại.");
+    } finally {
+      setDraftingQuote(false);
+    }
+  };
 
   /**
    * Lưu báo giá thành 1 phiên bản mới khi gửi cho khách (Zalo / Email / PDF).
@@ -364,6 +401,7 @@ export default function AdminLeadsPage() {
     setLastSavedQuoteHash(hash);
     setQuoteSaveNotice(`Đã lưu báo giá v${data.version} (${sentVia})`);
     void refreshLead(quoteLead.id);
+    if (aiReady) void autoReanalyze(quoteLead.id);
   };
 
   const openSavedQuote = (quote: LeadQuote) => {
@@ -383,6 +421,30 @@ export default function AdminLeadsPage() {
       JSON.stringify([selectedLead.id, items, Number(quote.discount), Number(quote.vat_percent), quote.notes || ""])
     );
     setQuoteSaveNotice(`Đang xem báo giá v${quote.version}. Chỉnh sửa rồi gửi lại sẽ lưu thành phiên bản mới.`);
+  };
+
+  /**
+   * In / lưu PDF báo giá:
+   *  - luôn chuyển về bản xem trước A4 (tab "Chỉnh sửa" không có bản in)
+   *  - bật class "printing-quote" trên <html> CHỈ trong lúc in, để CSS in báo giá
+   *    không ảnh hưởng tới việc in các trang khác
+   */
+  const printQuote = () => {
+    void saveQuote("PDF");
+    setQuoteViewTab("preview");
+    const root = document.documentElement;
+    const cleanup = () => {
+      root.classList.remove("printing-quote");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    // Chờ React vẽ xong bản A4 rồi mới mở hộp thoại in
+    window.setTimeout(() => {
+      root.classList.add("printing-quote");
+      window.print();
+      // Một số trình duyệt không bắn afterprint: dọn dự phòng
+      window.setTimeout(cleanup, 1000);
+    }, 200);
   };
 
   const copyZaloSummary = () => {
@@ -634,6 +696,11 @@ export default function AdminLeadsPage() {
                         className="text-left"
                       >
                         <span className="block font-bold text-slate-900 hover:text-[#0A1E5E]">{lead.full_name}</span>
+                        {lead.ai_score && AI_SCORE_STYLE[lead.ai_score] && (
+                          <span className={`mr-1 mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${AI_SCORE_STYLE[lead.ai_score].className}`}>
+                            {AI_SCORE_STYLE[lead.ai_score].label}
+                          </span>
+                        )}
                         {!normalizePhone(lead.phone) && (
                           <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
                             Chưa có SĐT
@@ -734,6 +801,7 @@ export default function AdminLeadsPage() {
                   </span>
                 )}
               </div>
+              {aiReady && <LeadAiPanel lead={selectedLead} onChanged={() => void refreshLead(selectedLead.id)} />}
               <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl bg-slate-50 p-4 text-sm">
                 <LeadDetail label="Loại sự kiện" value={eventTypeLabel(selectedLead.event_type)} />
                 <LeadDetail label="Nguồn" value={LEAD_SOURCE_LABELS[resolveLeadSource(selectedLead)]} />
@@ -1007,7 +1075,19 @@ export default function AdminLeadsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {aiReady && (
+                  <button
+                    type="button"
+                    onClick={() => void draftQuoteWithAi()}
+                    disabled={draftingQuote}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition disabled:opacity-60"
+                    title="AI chọn hạng mục và số lượng từ Bảng đơn giá theo nhu cầu khách"
+                  >
+                    <Sparkles className={`h-3.5 w-3.5 ${draftingQuote ? "animate-spin" : ""}`} />
+                    <span>{draftingQuote ? "AI đang lập..." : "AI lập báo giá nháp"}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={copyZaloSummary}
@@ -1029,10 +1109,7 @@ export default function AdminLeadsPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    void saveQuote("PDF");
-                    window.print();
-                  }}
+                  onClick={printQuote}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A1E5E] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#142d75] transition"
                   title="Mở hộp thoại in hoặc lưu file PDF khổ A4"
                 >
@@ -1498,34 +1575,43 @@ export default function AdminLeadsPage() {
               )}
             </div>
 
-            {/* Print CSS Stylesheet */}
+            {/* Print CSS: chỉ có hiệu lực khi đang in báo giá (html.printing-quote) */}
             <style jsx global>{`
               @media print {
                 @page {
                   size: A4 portrait;
                   margin: 8mm 10mm 8mm 10mm;
                 }
-                body * {
-                  visibility: hidden !important;
+                /* Ẩn hẳn mọi thứ không chứa bản báo giá (không chiếm chỗ, không sinh trang trắng) */
+                html.printing-quote body *:not(:has(.quote-a4-document)):not(.quote-a4-document):not(.quote-a4-document *) {
+                  display: none !important;
                 }
-                .quote-a4-document,
-                .quote-a4-document * {
-                  visibility: visible !important;
+                /* Các khung bao ngoài bản báo giá (kể cả cửa sổ nổi .fixed mà globals.css ẩn khi in) */
+                html.printing-quote body *:has(.quote-a4-document) {
+                  display: block !important;
+                  position: static !important;
+                  inset: auto !important;
+                  overflow: visible !important;
+                  max-height: none !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  width: auto !important;
+                  max-width: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #ffffff !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                  transform: none !important;
                 }
-                .quote-a4-document {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 100% !important;
+                html.printing-quote .quote-a4-document {
                   max-width: 100% !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   box-shadow: none !important;
                   border: none !important;
-                  background: white !important;
-                }
-                .quote-no-print {
-                  display: none !important;
+                  border-radius: 0 !important;
+                  background: #ffffff !important;
                 }
               }
             `}</style>

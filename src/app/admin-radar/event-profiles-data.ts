@@ -2,6 +2,7 @@
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { toVnDateKey } from "@/app/admin/_components/admin-types";
 
 /**
  * =========================================================================
@@ -993,7 +994,7 @@ export function convertLeadToEventProfile(lead: any): EventProfile {
   const eventDateStr = lead.event_date
     ? String(lead.event_date).slice(0, 10)
     : lead.created_at
-    ? String(lead.created_at).slice(0, 10)
+    ? toVnDateKey(String(lead.created_at))
     : "2026-10-23";
 
   const isOngoing =

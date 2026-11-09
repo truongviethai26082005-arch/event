@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick, landingInfo, trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
 import { BUDGET_OPTIONS, DEFAULT_BUDGET, DEFAULT_GUESTS, GUEST_OPTIONS } from "@/lib/lead-form-options";
 import { PromotionCombo } from "../data/services-data";
 import {
@@ -138,6 +138,7 @@ export default function LeadForm({
           promoCode: initialPromo?.code,
           promoTitle: initialPromo?.title,
           channel: "GG_FORM",
+          ...landingInfo(),
         }),
       });
 
@@ -389,7 +390,7 @@ export default function LeadForm({
                         href={COMPANY_INFO.socials.zalo}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={() => trackLandingLead("ZALO")}
+                        onClick={(e) => handleContactClick(e, "ZALO")}
                         className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />

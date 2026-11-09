@@ -5,6 +5,10 @@ import Link from "next/link";
 import { AlarmClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AdminLead, LEAD_SOURCE_LABELS, LEAD_STATUS_LABELS } from "@/app/admin/_components/admin-types";
 import { FOLLOW_UP_RULES, formatDuration, getFollowUpTasks, normalizePhone, resolveLeadSource } from "@/lib/lead-funnel";
+import { AI_SCORE_STYLE } from "@/app/admin/_components/LeadAiPanel";
+
+/** Lead nóng được xử lý trước (tối ưu thời gian sale), sau đó mới tới mức quá hạn. */
+const SCORE_PRIORITY: Record<string, number> = { HOT: 0, WARM: 1, COLD: 2 };
 
 const MAX_ROWS = 8;
 
@@ -25,7 +29,17 @@ export default function FollowUpTasks({ leads, crmReady }: { leads: AdminLead[];
     };
   }, []);
 
-  const tasks = useMemo(() => (now === null ? [] : getFollowUpTasks(leads, now)), [leads, now]);
+  const tasks = useMemo(
+    () =>
+      now === null
+        ? []
+        : getFollowUpTasks(leads, now).sort(
+            (a, b) =>
+              (SCORE_PRIORITY[a.lead.ai_score || ""] ?? 1) - (SCORE_PRIORITY[b.lead.ai_score || ""] ?? 1) ||
+              b.overdueMs - a.overdueMs
+          ),
+    [leads, now]
+  );
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -67,8 +81,16 @@ export default function FollowUpTasks({ leads, crmReady }: { leads: AdminLead[];
                   <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
                     {LEAD_STATUS_LABELS[lead.status]}
                   </span>
+                  {lead.ai_score && AI_SCORE_STYLE[lead.ai_score] && (
+                    <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${AI_SCORE_STYLE[lead.ai_score].className}`}>
+                      {AI_SCORE_STYLE[lead.ai_score].label}
+                    </span>
+                  )}
                 </p>
                 <p className={`mt-0.5 text-xs ${stale ? "text-rose-700" : "text-slate-600"}`}>{action}</p>
+                {!stale && lead.ai_next_action && (
+                  <p className="mt-0.5 text-xs text-violet-700">🤖 {lead.ai_next_action}</p>
+                )}
                 <p className="mt-0.5 text-[11px] text-slate-400">
                   Quá hạn {formatDuration(overdueMs)} · {LEAD_SOURCE_LABELS[resolveLeadSource(lead)]}
                   {normalizePhone(lead.phone) ? ` · ${lead.phone}` : " · chưa có SĐT"}

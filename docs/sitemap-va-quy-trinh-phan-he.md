@@ -151,6 +151,29 @@ sequenceDiagram
 | Báo giá | `lead_quotes` (phiên bản v1, v2…) | Lưu khi Chép gửi Zalo / Soạn Email / In PDF; lead "Mới" tự chuyển "Đã báo giá" |
 | Nhắc việc quá hạn | Dashboard → "Việc cần làm" | Mới > 30 phút, Báo giá > 3 ngày, Thương lượng > 7 ngày không liên hệ; > 14 ngày đề xuất "Không thành" |
 
+### Tự động hóa quy trình sale (migration `20261109010000_crm_ai_pricing.sql`)
+
+| Thời điểm | Hệ thống tự làm | Sale còn làm |
+|---|---|---|
+| Khách gửi form / popup / link | AI (Gemini) chấm **Nóng / Ấm / Lạnh**, tóm tắt nhu cầu, liệt kê thông tin cần hỏi thêm, gợi ý gói, việc cần làm, **soạn sẵn tin nhắn**; báo ngay vào **nhóm Telegram** kèm link hồ sơ | Đọc Telegram, mở hồ sơ |
+| Khách chỉ bấm Zalo / Facebook / Hotline | Báo Telegram "khách bấm nút …" | Kiểm tra tin nhắn kênh đó, gửi link form |
+| Sale mở lead chưa được phân tích | AI tự phân tích ngay | – |
+| Liên hệ khách | Nút "Chép tin nhắn & ghi nhận đã nhắn" chép tin AI soạn và tự ghi nhật ký + "Liên hệ gần nhất" | Dán vào Zalo / Messenger |
+| Lập báo giá | Nút **"AI lập báo giá nháp"**: AI chọn hạng mục + số lượng từ **Bảng đơn giá** (`/admin/bang-gia`); giá luôn lấy từ bảng | Duyệt, sửa nếu cần, bấm gửi |
+| Gửi báo giá / đổi trạng thái | Lưu phiên bản, chuyển "Đã báo giá", **AI phân tích lại** và soạn tin nhắn cho bước mới | – |
+| Việc cần làm (Dashboard) | Sắp **lead Nóng lên đầu**, hiện việc AI đề xuất cho từng lead | Xử lý theo thứ tự |
+
+**Biến môi trường** (Vercel → Settings → Environment Variables, và `.env.local` khi chạy máy):
+
+| Biến | Bắt buộc | Dùng cho |
+|---|---|---|
+| `GEMINI_API_KEY` | Có (đã có) | AI phân tích, AI lập báo giá, Radar SEO |
+| `SUPABASE_SERVICE_ROLE_KEY` | Nên có | AI phân tích **ngay khi khách gửi form** (chạy nền). Thiếu: AI chạy khi sale mở lead |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Nên có | Thông báo lead mới vào nhóm Telegram |
+
+Model AI: `gemini-3.5-flash` (suy nghĩ mức thấp, ~4 giây), dự phòng `gemini-3.1-flash-lite`, `gemini-flash-latest`
+(`src/app/api/radar/services/gemini-client.ts`, dùng chung với Radar SEO).
+
 ### Luồng xử lý lead
 
 1. Khách gửi form hoặc bấm nút liên hệ. Hệ thống ghi một lead `NEW` vào `public.leads`

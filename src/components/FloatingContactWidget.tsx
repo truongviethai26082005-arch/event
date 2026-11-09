@@ -4,7 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { Phone } from "lucide-react";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick } from "@/app/admin-radar/lead-tracker";
 
 export default function FloatingContactWidget() {
   const pathname = usePathname();
@@ -92,9 +92,9 @@ export default function FloatingContactWidget() {
           href={item.href}
           target={item.isExternal ? "_blank" : undefined}
           rel={item.isExternal ? "noopener noreferrer" : undefined}
-          onClick={() => {
+          onClick={(e) => {
             if (item.leadSource) {
-              trackLandingLead(item.leadSource);
+              handleContactClick(e, item.leadSource);
             }
           }}
           aria-label={item.label}

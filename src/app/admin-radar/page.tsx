@@ -60,6 +60,7 @@ import {
   Plus,
 } from "lucide-react";
 import RadarSidebar, { RadarNavSection } from "./RadarSidebar";
+import RadarPipeline from "./pipeline/RadarPipeline";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorDropdown from "./CompetitorDropdown";
 import SeoScoreChecklist from "./SeoScoreChecklist";
@@ -157,7 +158,7 @@ export default function RadarSeoAdminPage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
   // 5 Mục canonical: "viet_bai" | "duyet_bai" | "bo_nao" | "doi_thu" | "ke_hoach"
-  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("viet_bai");
+  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("top_google");
 
   // State duyệt bài & kiểm soát chất lượng (QA)
   const [reviewingPost, setReviewingPost] = useState<DatabasePost | null>(null);
@@ -1334,6 +1335,7 @@ export default function RadarSeoAdminPage() {
                     activeNavSection === "cron") &&
                     "5. Kế Hoạch Nội Dung & Khoảng Trống SEO"}
                   {activeNavSection === "logs" && "Nhật Ký Hoạt Động Ca Quét AI"}
+                  {activeNavSection === "top_google" && "0. Dây Chuyền SEO: Vượt Đối Thủ Đang Top Google"}
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
                   AI v2.0
@@ -1359,6 +1361,8 @@ export default function RadarSeoAdminPage() {
                   "Ma trận khoảng trống nội dung từ ca quét 02:30 sáng, gom cụm đề bài và lên lịch viết bài."}
                 {activeNavSection === "logs" &&
                   "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
+                {activeNavSection === "top_google" &&
+                  "Top Google → cào bài đối thủ → so sánh → đề xuất viết mới / viết lại → AI viết → duyệt & đăng → theo dõi thứ hạng và khách."}
               </p>
             </div>
           </div>
@@ -3460,6 +3464,9 @@ export default function RadarSeoAdminPage() {
             </div>
           </div>
         )}
+
+        {/* MỤC 0: TOP GOOGLE (Radar đợt 1: từ khóa → top Google → cào bài) */}
+        {activeNavSection === "top_google" && <RadarPipeline onOpenPosts={() => setActiveNavSection("duyet_bai")} />}
 
         {/* MỤC 4: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
         {(activeNavSection === "doi_thu" || activeNavSection === "competitors") && (

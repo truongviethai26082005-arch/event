@@ -254,7 +254,8 @@ export type LeadActivityType =
   | "note"
   | "quote_sent"
   | "form_submitted"
-  | "merged";
+  | "merged"
+  | "ai_analysis";
 
 export const ACTIVITY_LABELS: Record<LeadActivityType, string> = {
   created: "Tiếp nhận lead",
@@ -266,6 +267,7 @@ export const ACTIVITY_LABELS: Record<LeadActivityType, string> = {
   quote_sent: "Gửi báo giá",
   form_submitted: "Khách điền form",
   merged: "Gộp lead trùng",
+  ai_analysis: "AI phân tích",
 };
 
 /** Các loại hoạt động sale tự ghi nhận bằng tay. */
@@ -377,4 +379,101 @@ export function countByPhone(leads: { phone?: string | null }[]) {
     if (key) counts.set(key, (counts.get(key) || 0) + 1);
   });
   return counts;
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. LỊCH SỰ KIỆN & DOANH THU                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lead có lên lịch không, và ở dạng nào:
+ *  - "CONFIRMED": Đã chốt (ký hợp đồng + nhận cọc) và có ngày tổ chức
+ *  - "TENTATIVE": Đã báo giá / Đang thương lượng và có ngày dự kiến -> hiện mờ "Dự kiến"
+ *  - null: Mới tiếp nhận, Không thành, sự kiện đã hủy, hoặc chưa có ngày -> không lên lịch
+ */
+export type CalendarKind = "CONFIRMED" | "TENTATIVE";
+
+export function calendarKind(lead: {
+  status?: string | null;
+  event_date?: string | null;
+  event_status?: string | null;
+}): CalendarKind | null {
+  if (!lead.event_date || lead.event_status === "CANCELLED") return null;
+  const status = getLeadStatus(lead);
+  if (status === "WON") return "CONFIRMED";
+  if (status === "QUOTED" || status === "NEGOTIATING") return "TENTATIVE";
+  return null;
+}
+
+interface RevenueLead {
+  id: string;
+  status?: string | null;
+  event_date?: string | null;
+  event_status?: string | null;
+  budget?: number | null;
+  actual_revenue?: number | null;
+}
+
+/**
+ * Giá trị của 1 lead:
+ *  - Đã chốt: ô "Ngân sách" (= giá trị hợp đồng), thiếu thì lấy báo giá gần nhất
+ *  - Đang báo giá / thương lượng: báo giá gần nhất (chính xác hơn), thiếu thì lấy ngân sách khách khai
+ */
+export function leadValue(lead: RevenueLead, latestQuoteTotal?: number | null) {
+  const budget = Number(lead.budget) || 0;
+  const quote = Number(latestQuoteTotal) || 0;
+  return getLeadStatus(lead) === "WON" ? budget || quote : quote || budget;
+}
+
+export interface RevenueSummary {
+  /** Sự kiện Đã chốt, tổ chức trong tháng (không tính sự kiện đã hủy). */
+  wonEventsInMonth: number;
+  /** Tổng giá trị hợp đồng của các sự kiện trên. */
+  wonRevenueInMonth: number;
+  /** Doanh thu thực tế đã nhập của các sự kiện trên. */
+  actualRevenueInMonth: number;
+  actualCount: number;
+  /** Tổng giá trị đang trong ống: Đã báo giá + Đang thương lượng (mọi thời điểm). */
+  pipelineValue: number;
+  pipelineCount: number;
+  /** Số lead trong ống chưa có báo giá lẫn ngân sách (chưa ước được giá trị). */
+  pipelineWithoutValue: number;
+}
+
+/** Tổng hợp doanh thu theo tháng tổ chức. monthStart / monthEnd dạng yyyy-mm-dd (monthEnd không tính). */
+export function summarizeRevenue(
+  leads: RevenueLead[],
+  monthStart: string,
+  monthEnd: string,
+  latestQuoteTotals: Map<string, number> = new Map()
+): RevenueSummary {
+  const summary: RevenueSummary = {
+    wonEventsInMonth: 0,
+    wonRevenueInMonth: 0,
+    actualRevenueInMonth: 0,
+    actualCount: 0,
+    pipelineValue: 0,
+    pipelineCount: 0,
+    pipelineWithoutValue: 0,
+  };
+  leads.forEach((lead) => {
+    const status = getLeadStatus(lead);
+    const value = leadValue(lead, latestQuoteTotals.get(lead.id));
+    if (status === "QUOTED" || status === "NEGOTIATING") {
+      summary.pipelineCount += 1;
+      summary.pipelineValue += value;
+      if (!value) summary.pipelineWithoutValue += 1;
+      return;
+    }
+    const day = String(lead.event_date || "").slice(0, 10);
+    if (status !== "WON" || !day || lead.event_status === "CANCELLED") return;
+    if (day < monthStart || day >= monthEnd) return;
+    summary.wonEventsInMonth += 1;
+    summary.wonRevenueInMonth += value;
+    if (lead.actual_revenue !== null && lead.actual_revenue !== undefined) {
+      summary.actualCount += 1;
+      summary.actualRevenueInMonth += Number(lead.actual_revenue) || 0;
+    }
+  });
+  return summary;
 }

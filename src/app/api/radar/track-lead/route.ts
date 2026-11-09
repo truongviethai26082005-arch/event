@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { runIntakeAutomation } from "@/lib/crm/automation";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { LEAD_SOURCE_LABELS } from "@/app/admin/_components/admin-types";
 import {
@@ -38,6 +39,8 @@ export async function POST(req: NextRequest) {
           : `[Lượt bấm nút ${channelName}] Khách bấm liên hệ lúc ${timestamp}. Chưa có số điện thoại, sale cần xác minh và cập nhật.`),
       source,
       status: "NEW",
+      landing_path: typeof body.landingPath === "string" ? body.landingPath.slice(0, 500) : null,
+      referrer: typeof body.referrer === "string" && body.referrer ? body.referrer.slice(0, 200) : null,
     };
 
     if (!isSupabaseConfigured) {
@@ -52,8 +55,15 @@ export async function POST(req: NextRequest) {
 
     // DB chưa chạy migration 20261108000000 (chưa có cột form_token)
     if (error && (error.code === "PGRST204" || error.code === "42703")) {
-      formToken = null;
-      ({ error } = await insert(leadData));
+      // DB cũ: thử lại không có landing_path / referrer, rồi không có form_token
+      const { landing_path: _l, referrer: _r, ...legacy } = leadData;
+      void _l;
+      void _r;
+      ({ error } = await insert({ ...legacy, form_token: formToken }));
+      if (error && (error.code === "PGRST204" || error.code === "42703")) {
+        formToken = null;
+        ({ error } = await insert(legacy));
+      }
     }
 
     // DB chưa chạy migration thêm nguồn FACEBOOK -> lưu tạm vào REFERRAL (ghi chú có chữ "Facebook"
@@ -71,6 +81,15 @@ export async function POST(req: NextRequest) {
       console.warn("Lỗi ghi nhận lead vào Supabase:", error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+    // Báo Telegram (và AI phân tích nếu là form có thông tin) chạy nền
+    after(() =>
+      runIntakeAutomation({
+        kind: isFormSubmission ? "form" : "click",
+        formToken,
+        origin: new URL(req.url).origin,
+        fallback: { fullName: leadData.full_name, phone, source, eventType: leadData.event_type },
+      })
+    );
     return NextResponse.json({ success: true, token: formToken });
   } catch (error) {
     console.error("Lỗi track lead:", error);

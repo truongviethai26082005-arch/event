@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import {
@@ -10,6 +10,10 @@ import {
   parseGuestCount,
 } from "@/lib/lead-form-options";
 import { CHANNEL_TO_SOURCE, isLeadChannel } from "@/lib/lead-funnel";
+import { runIntakeAutomation } from "@/lib/crm/automation";
+
+/** Cho phép tác vụ nền (AI phân tích + Telegram) chạy tối đa 60 giây. */
+export const maxDuration = 60;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,7 +27,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Có token khớp lead cũ -> cập nhật lead đó (không tạo trùng). Không có -> tạo lead mới.
  */
 export async function POST(request: Request) {
-  let body: LeadFormInput & { token?: string; channel?: string };
+  let body: LeadFormInput & { token?: string; channel?: string; landingPath?: string; referrer?: string };
   try {
     body = await request.json();
   } catch {
@@ -58,6 +62,8 @@ export async function POST(request: Request) {
     location: body.location ? String(body.location).trim() : null,
     notes: buildLeadNotes(body) || null,
     source: isLeadChannel(channel) ? CHANNEL_TO_SOURCE[channel] : "WEBSITE_FORM",
+    landing_path: body.landingPath ? String(body.landingPath).slice(0, 500) : null,
+    referrer: body.referrer ? String(body.referrer).slice(0, 200) : null,
   };
   const token = body.token && UUID_RE.test(body.token) ? body.token : null;
 
@@ -75,18 +81,31 @@ export async function POST(request: Request) {
   }
 
   if (!error) {
+    // Tự động hóa chạy nền sau khi đã trả kết quả cho khách
+    after(() =>
+      runIntakeAutomation({
+        kind: "form",
+        leadId: typeof leadId === "string" ? leadId : null,
+        origin: new URL(request.url).origin,
+        fallback: { fullName, phone, source: lead.source, eventType: lead.event_type },
+      })
+    );
     return NextResponse.json({ success: true, leadId });
   }
 
   // DB chưa chạy migration 20261108000000 (chưa có hàm submit_lead_form) -> tạo lead mới như cũ
   if (error.code === "PGRST202" || error.code === "42883") {
-    const insert = await supabase.from("leads").insert([{ ...lead, status: "NEW" }]);
+    // DB cũ: chưa có cột landing_path / referrer
+    const { landing_path: _l, referrer: _r, ...legacyLead } = lead;
+    void _l;
+    void _r;
+    const insert = await supabase.from("leads").insert([{ ...legacyLead, status: "NEW" }]);
     if (!insert.error) return NextResponse.json({ success: true });
     // DB cũ chưa có nguồn FACEBOOK
     if (insert.error.code === "23514") {
       const retry = await supabase
         .from("leads")
-        .insert([{ ...lead, status: "NEW", source: "REFERRAL", notes: `[Facebook] ${lead.notes || ""}` }]);
+        .insert([{ ...legacyLead, status: "NEW", source: "REFERRAL", notes: `[Facebook] ${lead.notes || ""}` }]);
       if (!retry.error) return NextResponse.json({ success: true });
     }
     console.error("[/api/leads] Lỗi insert:", insert.error);

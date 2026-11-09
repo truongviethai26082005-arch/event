@@ -10,7 +10,7 @@ import {
   GUEST_OPTIONS,
   isValidPhone,
 } from "@/lib/lead-form-options";
-import { markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
+import { landingInfo, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
 import type { LeadChannel } from "@/lib/lead-funnel";
 
 interface LeadCaptureFormProps {
@@ -67,7 +67,7 @@ export default function LeadCaptureForm({
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, token: resolvedToken || undefined, channel }),
+        body: JSON.stringify({ ...form, token: resolvedToken || undefined, channel, ...landingInfo() }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
