@@ -10,7 +10,6 @@ import {
   CircleAlert,
   CircleDollarSign,
   ClipboardList,
-  Radar,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -107,16 +106,12 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">
-            TRƯỜNG HẢI EVENT &amp; TRAVEL
-          </p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            Trung tâm điều hành
-          </h1>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">Điều hành</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Tổng quan</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Theo dõi khách hàng, doanh thu dự kiến và lịch sự kiện.
+            Việc cần làm hôm nay, tình hình khách trong tháng và lịch sự kiện sắp tới.
           </p>
         </div>
         <Link
@@ -124,10 +119,10 @@ export default function AdminDashboardPage() {
           className="inline-flex items-center gap-2 rounded-xl bg-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#142d75]"
         >
           <ClipboardList className="h-4 w-4" />
-          Quản lý khách hàng
+          Danh sách khách hàng
           <ArrowRight className="h-4 w-4" />
         </Link>
-      </div>
+      </header>
 
       {error && (
         <div
@@ -139,13 +134,14 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <section aria-label="Chỉ số kinh doanh" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      {/* 1. Chỉ số tháng này — xếp theo thứ tự phễu: khách mới → đang báo giá → đã chốt → doanh thu */}
+      <section aria-label="Chỉ số tháng này" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <KpiCard
-          title="Lead mới tháng này"
+          title="Khách mới tháng này"
           value={loading ? "…" : String(metrics?.leadsThisMonth ?? 0)}
           detail={
             metrics?.leadsLastMonth === 0 && metrics.leadsThisMonth > 0
-              ? "Mới phát sinh; tháng trước không có lead"
+              ? "Tháng trước chưa có khách"
               : `${metrics?.change ?? 0}% so với tháng trước`
           }
           icon={Users}
@@ -153,69 +149,49 @@ export default function AdminDashboardPage() {
           accent="blue"
         />
         <KpiCard
-          title="Sự kiện đã chốt trong tháng"
+          title="Đang báo giá / thương lượng"
+          value={loading ? "…" : formatCurrency(metrics?.pipelineValue ?? 0)}
+          detail={
+            metrics?.pipelineCount
+              ? `${metrics.pipelineCount} khách${
+                  metrics.pipelineWithoutValue ? ` · ${metrics.pipelineWithoutValue} chưa có giá` : ""
+                }`
+              : "Chưa có khách đang báo giá"
+          }
+          icon={TrendingUp}
+          accent="blue"
+        />
+        <KpiCard
+          title="Sự kiện đã chốt (tháng)"
           value={loading ? "…" : String(metrics?.wonEventsInMonth ?? 0)}
-          detail="Đã ký hợp đồng & nhận cọc, tổ chức trong tháng"
+          detail="Đã ký hợp đồng, tổ chức trong tháng"
           icon={CalendarDays}
           accent="gold"
         />
         <KpiCard
           title="Doanh thu đã chốt (tháng)"
           value={loading ? "…" : formatCurrency(metrics?.wonRevenueInMonth ?? 0)}
-          detail="Tổng giá trị hợp đồng của sự kiện tổ chức trong tháng"
+          detail="Giá trị hợp đồng của sự kiện trong tháng"
           icon={CircleDollarSign}
           accent="violet"
         />
         <KpiCard
-          title="Doanh thu tiềm năng"
-          value={loading ? "…" : formatCurrency(metrics?.pipelineValue ?? 0)}
-          detail={
-            metrics?.pipelineCount
-              ? `${metrics.pipelineCount} khách đang báo giá / thương lượng${
-                  metrics.pipelineWithoutValue ? ` (${metrics.pipelineWithoutValue} chưa có giá)` : ""
-                }`
-              : "Chưa có khách đang báo giá / thương lượng"
-          }
-          icon={TrendingUp}
-          accent="blue"
-        />
-        <KpiCard
           title="Doanh thu thực tế (tháng)"
-          value={loading ? "…" : metrics?.actualCount ? formatCurrency(metrics.actualRevenueInMonth) : "Chưa ghi nhận"}
+          value={loading ? "…" : metrics?.actualCount ? formatCurrency(metrics.actualRevenueInMonth) : "Chưa nhập"}
           detail={
             metrics?.wonEventsInMonth
-              ? `${metrics.actualCount}/${metrics.wonEventsInMonth} sự kiện đã nhập doanh thu thực tế`
-              : "Nhập sau khi tổ chức xong, tại hồ sơ khách"
+              ? `${metrics.actualCount}/${metrics.wonEventsInMonth} sự kiện đã nhập số thực tế`
+              : "Nhập trong hồ sơ khách sau khi tổ chức xong"
           }
           icon={CircleDollarSign}
           accent="green"
         />
       </section>
 
-      <Link
-        href="/admin-radar"
-        className="group flex flex-col justify-between gap-5 rounded-2xl border border-[#0A1E5E]/10 bg-gradient-to-r from-[#0A1E5E] to-[#142d75] p-5 text-white shadow-sm transition hover:shadow-lg sm:flex-row sm:items-center sm:p-6"
-      >
-        <div className="flex items-start gap-4">
-          <span className="rounded-2xl bg-white/10 p-3 text-[#D4AF37]">
-            <Radar className="h-6 w-6" />
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#E7C65A]">
-              Công cụ nội dung
-            </p>
-            <h2 className="mt-1 text-lg font-extrabold">Radar SEO AI</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-blue-100">
-              Phân tích đối thủ và lỗ hổng thị trường, tạo bài viết chuẩn SEO,
-              sau đó chỉnh sửa, lưu nháp hoặc xuất bản.
-            </p>
-          </div>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-[#0A1E5E] transition group-hover:bg-[#D4AF37] sm:self-auto">
-          Mở Radar SEO <ArrowRight className="h-4 w-4" />
-        </span>
-      </Link>
+      {/* 2. Việc cần làm — quan trọng nhất nên đặt ngay dưới chỉ số */}
+      <FollowUpTasks leads={leads} crmReady={crmReady} />
 
+      {/* 3. Phễu & nguồn khách */}
       <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <ConversionFunnel
@@ -230,8 +206,7 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <FollowUpTasks leads={leads} crmReady={crmReady} />
-
+      {/* 4. Lịch sự kiện */}
       <EventCalendar leads={leads} onRefreshLeads={loadLeads} />
     </div>
   );

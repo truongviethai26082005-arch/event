@@ -197,7 +197,7 @@ export default function CompetitorsManager({
 
             <div>
               <label className="block text-[11px] text-slate-700 mb-1 font-semibold">
-                Tên miền (Domain) *
+                Tên miền *
               </label>
               <input
                 type="text"
@@ -312,7 +312,7 @@ export default function CompetitorsManager({
             <thead className="bg-slate-50 uppercase text-[10px] text-slate-600 font-bold border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3.5">Đối thủ cạnh tranh</th>
-                <th className="px-4 py-3.5">Tên miền (Domain)</th>
+                <th className="px-4 py-3.5">Tên miền</th>
                 <th className="px-4 py-3.5">Phân khúc</th>
                 <th className="px-4 py-3.5 text-center">Trạng thái quét ngầm</th>
                 <th className="px-4 py-3.5 text-center">Số bài đã cào</th>

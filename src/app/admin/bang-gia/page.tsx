@@ -167,7 +167,7 @@ export default function PriceListPage() {
     <div className="mx-auto max-w-[1300px] space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">CRM • BÁO GIÁ TỰ ĐỘNG</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">Bán hàng</p>
           <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Bảng đơn giá</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             AI dùng bảng này để lập báo giá nháp theo nhu cầu từng khách. AI chỉ chọn hạng mục và số lượng; đơn giá luôn

@@ -52,14 +52,13 @@ import {
   Activity,
   AlertTriangle,
   Target,
-  Menu,
   Wand2,
   Bot,
   Zap,
   X,
   Plus,
 } from "lucide-react";
-import RadarSidebar, { RadarNavSection } from "./RadarSidebar";
+import RadarSidebar, { RADAR_SECTION_INFO, RadarNavSection, canonicalSection } from "./RadarSidebar";
 import RadarPipeline from "./pipeline/RadarPipeline";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
 import CompetitorDropdown from "./CompetitorDropdown";
@@ -178,7 +177,6 @@ export default function RadarSeoAdminPage() {
   const [isQaRunning, setIsQaRunning] = useState(false);
   const [qaReport, setQaReport] = useState<any>(null);
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<
     "posts" | "competitors" | "content_gap" | "activity_logs" | "leads" | "events"
   >("posts");
@@ -1248,126 +1246,18 @@ export default function RadarSeoAdminPage() {
     });
   };
 
+  const sectionInfo = RADAR_SECTION_INFO[canonicalSection(activeNavSection)] ?? RADAR_SECTION_INFO.top_google;
+
   return (
-    <div className="min-h-screen bg-slate-100/90 text-slate-900 font-sans flex flex-col lg:flex-row">
-      {/* THANH CÔNG CỤ DỌC BÊN TRÁI (LEFT SIDEBAR DOCK) */}
-      <RadarSidebar
-        activeSection={activeNavSection}
-        onSelectSection={(section) => {
-          setActiveNavSection(section);
-          if (section === "duyet_bai" || section === "posts") {
-            setActiveAdminTab("posts");
-          } else if (section === "bo_nao" || section === "events") {
-            setActiveAdminTab("events");
-          } else if (section === "doi_thu" || section === "competitors") {
-            setActiveAdminTab("competitors");
-          } else if (
-            section === "ke_hoach" ||
-            section === "content_gap" ||
-            section === "cron"
-          ) {
-            setActiveAdminTab("content_gap");
-          } else if (section === "logs") {
-            setActiveAdminTab("activity_logs");
-          }
-        }}
-        currentPostStatusFilter={statusFilter}
-        onSelectPostStatusFilter={(status) => {
-          setActiveNavSection("duyet_bai");
-          setActiveAdminTab("posts");
-          setStatusFilter(status);
-        }}
-        counts={{
-          posts: postsList.length,
-          drafts: draftCount,
-          published: publishedCount,
-          competitors: trackedCompetitors.length,
-          gaps: contentGaps.length,
-          events: eventProfilesCount,
-          logs: radarLogs.length,
-        }}
-        hasActiveEditor={Boolean(editablePost || analysisResult)}
-        activeEditorTitle={editablePost?.title}
-        isScanning={isScanningDomain || isBatchRunning || isAnalyzing}
-        isSupabaseConfigured={isSupabaseConfigured}
-        onRefreshAll={() => {
-          fetchPosts();
-          refreshRadarStats();
-          if (typeof window !== "undefined") {
-            setEventProfilesCount(getStoredEventProfiles().length);
-          }
-        }}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
-      />
-
-      {/* KHÔNG GIAN LÀM VIỆC CHÍNH (MAIN WORKSPACE) */}
-      <main className="flex-1 min-w-0 bg-slate-100/80 min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
-        {/* HEADER TRÊN CÙNG CỦA WORKSPACE */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4">
-          <div className="flex items-center space-x-3">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2.5 rounded-xl bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shrink-0 cursor-pointer shadow-xs"
-              title="Mở thanh công cụ"
-            >
-              <Menu className="w-5 h-5 text-amber-600" />
-            </button>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  {(activeNavSection === "viet_bai" ||
-                    activeNavSection === "scanner" ||
-                    activeNavSection === "editor") &&
-                    "1. Viết Bài & Sáng Tạo Nội Dung AI"}
-                  {(activeNavSection === "duyet_bai" ||
-                    activeNavSection === "posts") &&
-                    "2. Kho Bài Viết & Duyệt Bài (QA)"}
-                  {(activeNavSection === "bo_nao" ||
-                    activeNavSection === "events") &&
-                    "3. Bộ Não Thương Hiệu (Brand Brain)"}
-                  {(activeNavSection === "doi_thu" ||
-                    activeNavSection === "competitors") &&
-                    "4. Quản Lý Danh Sách Đối Thủ"}
-                  {(activeNavSection === "ke_hoach" ||
-                    activeNavSection === "content_gap" ||
-                    activeNavSection === "cron") &&
-                    "5. Kế Hoạch Nội Dung & Khoảng Trống SEO"}
-                  {activeNavSection === "logs" && "Nhật Ký Hoạt Động Ca Quét AI"}
-                  {activeNavSection === "top_google" && "0. Dây Chuyền SEO: Vượt Đối Thủ Đang Top Google"}
-                </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
-                  AI v2.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {(activeNavSection === "viet_bai" ||
-                  activeNavSection === "scanner" ||
-                  activeNavSection === "editor") &&
-                  "Chỉ tập trung vào tạo bài viết: Nhập từ khóa, quét đối thủ, bóc tách cấu trúc và AI Studio tạo nháp."}
-                {(activeNavSection === "duyet_bai" ||
-                  activeNavSection === "posts") &&
-                  "Nơi người duyệt đọc, kiểm tra các vị trí [CẦN SỐ LIỆU], tick checklist QA rồi mới xuất bản lên web."}
-                {(activeNavSection === "bo_nao" ||
-                  activeNavSection === "events") &&
-                  "Kho dữ liệu độc quyền của công ty: Hồ sơ dự án thật, danh mục thiết bị sẵn kho, quy tắc giọng văn."}
-                {(activeNavSection === "doi_thu" ||
-                  activeNavSection === "competitors") &&
-                  "Máy tự tìm hoặc người thêm đối thủ, quét sitemap và tự động cào bài viết mới."}
-                {(activeNavSection === "ke_hoach" ||
-                  activeNavSection === "content_gap" ||
-                  activeNavSection === "cron") &&
-                  "Ma trận khoảng trống nội dung từ ca quét 02:30 sáng, gom cụm đề bài và lên lịch viết bài."}
-                {activeNavSection === "logs" &&
-                  "Lịch sử chi tiết toàn bộ các lượt cào bài, phân tích và lưu trữ bài viết."}
-                {activeNavSection === "top_google" &&
-                  "Top Google → cào bài đối thủ → so sánh → đề xuất viết mới / viết lại → AI viết → duyệt & đăng → theo dõi thứ hạng và khách."}
-              </p>
-            </div>
+    <div className="mx-auto max-w-[1500px] space-y-5 text-slate-900">
+        {/* ĐẦU TRANG: tên mục đang mở + thao tác chung */}
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">Radar SEO</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{sectionInfo.title}</h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-500">{sectionInfo.description}</p>
           </div>
-
-          <div className="flex items-center space-x-2.5 text-xs self-end sm:self-auto shrink-0">
+          <div className="flex items-center gap-2 text-sm">
             <button
               type="button"
               onClick={() => {
@@ -1377,23 +1267,47 @@ export default function RadarSeoAdminPage() {
                   setEventProfilesCount(getStoredEventProfiles().length);
                 }
               }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold flex items-center space-x-1.5 transition-colors border border-slate-300 shadow-xs cursor-pointer"
-              title="Làm mới dữ liệu"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+              title="Tải lại dữ liệu"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Làm mới</span>
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline">Tải lại</span>
             </button>
-
             <Link
               href="/tin-tuc"
               target="_blank"
-              className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-bold flex items-center space-x-1 transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
             >
-              <span>Xem Blog</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              Xem blog <ExternalLink className="h-4 w-4" />
             </Link>
           </div>
-        </div>
+        </header>
+
+        <RadarSidebar
+          activeSection={activeNavSection}
+          onSelectSection={(section) => {
+            setActiveNavSection(section);
+            if (section === "duyet_bai" || section === "posts") {
+              setActiveAdminTab("posts");
+            } else if (section === "bo_nao" || section === "events") {
+              setActiveAdminTab("events");
+            } else if (section === "doi_thu" || section === "competitors") {
+              setActiveAdminTab("competitors");
+            } else if (section === "ke_hoach" || section === "content_gap" || section === "cron") {
+              setActiveAdminTab("content_gap");
+            } else if (section === "logs") {
+              setActiveAdminTab("activity_logs");
+            }
+          }}
+          counts={{
+            drafts: draftCount,
+            competitors: trackedCompetitors.length,
+            gaps: contentGaps.length,
+            logs: radarLogs.length,
+          }}
+          activeEditorTitle={editablePost?.title || (analysisResult ? "Bản nháp chưa đặt tên" : null)}
+          isScanning={isScanningDomain || isBatchRunning || isAnalyzing}
+        />
 
         {/* MODAL HẸN LỊCH ĐĂNG BÀI TOÀN CỤC */}
         {showScheduleModal && (
@@ -1462,8 +1376,8 @@ export default function RadarSeoAdminPage() {
                 <div>
                   <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-wide">
                     {scanMode === "domain"
-                      ? "Dò Tìm & Bóc Tách Bài Viết Từ Website Đối Thủ"
-                      : "Bóc Tách & Tái Tạo 1 Bài Viết Cụ Thể"}
+                      ? "Lấy danh sách bài từ một website đối thủ"
+                      : "Viết lại tốt hơn từ một bài đối thủ cụ thể"}
                   </h2>
                   <p className="text-[11px] text-slate-500">
                     {scanMode === "domain"
@@ -1485,7 +1399,7 @@ export default function RadarSeoAdminPage() {
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5" />
-                  <span>Quét Domain / Sitemap</span>
+                  <span>Quét cả website</span>
                   <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
                     Khuyên dùng
                   </span>
@@ -1500,7 +1414,7 @@ export default function RadarSeoAdminPage() {
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Bóc tách 1 Link bài viết</span>
+                  <span>Từ 1 bài viết</span>
                 </button>
               </div>
             </div>
@@ -2253,7 +2167,7 @@ export default function RadarSeoAdminPage() {
                     <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       1
                     </span>
-                    <span className="truncate text-[11px]">Intent & SERP</span>
+                    <span className="truncate text-[11px]">Ý định tìm kiếm</span>
                   </div>
 
                   <div
@@ -2268,7 +2182,7 @@ export default function RadarSeoAdminPage() {
                     <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       2
                     </span>
-                    <span className="truncate text-[11px]">Gap Analysis</span>
+                    <span className="truncate text-[11px]">Khoảng trống</span>
                   </div>
 
                   <div
@@ -2326,7 +2240,7 @@ export default function RadarSeoAdminPage() {
                     <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
                       6
                     </span>
-                    <span className="truncate text-[11px]">QA & Final Output</span>
+                    <span className="truncate text-[11px]">Kiểm tra &amp; bản cuối</span>
                   </div>
                 </div>
               </div>
@@ -2969,7 +2883,7 @@ export default function RadarSeoAdminPage() {
                   <th className="py-3 px-4">Từ khóa chính</th>
                   <th className="py-3 px-4">Trạng thái</th>
                   <th className="py-3 px-4">Thời gian tạo</th>
-                  <th className="py-3 px-4 text-right">Thao tác duyệt QA</th>
+                  <th className="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -3078,7 +2992,7 @@ export default function RadarSeoAdminPage() {
                           title="Soát lỗi [CẦN SỐ LIỆU] & Duyệt QA"
                         >
                           <CheckSquare className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Soát QA</span>
+                          <span>Kiểm tra</span>
                         </button>
 
                         {/* Nút Duyệt đăng nhanh */}
@@ -3102,7 +3016,7 @@ export default function RadarSeoAdminPage() {
                             setActiveNavSection("viet_bai");
                           }}
                           className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 hover:border-amber-200 inline-flex items-center transition-all cursor-pointer"
-                          title="Mở trong AI Studio để sửa sâu"
+                          title="Mở trong trình soạn thảo để sửa"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -3353,7 +3267,7 @@ export default function RadarSeoAdminPage() {
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center space-x-2 text-slate-900 font-bold text-xs">
                     <CheckCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Checklist kiểm định QA của người duyệt bài:</span>
+                    <span>Danh sách kiểm tra trước khi đăng:</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
@@ -3436,7 +3350,7 @@ export default function RadarSeoAdminPage() {
                   className="px-4 py-2 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-slate-300 font-bold text-xs flex items-center space-x-1.5 cursor-pointer shadow-xs"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Sửa sâu trong AI Studio</span>
+                  <span>Mở trình soạn thảo</span>
                 </button>
 
                 <div className="flex items-center space-x-2">
@@ -3579,7 +3493,7 @@ export default function RadarSeoAdminPage() {
             <div className="pt-8 border-t border-slate-200">
               <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-amber-600" />
-                Hồ sơ chi tiết các Case Study sự kiện (Kho ảnh & Báo giá bóc tách)
+                Hồ sơ dự án đã làm (ảnh thật & chi phí từng hạng mục)
               </h3>
               <EventProfileArchive
                 onOpenInRadarEditor={(post) => {
@@ -3607,7 +3521,6 @@ export default function RadarSeoAdminPage() {
             <RadarActivityLogs onRefreshData={refreshRadarStats} />
           </div>
         )}
-      </main>
     </div>
   );
 }
