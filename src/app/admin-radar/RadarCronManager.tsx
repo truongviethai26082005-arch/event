@@ -895,7 +895,7 @@ export default function RadarCronManager({
                   Chi tiết {liveSuccessNotice.discoveredGaps.length} bài viết website mình đang thiếu:
                 </span>
                 <span className="text-[11px] text-slate-500 font-medium">
-                  Bấm "Viết bài này" để AI Studio tự động nạp từ khóa và soạn nháp
+                  Bấm "Viết bài này" để AI tự động nạp từ khóa và soạn nháp
                 </span>
               </div>
 

@@ -227,7 +227,7 @@ export default function ContentGapDashboard({
                 className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
               >
                 <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>Viết bài này ngay bằng AI Studio</span>
+                <span>Viết bài này bằng AI</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -264,7 +264,7 @@ export default function ContentGapDashboard({
           </h3>
           <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl leading-relaxed">
             Tất cả các khoảng trống nội dung đã phát hiện hiện đều đã có bản nháp hoặc đã được đưa vào kế hoạch.
-            Không còn bài nào bị bỏ sót. Bạn có thể sang <b>Tab 2 (Duyệt bài)</b> để kiểm định chất lượng QA hoặc bấm <b>Chạy quét ca mới</b> ở trên để tìm thêm đề tài mới.
+            Không còn bài nào bị bỏ sót. Bạn có thể sang <b>Kho bài viết</b> để kiểm tra hoặc bấm <b>Chạy quét ca mới</b> ở trên để tìm thêm đề tài mới.
           </p>
         </div>
       )}
@@ -606,7 +606,7 @@ export default function ContentGapDashboard({
                         className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Xem nháp trong kho QA</span>
+                        <span>Xem nháp trong Kho bài viết</span>
                       </button>
 
                       <button
