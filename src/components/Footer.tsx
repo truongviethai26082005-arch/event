@@ -15,7 +15,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
-import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick, trackLandingLead } from "@/app/admin-radar/lead-tracker";
 
 export default function Footer() {
   return (
@@ -67,59 +67,59 @@ export default function Footer() {
               <Calendar className="w-4 h-4 mr-2 text-[#D4AF37]" />
               Dịch Vụ Cốt Lõi
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2 text-xs">
               <li>
                 <Link
-                  href="/dich-vu#su-kien"
+                  href="/dich-vu#le-khai-truong"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Lễ kỷ niệm, khánh thành, khai trương
+                  Lễ khai trương & Lễ khánh thành
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/dich-vu#su-kien"
+                  href="/dich-vu#hoi-nghi-hoi-thao"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Tiệc tất niên Y.E.P & Gala Dinner
+                  Hội nghị, Hội thảo
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/dich-vu#su-kien"
+                  href="/dich-vu#tiec-tat-nien-yep-gala-dinner"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Hội nghị, hội thảo & Mở bán BĐS
+                  Tiệc tất niên - Y.E.P, Gala Dinner
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/dich-vu#su-kien"
+                  href="/dich-vu#team-building"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Âm thanh, ánh sáng, màn hình LED
+                  Team Building
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/dich-vu#du-lich"
+                  href="/dich-vu#trung-thu"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Tour doanh nghiệp & Team Building
+                  Trung Thu & Tết thiếu nhi
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/dich-vu#du-lich"
+                  href="/dich-vu#thiet-bi-su-kien"
                   className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Cho thuê xe du lịch 7 - 45 chỗ đời mới
+                  Thiết bị sự kiện & Hoạt động khác
                 </Link>
               </li>
             </ul>
@@ -135,7 +135,13 @@ export default function Footer() {
               <li>
                 <Link href="/" className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5">
                   <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
-                  Trang chủ & Dự án tiêu biểu
+                  Trang chủ
+                </Link>
+              </li>
+              <li>
+                <Link href="/du-an" className="hover:text-[#D4AF37] transition-colors flex items-center group py-0.5 font-bold text-[#F5E08B]">
+                  <ChevronRight className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37] group-hover:translate-x-1 transition-transform" />
+                  Dự án thực tế & Thư viện ảnh
                 </Link>
               </li>
               <li>
@@ -220,7 +226,7 @@ export default function Footer() {
                 href={COMPANY_INFO.socials.facebook}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => trackLandingLead("FACEBOOK")}
+                onClick={(e) => handleContactClick(e, "FACEBOOK")}
                 className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all flex items-center justify-center text-slate-300 shadow-sm"
                 title="Facebook Trường Hải Event"
                 aria-label="Facebook"
@@ -235,7 +241,7 @@ export default function Footer() {
                 href={COMPANY_INFO.socials.zalo}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => trackLandingLead("ZALO")}
+                onClick={(e) => handleContactClick(e, "ZALO")}
                 className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/60 hover:bg-[#D4AF37] hover:text-[#0A1E5E] transition-all flex items-center justify-center text-slate-300 shadow-sm text-xs font-black tracking-tight"
                 title="Zalo Trường Hải Event"
                 aria-label="Zalo"

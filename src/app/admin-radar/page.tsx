@@ -10,12 +10,14 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { COMPANY_INFO, MOCK_BLOG_POSTS } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabasePost, DatabaseLead } from "@/lib/supabase";
-import ConversionFunnel from "./ConversionFunnel";
-import CustomerSourcesChart from "./CustomerSourcesChart";
-import EventCalendar from "./EventCalendar";
+import { supabase, isSupabaseConfigured, DatabasePost } from "@/lib/supabase";
 import EventProfileArchive from "./EventProfileArchive";
+import BrandBrainViewer from "./BrandBrainViewer";
 import { getStoredEventProfiles, DEFAULT_EVENT_PROFILES } from "./event-profiles-data";
+import {
+  consumePendingRadarDraft,
+  consumePendingRadarProfileId,
+} from "./radar-handoff";
 import {
   Radar,
   Sparkles,
@@ -49,14 +51,35 @@ import {
   Loader2,
   ListFilter,
   CheckCheck,
-  Briefcase,
+  Compass,
+  Activity,
+  AlertTriangle,
+  Target,
+  Wand2,
+  Bot,
+  Zap,
+  X,
+  Plus,
+  SlidersHorizontal,
 } from "lucide-react";
+import RadarSidebar, { RADAR_SECTION_INFO, RadarNavSection, canonicalSection } from "./RadarSidebar";
+import RadarPipeline from "./pipeline/RadarPipeline";
 import ArticleContentRenderer from "@/components/ArticleContentRenderer";
-import CompetitorPresetDirectory from "./CompetitorPresetDirectory";
+import CompetitorDropdown from "./CompetitorDropdown";
 import SeoScoreChecklist from "./SeoScoreChecklist";
+import CompetitorsManager from "./CompetitorsManager";
+import ContentGapDashboard from "./ContentGapDashboard";
+import RadarActivityLogs from "./RadarActivityLogs";
+import {
+  getStoredCompetitors,
+  getStoredContentGaps,
+  getStoredRadarLogs,
+  getStoredScheduleConfig,
+} from "./competitors-data";
 import {
   CompetitorPreset,
   saveCustomCompetitor,
+  DEFAULT_COMPETITOR_PRESETS,
 } from "./competitor-presets";
 import { ensureAccentedKeyword } from "@/app/api/radar/services/vietnamese-diacritics";
 import { toSentenceCase } from "@/app/api/radar/services/content-generator";
@@ -137,10 +160,49 @@ export default function RadarSeoAdminPage() {
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
-  // Leads state
-  const [leadsList, setLeadsList] = useState<DatabaseLead[]>([]);
-  const [loadingLeads, setLoadingLeads] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<"posts" | "leads" | "events">("posts");
+  // 5 Mục canonical: "viet_bai" | "duyet_bai" | "bo_nao" | "doi_thu" | "ke_hoach"
+  const [activeNavSection, setActiveNavSection] = useState<RadarNavSection>("top_google");
+
+  // State duyệt bài & kiểm soát chất lượng (QA)
+  const [reviewingPost, setReviewingPost] = useState<DatabasePost | null>(null);
+  const [reviewingChecklist, setReviewingChecklist] = useState<{
+    dataChecked: boolean;
+    keywordChecked: boolean;
+    brandBrainChecked: boolean;
+    formatChecked: boolean;
+  }>({
+    dataChecked: false,
+    keywordChecked: false,
+    brandBrainChecked: false,
+    formatChecked: false,
+  });
+
+  // State Soát lỗi QA tự động bằng máy
+  const [isQaRunning, setIsQaRunning] = useState(false);
+  const [qaReport, setQaReport] = useState<any>(null);
+
+  const [activeAdminTab, setActiveAdminTab] = useState<
+    "posts" | "competitors" | "content_gap" | "activity_logs" | "leads" | "events"
+  >("posts");
+
+  // Radar Engine Stats (Đối thủ, Khoảng trống SEO, Nhật ký, Lịch ngầm)
+  const [trackedCompetitors, setTrackedCompetitors] = useState<any[]>([]);
+  const [contentGaps, setContentGaps] = useState<any[]>([]);
+  const [radarLogs, setRadarLogs] = useState<any[]>([]);
+  const [scheduleConfig, setScheduleConfig] = useState<any>(null);
+
+  const refreshRadarStats = () => {
+    if (typeof window !== "undefined") {
+      setTrackedCompetitors(getStoredCompetitors());
+      setContentGaps(getStoredContentGaps());
+      setRadarLogs(getStoredRadarLogs());
+      setScheduleConfig(getStoredScheduleConfig());
+    }
+  };
+
+  useEffect(() => {
+    refreshRadarStats();
+  }, []);
   const [eventProfilesCount, setEventProfilesCount] = useState<number>(DEFAULT_EVENT_PROFILES.length);
 
   // Hồ sơ sự kiện liên kết với Radar SEO
@@ -205,6 +267,7 @@ export default function RadarSeoAdminPage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
   const [postNotice, setPostNotice] = useState<{
     type: "success" | "error" | "info";
     text: string;
@@ -225,76 +288,32 @@ export default function RadarSeoAdminPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // TÍCH CHỌN HÀNG LOẠT (SELECT ALL / DESELECT ALL)
+  const isAllVisibleSelected =
+    filteredPosts.length > 0 &&
+    filteredPosts.every((p) => selectedPostIds.includes(p.id));
+
+  const isSomeVisibleSelected =
+    filteredPosts.some((p) => selectedPostIds.includes(p.id)) && !isAllVisibleSelected;
+
+  const handleToggleSelectPost = (id: string) => {
+    setSelectedPostIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllVisible = () => {
+    if (isAllVisibleSelected) {
+      const visibleIds = new Set(filteredPosts.map((p) => p.id));
+      setSelectedPostIds((prev) => prev.filter((id) => !visibleIds.has(id)));
+    } else {
+      const visibleIds = filteredPosts.map((p) => p.id);
+      setSelectedPostIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
   const publishedCount = postsList.filter((p) => p.status === "published").length;
   const draftCount = postsList.filter((p) => p.status === "draft" || !p.status).length;
-
-  // Fetch leads from Supabase
-  const fetchLeads = async () => {
-    setLoadingLeads(true);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (!error && data) {
-          setLeadsList(data);
-          setLoadingLeads(false);
-          return;
-        }
-      } catch (e) {
-        console.warn("Lỗi tải leads từ Supabase:", e);
-      }
-    }
-
-    // Mock leads fallback
-    setLeadsList([
-      {
-        id: "lead-1",
-        full_name: "Nguyễn Văn Hùng",
-        phone: "0912 345 678",
-        email: "hung.nv@techcorp.vn",
-        event_type: "Hội nghị khách hàng 300 khách",
-        notes: "Cần báo giá trọn gói âm thanh ánh sáng & tiệc teabreak tại Hà Nội cuối tháng sau.",
-        created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-      },
-      {
-        id: "lead-2",
-        full_name: "Trần Thị Mai Anh",
-        phone: "0988 765 432",
-        email: "maianh.event@vietgroup.com",
-        event_type: "Lễ khai trương chi nhánh mới",
-        notes: "Cần kịch bản đón tiếp khách VIP và đội múa Lân Sư Rồng tại Cầu Giấy.",
-        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-      },
-      {
-        id: "lead-3",
-        full_name: "Lê Hoàng Long",
-        phone: "0903 112 233",
-        email: "long.lh@sunshine.vn",
-        event_type: "Teambuilding & Gala Dinner 2N1Đ",
-        notes: "Đoàn 150 người tại Hạ Long, yêu cầu MC nhiệt huyết và quà tặng teambuilding.",
-        created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-      },
-    ]);
-    setLoadingLeads(false);
-  };
-
-  const handleDeleteLead = async (leadId?: string) => {
-    if (!leadId) return;
-    if (!window.confirm("Bạn có chắc muốn xóa yêu cầu tư vấn của khách hàng này?")) return;
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from("leads").delete().eq("id", leadId);
-        fetchLeads();
-        return;
-      } catch (e) {
-        console.warn("Lỗi khi xóa lead:", e);
-      }
-    }
-    setLeadsList(leadsList.filter((l) => l.id !== leadId));
-  };
 
   const handleStartEditPost = (post: any) => {
     setEditingPostId(post.id);
@@ -308,12 +327,60 @@ export default function RadarSeoAdminPage() {
       reading_time: "5 phút",
     });
     setActiveResultTab("article");
+    setActiveNavSection("viet_bai");
     setTimeout(() => {
       const editorEl = document.getElementById("radar-results-editor");
       if (editorEl) {
         editorEl.scrollIntoView({ behavior: "smooth" });
       }
     }, 100);
+  };
+
+  // Cập nhật trực tiếp số liệu thật vào bài viết từ modal QA
+  const handleDirectUpdateContent = async (updatedPost: DatabasePost) => {
+    setPostsList((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    if (isSupabaseConfigured && updatedPost.id) {
+      try {
+        await supabase
+          .from("posts")
+          .update({
+            content: updatedPost.content,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", updatedPost.id);
+      } catch (err) {
+        console.error("Direct update error:", err);
+      }
+    }
+    setPostNotice({
+      type: "success",
+      text: `Đã điền số liệu thực tế vào bài viết "${updatedPost.title}"!`,
+      slug: updatedPost.slug,
+    });
+  };
+
+  // Xuất bản bài viết trực tiếp từ modal QA
+  const handlePublishDirect = async (targetPost: DatabasePost) => {
+    try {
+      const updated = { ...targetPost, status: "published" as const };
+      setPostsList((prev) => prev.map((p) => (p.id === targetPost.id ? updated : p)));
+      if (isSupabaseConfigured && targetPost.id) {
+        await supabase
+          .from("posts")
+          .update({
+            status: "published",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", targetPost.id);
+      }
+      setPostNotice({
+        type: "success",
+        text: `Đã phê duyệt và xuất bản bài viết "${targetPost.title}" lên website thành công!`,
+        slug: targetPost.slug,
+      });
+    } catch (err) {
+      console.error("Publish direct error:", err);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -364,17 +431,91 @@ export default function RadarSeoAdminPage() {
 
   useEffect(() => {
     fetchPosts();
-    fetchLeads();
-    if (typeof window !== "undefined") {
-      setAvailableProfiles(getStoredEventProfiles());
+    if (typeof window === "undefined") return;
+
+    const syncTimer = window.setTimeout(() => {
+      const storedProfiles = getStoredEventProfiles();
+      setAvailableProfiles(storedProfiles);
+      setEventProfilesCount(storedProfiles.length);
+
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam === "events") {
-        setActiveAdminTab("events");
-      } else if (tabParam === "leads") {
-        setActiveAdminTab("leads");
+      const profileIdParam = params.get("profileId") || consumePendingRadarProfileId();
+      const postSlugParam = params.get("postSlug");
+      const pendingDraft = consumePendingRadarDraft();
+
+      if (profileIdParam) {
+        const matched = storedProfiles.find((p) => p.id === profileIdParam);
+        if (matched) {
+          setSelectedEventId(matched.id);
+          if (!pendingDraft && matched.seoMeta?.suggestedKeyword) {
+            setTargetKeyword((prev) => prev || matched.seoMeta?.suggestedKeyword || "");
+          }
+          if (!pendingDraft) {
+            setScanMode("single");
+          }
+        }
       }
-    }
+
+      if (pendingDraft) {
+        setEditablePost(pendingDraft);
+        setActiveResultTab("article");
+        setArticlePreviewMode("edit");
+        setActiveNavSection("viet_bai");
+        return;
+      }
+
+      if (tabParam === "top_google" || tabParam === "top-google") {
+        setActiveNavSection("top_google");
+      } else if (
+        tabParam === "viet_bai" ||
+        tabParam === "viet-bai" ||
+        tabParam === "editor" ||
+        tabParam === "scanner"
+      ) {
+        setActiveNavSection("viet_bai");
+      } else if (
+        tabParam === "duyet_bai" ||
+        tabParam === "duyet-bai" ||
+        tabParam === "posts"
+      ) {
+        setActiveNavSection("duyet_bai");
+        if (postSlugParam) {
+          setStatusFilter("all");
+          setSearchQuery(postSlugParam);
+        } else {
+          setStatusFilter("draft");
+        }
+        setActiveAdminTab("posts");
+      } else if (
+        tabParam === "bo_nao" ||
+        tabParam === "bo-nao" ||
+        tabParam === "events"
+      ) {
+        setActiveNavSection("bo_nao");
+        setActiveAdminTab("events");
+      } else if (
+        tabParam === "doi_thu" ||
+        tabParam === "doi-thu" ||
+        tabParam === "competitors"
+      ) {
+        setActiveNavSection("doi_thu");
+        setActiveAdminTab("competitors");
+      } else if (
+        tabParam === "ke_hoach" ||
+        tabParam === "ke-hoach" ||
+        tabParam === "content_gap" ||
+        tabParam === "cron"
+      ) {
+        setActiveNavSection("ke_hoach");
+        setActiveAdminTab("content_gap");
+      } else if (tabParam === "logs" || tabParam === "activity_logs") {
+        setActiveNavSection("logs");
+        setActiveAdminTab("activity_logs");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(syncTimer);
   }, []);
 
   // Quick fill samples
@@ -396,10 +537,14 @@ export default function RadarSeoAdminPage() {
     setCustomPrompt((prev) => (prev ? `${prev}\n- ${proofText}` : proofText));
   };
 
-  // Main Radar Action: Call /api/radar
-  const handleScanAndGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!competitorUrl) return;
+  // Main Radar Action: Call /api/radar (Hỗ trợ gọi trực tiếp từ Tab Kế hoạch hoặc qua Form)
+  const executeScanAndGenerate = async (
+    overrideUrl?: string,
+    overrideKeyword?: string
+  ) => {
+    const url = (overrideUrl || competitorUrl || "").trim();
+    const keyword = (overrideKeyword || targetKeyword || "").trim();
+    if (!url) return;
 
     setIsAnalyzing(true);
     setErrorMsg(null);
@@ -418,8 +563,8 @@ export default function RadarSeoAdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          competitorUrl: competitorUrl.trim(),
-          targetKeyword: targetKeyword.trim(),
+          competitorUrl: url,
+          targetKeyword: keyword,
           customPrompt: customPrompt.trim(),
           selectedEventId,
           eventProfileProof: activeEventProfile,
@@ -446,13 +591,21 @@ export default function RadarSeoAdminPage() {
       if (data.savedPostId) {
         setEditingPostId(data.savedPostId);
       }
-      // ƯU TIÊN MỞ TAB "analysis" ĐỂ ADMIN NẮM ĐƯỢC BỐI CẢNH VÀ LỖ HỔNG
-      setActiveResultTab("analysis");
+      // ƯU TIÊN MỞ THẲNG TAB "article" (SOẠN THẢO BÀI VIẾT) ĐỂ USER THẤY BÀI ĐÃ TẠO XONG
+      setActiveResultTab("article");
+      setArticlePreviewMode("edit");
+      setActiveNavSection("viet_bai");
 
       // Reload posts table if server saved it
       if (data.isSupabaseSaved) {
         fetchPosts();
       }
+
+      // Cuộn mượt mà đến khu vực soạn thảo AI Studio
+      setTimeout(() => {
+        const editorEl = document.getElementById("radar-results-editor");
+        if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
+      }, 300);
     } catch (err: any) {
       console.error("Radar error:", err);
       setErrorMsg(err.message || "Đã xảy ra lỗi khi quét bài viết đối thủ.");
@@ -460,6 +613,88 @@ export default function RadarSeoAdminPage() {
       setIsAnalyzing(false);
       setProcessStep(0);
     }
+  };
+
+  const handleScanAndGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeScanAndGenerate();
+  };
+
+  // HÀM MÁY TỰ ĐỘNG SOÁT LỖI & CHẤM ĐIỂM QA THEO 20 TIÊU CHÍ
+  const runAutomatedQaReview = async (postToReview?: DatabasePost | null) => {
+    const target = postToReview || reviewingPost;
+    if (!target || !target.content) return;
+
+    setIsQaRunning(true);
+    try {
+      const res = await fetch("/api/radar/qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: target.content,
+          title: target.title,
+          keyword: target.focus_keyword || "",
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setQaReport(json.data);
+        // Tự động đồng bộ tick các mục đạt chuẩn vào checklist
+        setReviewingChecklist({
+          dataChecked: json.data.summary.missingDataCount === 0,
+          keywordChecked: json.data.checks.some(
+            (c: any) => c.id === "Q1_SEO" && c.status === "pass"
+          ),
+          brandBrainChecked: json.data.checks.some(
+            (c: any) => c.id === "Q12_BRAND" && c.status === "pass"
+          ),
+          formatChecked: json.data.checks.some(
+            (c: any) => c.id === "Q15_FAQ" && c.status === "pass"
+          ),
+        });
+      }
+    } catch (err) {
+      console.error("Automated QA Review error:", err);
+    } finally {
+      setIsQaRunning(false);
+    }
+  };
+
+  // HÀM TỰ ĐỘNG SỬA TỪ CẤM V8, V9, V10
+  const handleAutoFixForbiddenWords = () => {
+    if (!reviewingPost) return;
+    let fixedContent = reviewingPost.content;
+    const replacements: Record<string, string> = {
+      "đẳng cấp": "chất lượng cao",
+      "hàng đầu": "chuyên sâu",
+      "số 1": "uy tín",
+      "top 1": "đáng tin cậy",
+      "uy tín nhất": "uy tín",
+      "chuyên nghiệp nhất": "chuyên nghiệp",
+      "đột phá": "hiệu quả",
+      "bùng nổ": "sôi nổi",
+      "thăng hoa": "ấn tượng",
+      "đỉnh cao": "bài bản",
+      "hoàn hảo": "chu đáo",
+      "tuyệt vời": "tốt đẹp",
+      "siêu": "rất",
+      "khủng": "quy mô lớn",
+      "trong kỷ nguyên số": "Hiện nay",
+      "trong thời đại ngày nay": "Hiện nay",
+      "trong bối cảnh": "Hiện nay",
+      "không thể phủ nhận": "Rõ ràng",
+      "100%": "tối đa",
+      "rẻ nhất": "hợp lý",
+    };
+    for (const [bad, good] of Object.entries(replacements)) {
+      const reg = new RegExp(`\\b${bad}\\b`, "gi");
+      fixedContent = fixedContent.replace(reg, good);
+    }
+    const updated = { ...reviewingPost, content: fixedContent };
+    setReviewingPost(updated);
+    handleDirectUpdateContent(updated);
+    // Chạy lại kiểm định để thấy điểm số tăng vọt ngay
+    runAutomatedQaReview(updated);
   };
 
   // QUÉT TỰ ĐỘNG DOMAIN ĐỐI THỦ
@@ -799,8 +1034,8 @@ export default function RadarSeoAdminPage() {
       status === "published"
         ? "Đang xuất bản bài viết..."
         : status === "scheduled"
-        ? `Đang lên lịch đăng bài (${scheduledTime || "tự động"})...`
-        : "Đang lưu bản nháp vào Supabase...";
+          ? `Đang lên lịch đăng bài (${scheduledTime || "tự động"})...`
+          : "Đang lưu bản nháp vào Supabase...";
 
     setSaveStatus(statusText);
 
@@ -840,8 +1075,8 @@ export default function RadarSeoAdminPage() {
           status === "published"
             ? "Đã xuất bản bài viết thành công lên trang Tin tức!"
             : status === "scheduled"
-            ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
-            : "Đã lưu bản nháp vào bảng 'posts' thành công!"
+              ? `Đã lên lịch xuất bản bài viết thành công: ${scheduledTime}!`
+              : "Đã lưu bản nháp vào bảng 'posts' thành công!"
         );
 
         if (status === "published") {
@@ -866,27 +1101,27 @@ export default function RadarSeoAdminPage() {
           setSaveStatus("Đã cập nhật bài viết (chế độ demo)!");
           setEditingPostId(null);
         } else {
-        // Mock save
-        const newMockPost = {
-          id: `post-${Date.now()}`,
-          title: editablePost.title,
-          slug: editablePost.slug,
-          content: editablePost.content,
-          meta_description: editablePost.meta_description,
-          focus_keyword: editablePost.focus_keyword,
-          competitor_source_url: competitorUrl,
-          status: status,
-          scheduled_at: scheduledTime,
-          created_at: new Date().toISOString(),
-        };
-        setPostsList([newMockPost, ...postsList]);
-        setSaveStatus(
-          status === "published"
-            ? "Đã xuất bản (chế độ demo)!"
-            : status === "scheduled"
-            ? `Đã lên lịch đăng vào: ${scheduledTime} (demo)!`
-            : "Đã lưu bản nháp thành công (chế độ demo)!"
-        );
+          // Mock save
+          const newMockPost = {
+            id: `post-${Date.now()}`,
+            title: editablePost.title,
+            slug: editablePost.slug,
+            content: editablePost.content,
+            meta_description: editablePost.meta_description,
+            focus_keyword: editablePost.focus_keyword,
+            competitor_source_url: competitorUrl,
+            status: status,
+            scheduled_at: scheduledTime,
+            created_at: new Date().toISOString(),
+          };
+          setPostsList([newMockPost, ...postsList]);
+          setSaveStatus(
+            status === "published"
+              ? "Đã xuất bản (chế độ demo)!"
+              : status === "scheduled"
+                ? `Đã lên lịch đăng vào: ${scheduledTime} (demo)!`
+                : "Đã lưu bản nháp thành công (chế độ demo)!"
+          );
         }
       }
       setShowScheduleModal(false);
@@ -968,7 +1203,7 @@ export default function RadarSeoAdminPage() {
     });
   };
 
-  // THAO TÁC XÓA BẢN NHÁP / BÀI VIẾT
+  // THAO TÁC XÓA BẢN NHÁP / BÀI VIẾT ĐƠN LẺ
   const handleDeletePost = async (post: any) => {
     const isConfirm = window.confirm(
       `Bạn có chắc chắn muốn xóa bài viết:\n"${post.title}" không?`
@@ -987,1906 +1222,2380 @@ export default function RadarSeoAdminPage() {
     }
 
     setPostsList(postsList.filter((p) => p.id !== post.id));
+    setSelectedPostIds((prev) => prev.filter((id) => id !== post.id));
     setSaveStatus(`Đã xóa bài viết "${post.title.slice(0, 30)}..." thành công!`);
   };
 
+  // THAO TÁC XÓA HÀNG LOẠT (BULK DELETE)
+  const handleBulkDeletePosts = async () => {
+    const count = selectedPostIds.length;
+    if (count === 0) return;
+
+    const isConfirm = window.confirm(
+      `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${count} bài viết đã chọn không?\n\nThao tác này sẽ dọn sạch kho dữ liệu và không thể hoàn tác!`
+    );
+    if (!isConfirm) return;
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from("posts").delete().in("id", selectedPostIds);
+        if (error) {
+          console.warn("Lỗi xóa hàng loạt từ Supabase:", error);
+        }
+      } catch (err) {
+        console.error("Bulk delete error:", err);
+      }
+    }
+
+    setPostsList((prev) => prev.filter((p) => !selectedPostIds.includes(p.id)));
+    setSelectedPostIds([]);
+    setPostNotice({
+      type: "success",
+      text: `Đã xóa thành công ${count} bài viết khỏi kho dữ liệu!`,
+    });
+  };
+
+  // THAO TÁC XUẤT BẢN HÀNG LOẠT (BULK PUBLISH)
+  const handleBulkPublishPosts = async () => {
+    const count = selectedPostIds.length;
+    if (count === 0) return;
+
+    const isConfirm = window.confirm(
+      `Bạn có muốn XUẤT BẢN NHANH ${count} bài viết đã chọn lên website ngay bây giờ?`
+    );
+    if (!isConfirm) return;
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from("posts")
+          .update({ status: "published" })
+          .in("id", selectedPostIds);
+        if (error) {
+          console.warn("Lỗi xuất bản hàng loạt từ Supabase:", error);
+        }
+      } catch (err) {
+        console.error("Bulk publish error:", err);
+      }
+    }
+
+    setPostsList((prev) =>
+      prev.map((p) => (selectedPostIds.includes(p.id) ? { ...p, status: "published" } : p))
+    );
+    setSelectedPostIds([]);
+    setPostNotice({
+      type: "success",
+      text: `Đã xuất bản thành công ${count} bài viết lên website!`,
+    });
+  };
+
+  const sectionInfo = RADAR_SECTION_INFO[canonicalSection(activeNavSection)] ?? RADAR_SECTION_INFO.top_google;
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 py-10 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-        {/* Header Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/10 gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shadow-lg flex items-center justify-center">
-              <div className="w-full h-full bg-[#06123B] rounded-[14px] flex items-center justify-center">
-                <Radar className="w-6 h-6 text-[#D4AF37] animate-spin [animation-duration:8s]" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-2xl font-black text-white tracking-tight">
-                  RADAR SEO ENGINE
-                </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
-                  AI v2.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Công cụ quét đối thủ qua Jina Reader & Tái tạo bài viết chuẩn SEO cho Trường Hải Event & Travel
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 text-xs">
-            <span
-              className={`px-3 py-1.5 rounded-full border flex items-center space-x-1.5 ${
-                isSupabaseConfigured
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-400"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isSupabaseConfigured ? "bg-emerald-400" : "bg-amber-400"
-                } animate-ping`}
-              />
-              <span>
-                {isSupabaseConfigured
-                  ? "Supabase: Đã kết nối"
-                  : "Chế độ: Độc lập Demo"}
-              </span>
+    <div className="mx-auto max-w-[1500px] space-y-5 text-slate-900">
+      {/* ĐẦU TRANG: tên mục đang mở + thao tác chung */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-block rounded-md bg-amber-100 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-900">
+              TRUNG TÂM RADAR SEO
             </span>
-
-            <Link
-              href="/tin-tuc"
-              target="_blank"
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#D4AF37] font-bold flex items-center space-x-1 transition-all border border-white/10"
-            >
-              <span>Xem Blog Thực tế</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
+            <span className="text-slate-400 font-light">/</span>
+            <span className="text-slate-500 font-medium">Pipeline điều phối tự động</span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              {sectionInfo.title}
+            </h1>
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </div>
         </div>
+        <div className="flex items-center gap-2.5 text-xs sm:text-sm">
+          <button
+            type="button"
+            onClick={() => {
+              fetchPosts();
+              refreshRadarStats();
+              if (typeof window !== "undefined") {
+                setEventProfilesCount(getStoredEventProfiles().length);
+              }
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition cursor-pointer flex items-center gap-1.5"
+            title="Tải lại dữ liệu mới nhất"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Tải lại dữ liệu</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveNavSection("ke_hoach");
+              setActiveAdminTab("content_gap");
+            }}
+            className="rounded-xl bg-[#0B1536] hover:bg-[#12204E] text-white px-4 py-2 font-bold shadow-sm transition cursor-pointer flex items-center gap-2"
+            title="Mở cấu hình quét tự động và lập lịch"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-300" />
+            <span>Cấu hình Radar</span>
+          </button>
+        </div>
+      </header>
 
-        {/* INPUT WORKSPACE */}
-        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+      <RadarSidebar
+        activeSection={activeNavSection}
+        onSelectSection={(section) => {
+          setActiveNavSection(section);
+          if (section === "duyet_bai" || section === "posts") {
+            setActiveAdminTab("posts");
+          } else if (section === "bo_nao" || section === "events") {
+            setActiveAdminTab("events");
+          } else if (section === "doi_thu" || section === "competitors") {
+            setActiveAdminTab("competitors");
+          } else if (section === "ke_hoach" || section === "content_gap" || section === "cron") {
+            setActiveAdminTab("content_gap");
+          } else if (section === "logs") {
+            setActiveAdminTab("activity_logs");
+          }
+        }}
+        counts={{
+          drafts: draftCount,
+          competitors: trackedCompetitors.length,
+          gaps: contentGaps.length,
+          logs: radarLogs.length,
+        }}
+        activeEditorTitle={editablePost?.title || (analysisResult ? "Bản nháp chưa đặt tên" : null)}
+        isScanning={isScanningDomain || isBatchRunning || isAnalyzing}
+      />
+
+      {/* MODAL HẸN LỊCH ĐĂNG BÀI TOÀN CỤC */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center space-x-2 text-slate-900">
+              <Calendar className="w-5 h-5 text-amber-600" />
+              <h3 className="font-bold text-base">Hẹn lịch đăng bài tự động</h3>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Chọn ngày và giờ bạn muốn bài viết này tự động được xuất bản lên chuyên mục Tin tức & Cẩm nang:
+            </p>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Thời gian xuất bản dự kiến:
+              </label>
+              <input
+                type="datetime-local"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={!scheduledTime}
+                onClick={() => handleSaveToSupabase("scheduled")}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] text-xs font-bold hover:brightness-105 disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                Xác nhận hẹn lịch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MỤC 1: VIẾT BÀI (DÒNG CHẢY LIỀN MẠCH) */}
+      {(activeNavSection === "viet_bai" ||
+        activeNavSection === "scanner" ||
+        activeNavSection === "editor") && (
           <div className="space-y-6">
-            {/* HEADER WORKSPACE & MODE SWITCHER */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
-              <div className="flex items-center space-x-2">
-                <Search className="w-5 h-5 text-[#D4AF37]" />
-                <h2 className="text-base font-bold text-white">
-                  {scanMode === "domain"
-                    ? "Chế độ 2: Quét tự động bằng Domain / Sitemap đối thủ"
-                    : "Chế độ 1: Quét bài viết đơn lẻ từ URL"}
+            {!(editablePost || analysisResult) ? (
+              /* KHI CHƯA MỞ BÀI: HIỆN THẲNG FORM NHẬP TỪ KHÓA / CÀO SITEMAP ĐỂ VIẾT BÀI */
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm relative">
+                  <div className="space-y-6">
+                    {/* HEADER WORKSPACE & MODE SWITCHER */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-amber-600 p-0.5 shrink-0 flex items-center justify-center shadow-xs">
+                          <div className="w-full h-full bg-[#0A1E5E] rounded-[9px] flex items-center justify-center">
+                            <Search className="w-4 h-4 text-[#D4AF37]" />
+                          </div>
+                        </div>
+                        <div>
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-wide">
+                            {scanMode === "domain"
+                              ? "Lấy danh sách bài từ một website đối thủ"
+                              : "Viết lại tốt hơn từ một bài đối thủ cụ thể"}
+                          </h2>
+                          <p className="text-[11px] text-slate-500">
+                            {scanMode === "domain"
+                              ? "Tự động phân giải XML Sitemap để bóc tách danh sách bài viết dịch vụ & blog mới nhất"
+                              : "Cào sâu cấu trúc H1-H3 qua Jina, phát hiện khoảng trống nội dung và tái tạo bài chuẩn SEO"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Mode Switcher Buttons */}
+                      <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start sm:self-auto shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setScanMode("domain")}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${scanMode === "domain"
+                              ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-sm font-black"
+                              : "text-slate-600 hover:text-slate-900"
+                            }`}
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>Quét cả website</span>
+                          <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
+                            Khuyên dùng
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScanMode("single")}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${scanMode === "single"
+                              ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-sm font-black"
+                              : "text-slate-600 hover:text-slate-900"
+                            }`}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Từ 1 bài viết</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* THANH CHỌN HỒ SƠ SỰ KIỆN LÀM MINH CHỨNG E-E-A-T */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                          Hồ sơ sự kiện làm minh chứng E-E-A-T
+                        </div>
+                        <div className="text-xs text-slate-700 truncate">
+                          {selectedEventId === "auto"
+                            ? `Tự động ghép theo từ khóa (Ưu tiên: ${activeEventProfile?.title || "Hồ sơ thực tế"})`
+                            : `Đang gắn cố định: ${activeEventProfile?.title || selectedEventId}`}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <select
+                          value={selectedEventId}
+                          onChange={(e) => setSelectedEventId(e.target.value)}
+                          className="max-w-xs px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-800 outline-none"
+                        >
+                          <option value="auto">Tự động khớp theo từ khóa</option>
+                          {availableProfiles.map((profile) => (
+                            <option key={profile.id} value={profile.id}>
+                              {profile.title}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setActiveNavSection("bo_nao")}
+                          className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-800 cursor-pointer"
+                        >
+                          Chọn từ Hồ sơ sự kiện
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* =====================================================================
+                CHẾ ĐỘ QUÉT THEO DOMAIN / SITEMAP
+            ===================================================================== */}
+                    {scanMode === "domain" && (
+                      <div className="space-y-6">
+                        {/* Domain Input Form */}
+                        <form onSubmit={handleScanDomain} className="space-y-3">
+                          <div className="space-y-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <label className="block text-xs font-semibold text-slate-700">
+                                Nhập tên miền đối thủ hoặc bấm chọn nhanh từ danh bạ 9 đối thủ mẫu <span className="text-amber-600">*</span>
+                              </label>
+
+                              {domainInput.trim() && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    saveCustomCompetitor({
+                                      name: "",
+                                      domain: domainInput,
+                                      badge: "Đã lưu nhanh",
+                                      description: `Đối thủ lưu từ ô nhập: ${domainInput}`,
+                                    });
+                                    alert("Đã lưu đối thủ này vào danh bạ riêng!");
+                                  }}
+                                  className="text-[11px] font-semibold text-amber-600 hover:underline flex items-center space-x-1 cursor-pointer"
+                                >
+                                  <span>⭐ Lưu domain này vào danh bạ riêng</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                              <div className="relative flex-1">
+                                <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                                <input
+                                  type="text"
+                                  placeholder="VD: viet-power.vn hoặc https://viet-power.vn"
+                                  value={domainInput}
+                                  onChange={(e) => setDomainInput(e.target.value)}
+                                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                                />
+                              </div>
+
+                              {/* NÚT DROPDOWN GỌN: CHỌN ĐỐI THỦ MẪU */}
+                              <CompetitorDropdown
+                                currentDomain={domainInput}
+                                onSelectCompetitor={handleSelectCompetitorPreset}
+                                isScanning={isScanningDomain}
+                              />
+
+                              <button
+                                type="submit"
+                                disabled={isScanningDomain || !domainInput.trim()}
+                                className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer shrink-0"
+                              >
+                                {isScanningDomain ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Đang dò tìm Sitemap...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Radar className="w-4 h-4 text-[#0A1E5E]" />
+                                    <span>Quét bài viết đối thủ</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* DÒNG GỢI Ý QUÉT NHANH DẠNG PILL (GỌN GÀNG, KHÔNG RỐI) */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                              <span className="text-[11px] text-slate-500 font-medium flex items-center mr-1">
+                                <Zap className="w-3 h-3 text-amber-600 mr-1" /> Gợi ý nhanh:
+                              </span>
+                              {DEFAULT_COMPETITOR_PRESETS.slice(0, 4).map((comp) => (
+                                <button
+                                  key={comp.id}
+                                  type="button"
+                                  onClick={() => handleSelectCompetitorPreset(comp, true)}
+                                  title={`Bấm để quét sitemap ${comp.name}`}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                                >
+                                  <span>{comp.name}</span>
+                                  <span className="text-[9px] text-slate-500 font-mono">({comp.domain.replace(/^https?:\/\//, "")})</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </form>
+
+                        {/* Batch Progress Bar khi đang chạy Radar hàng loạt */}
+                        {isBatchRunning && (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-3 animate-in fade-in shadow-xs">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center space-x-2 font-bold text-amber-800">
+                                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                <span>Đang chạy Radar tự động: Bài {batchProgress.current} / {batchProgress.total}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-600 truncate max-w-md">
+                                Đang xử lý: <span className="font-semibold text-slate-900">{batchProgress.currentTitle}</span>
+                              </div>
+                            </div>
+
+                            {/* Progress Track */}
+                            <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden relative">
+                              <div
+                                className="h-full bg-gradient-to-r from-[#D4AF37] to-emerald-500 transition-all duration-500 rounded-full"
+                                style={{
+                                  width: `${Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%`,
+                                }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-slate-500">
+                              <span>Tiến độ: {Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%</span>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-emerald-700 font-medium">✓ Thành công: {batchProgress.successCount}</span>
+                                {batchProgress.errorCount > 0 && (
+                                  <span className="text-rose-600 font-medium">✕ Lỗi: {batchProgress.errorCount}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* IDLE STATE: KHI CHƯA THỰC HIỆN QUÉT SITEMAP (BẢNG ĐIỀU HÀNH THỰC TẾ) */}
+                        {!scannedResult && !isScanningDomain && (
+                          <div className="pt-4 border-t border-slate-200 space-y-4 animate-in fade-in duration-300">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-center space-x-2 text-xs font-bold text-slate-900">
+                                <Activity className="w-4 h-4 text-amber-600" />
+                                <span>Tổng quan dữ liệu Radar SEO đang vận hành</span>
+                              </div>
+                              <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                                <span>🎯 <strong>9</strong> đối thủ mục tiêu</span>
+                                <span>•</span>
+                                <span>📑 <strong>{postsList.length}</strong> bài viết trong kho</span>
+                                <span>•</span>
+                                <span className="text-emerald-600 font-medium">● Sẵn sàng dò sitemap</span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                              {/* CỘT TRÁI (7 COLS): BÀI VIẾT GẦN ĐÂY TRONG KHO */}
+                              <div className="lg:col-span-7 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Bài viết gần đây trong Kho SEO</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveNavSection("posts")}
+                                    className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                                  >
+                                    <span>Xem tất cả ({postsList.length})</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {postsList.slice(0, 3).map((post) => (
+                                    <div
+                                      key={post.id}
+                                      className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-3 group shadow-2xs"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-800 truncate transition-colors">
+                                          {post.title}
+                                        </h4>
+                                        <div className="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
+                                          <span className={`px-1.5 py-0.2 rounded font-semibold ${post.status === "published"
+                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                                            }`}>
+                                            {post.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                                          </span>
+                                          {post.focus_keyword && (
+                                            <span className="truncate">Từ khóa: <strong className="text-slate-700">{post.focus_keyword}</strong></span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditPost(post)}
+                                        className="px-2.5 py-1.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                                      >
+                                        <Edit3 className="w-3 h-3" />
+                                        <span>Mở sửa</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* CỘT PHẢI (5 COLS): TOP ĐỐI THỦ MỤC TIÊU */}
+                              <div className="lg:col-span-5 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                    <Globe className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Top đối thủ mục tiêu</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveNavSection("competitors")}
+                                    className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                                  >
+                                    <span>Danh bạ 9 đối thủ</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {DEFAULT_COMPETITOR_PRESETS.slice(0, 3).map((comp) => (
+                                    <div
+                                      key={comp.id}
+                                      className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-2 shadow-2xs"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <span className="text-xs font-bold text-slate-900 block truncate">
+                                          {comp.name}
+                                        </span>
+                                        <span className="text-[10px] text-slate-500 font-mono block truncate">
+                                          {comp.domain.replace(/^https?:\/\//, "")}
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (scanMode !== "domain") setScanMode("domain");
+                                          handleSelectCompetitorPreset(comp, true);
+                                        }}
+                                        className="px-2 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-[11px] font-bold border border-[#D4AF37]/40 transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                                      >
+                                        <Zap className="w-3 h-3 fill-current" />
+                                        <span>Quét</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* KẾT QUẢ QUÉT SITEMAP & DANH SÁCH BÀI VIẾT */}
+                        {scannedResult && (
+                          <div className="space-y-4 pt-2 border-t border-slate-200 animate-in fade-in">
+                            {/* =========================================================
+                        BATCH ACTION BAR: THANH CÔNG CỤ CHẠY HÀNG LOẠT TRÊN CÙNG
+                    ========================================================= */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-4">
+                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <h3 className="text-sm font-bold text-slate-900 tracking-wide">
+                                      Tìm thấy {scannedResult.totalFound} bài viết chi tiết từ {scannedResult.domain}
+                                    </h3>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    {scannedResult.sitemapFound
+                                      ? `Nguồn: ${scannedResult.sitemapFound}`
+                                      : "Đã lọc qua Recursive Sitemap & Category Crawler"} •{" "}
+                                    <span className="text-emerald-700 font-bold">{scannedResult.unscrapedCount} bài mới</span> chưa cào •{" "}
+                                    Đã chọn <span className="text-amber-700 font-extrabold text-sm">{selectedUrls.length}</span> / {scannedResult.totalFound} bài
+                                  </p>
+                                </div>
+
+                                {/* NÚT LỚN NỔI BẬT: CHẠY RADAR HÀNG LOẠT */}
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  <button
+                                    type="button"
+                                    disabled={isBatchRunning || selectedUrls.length === 0}
+                                    onClick={handleRunBatchRadar}
+                                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] hover:brightness-105 text-[#0A1E5E] font-black text-xs shadow-md shadow-amber-500/20 flex items-center justify-center space-x-2.5 disabled:opacity-40 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                                  >
+                                    {isBatchRunning ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 animate-spin text-[#0A1E5E]" />
+                                        <span>ĐANG CHẠY HÀNG ĐỢI ({batchProgress.current}/{batchProgress.total})...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <PlayCircle className="w-4 h-4 text-[#0A1E5E]" />
+                                        <span>🚀 CHẠY RADAR HÀNG LOẠT ({selectedUrls.length} BÀI ĐÃ CHỌN)</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* THANH ĐIỀU KHIỂN CHỌN BÀI & BỘ LỌC */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
+                                {/* Checkbox Chọn tất cả */}
+                                <div className="flex items-center space-x-3">
+                                  <label className="flex items-center space-x-2 cursor-pointer font-semibold text-slate-700 hover:text-slate-900 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        selectedUrls.length > 0 &&
+                                        selectedUrls.length ===
+                                        scannedResult.urls.filter(
+                                          (u) => domainFilter === "all" || !u.isScraped
+                                        ).length
+                                      }
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          const list = scannedResult.urls
+                                            .filter((u) => domainFilter === "all" || !u.isScraped)
+                                            .map((u) => u.url);
+                                          handleSelectAllUrls(list);
+                                        } else {
+                                          handleDeselectAllUrls();
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded text-amber-600 bg-white border-slate-300 focus:ring-amber-500 cursor-pointer"
+                                    />
+                                    <span>Chọn tất cả danh sách đang hiển thị</span>
+                                  </label>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const unscraped = scannedResult.urls
+                                        .filter((u) => !u.isScraped)
+                                        .map((u) => u.url);
+                                      handleSelectAllUrls(unscraped);
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-[11px] border border-slate-200 transition cursor-pointer"
+                                  >
+                                    Chỉ chọn bài chưa cào ({scannedResult.unscrapedCount})
+                                  </button>
+                                </div>
+
+                                {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="text-slate-500 font-medium flex items-center mr-1">
+                                    <ListFilter className="w-3.5 h-3.5 mr-1 text-slate-400" /> Xem:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDomainFilter("all")}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${domainFilter === "all"
+                                        ? "bg-amber-500 text-slate-900 font-bold shadow-xs"
+                                        : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                                      }`}
+                                  >
+                                    Tất cả ({scannedResult.totalFound})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDomainFilter("unscraped")}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${domainFilter === "unscraped"
+                                        ? "bg-emerald-600 text-white font-bold shadow-xs"
+                                        : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                                      }`}
+                                  >
+                                    Chưa cào ({scannedResult.unscrapedCount})
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* DANH SÁCH BÀI VIẾT VỚI TRẠNG THÁI TIẾN TRÌNH THỜI GIAN THỰC */}
+                            <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-slate-200 p-2.5 bg-slate-50/60">
+                              {scannedResult.urls
+                                .filter((item) => domainFilter === "all" || !item.isScraped)
+                                .map((item, idx) => {
+                                  const isSelected = selectedUrls.includes(item.url);
+                                  return (
+                                    <div
+                                      key={item.url}
+                                      className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${item.status === "scraping"
+                                          ? "bg-sky-50 border-sky-300 ring-1 ring-sky-300"
+                                          : item.status === "generating"
+                                            ? "bg-amber-50 border-amber-300 ring-1 ring-amber-300"
+                                            : item.status === "waiting"
+                                              ? "bg-slate-100 border-slate-200 opacity-80"
+                                              : item.status === "success"
+                                                ? "bg-emerald-50 border-emerald-300"
+                                                : isSelected
+                                                  ? "bg-amber-50/60 border-amber-300"
+                                                  : "bg-white border-slate-200 hover:bg-slate-50"
+                                        }`}
+                                    >
+                                      {/* Cột Trái: Checkbox + Tiêu đề + Link */}
+                                      <div className="flex items-start space-x-3 min-w-0 flex-1">
+                                        <input
+                                          type="checkbox"
+                                          id={`checkbox-${idx}`}
+                                          checked={isSelected}
+                                          onChange={() => handleToggleSelectUrl(item.url)}
+                                          disabled={isBatchRunning}
+                                          className="mt-1 w-4 h-4 rounded text-amber-600 bg-white border-slate-300 focus:ring-amber-500 cursor-pointer"
+                                        />
+                                        <div className="min-w-0 flex-1 space-y-0.5">
+                                          <label
+                                            htmlFor={`checkbox-${idx}`}
+                                            className="text-xs font-semibold text-slate-900 block truncate cursor-pointer hover:text-amber-700 transition"
+                                            title={item.title}
+                                          >
+                                            {item.title}
+                                          </label>
+                                          <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[11px] text-slate-500 hover:text-slate-700 truncate flex items-center space-x-1"
+                                          >
+                                            <span className="truncate">{item.url}</span>
+                                            <ExternalLink className="w-3 h-3 shrink-0" />
+                                          </a>
+                                        </div>
+                                      </div>
+
+                                      {/* Cột Phải: Badge Trạng thái + Nút Chạy riêng tại chỗ */}
+                                      <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                                        {/* Trạng thái Queue Runner chi tiết */}
+                                        {item.status === "waiting" ? (
+                                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1.5">
+                                            <Clock className="w-3 h-3 text-amber-600" />
+                                            <span>Chờ xử lý...</span>
+                                          </span>
+                                        ) : item.status === "scraping" ? (
+                                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200 flex items-center space-x-1.5 animate-pulse">
+                                            <Loader2 className="w-3 h-3 animate-spin text-sky-600" />
+                                            <span>Đang cào & phân tích</span>
+                                          </span>
+                                        ) : item.status === "generating" ? (
+                                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1.5 animate-pulse">
+                                            <Sparkles className="w-3 h-3 animate-spin text-amber-600" />
+                                            <span>Đang sinh bài (AI)</span>
+                                          </span>
+                                        ) : item.status === "success" ? (
+                                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1.5 shadow-2xs">
+                                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                            <span>Hoàn thành (Đã lưu nháp)</span>
+                                          </span>
+                                        ) : item.status === "error" ? (
+                                          <span
+                                            className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 flex items-center space-x-1.5"
+                                            title={item.error}
+                                          >
+                                            <AlertCircle className="w-3 h-3 text-rose-600" />
+                                            <span>Lỗi xử lý</span>
+                                          </span>
+                                        ) : item.isScraped ? (
+                                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                            Đã cào trước đó
+                                          </span>
+                                        ) : (
+                                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                            Chưa cào
+                                          </span>
+                                        )}
+
+                                        {/* NÚT CHẠY RIÊNG TẠI CHỖ (KHÔNG CHUYỂN TAB) */}
+                                        {item.status === "success" ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              // Tìm bài viết trong postsList hoặc chuyển sang xem kết quả nếu muốn
+                                              const foundPost = postsList.find(
+                                                (p) =>
+                                                  p.competitor_source_url === item.url ||
+                                                  p.title === item.title
+                                              );
+                                              if (foundPost) {
+                                                handleStartEditPost(foundPost);
+                                              } else {
+                                                setActiveResultTab("article");
+                                              }
+                                            }}
+                                            className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-bold border border-emerald-200 transition cursor-pointer flex items-center space-x-1"
+                                            title="Xem bản nháp đã lưu trong Database"
+                                          >
+                                            <span>Xem nháp</span>
+                                            <Eye className="w-3 h-3" />
+                                          </button>
+                                        ) : item.status === "scraping" || item.status === "generating" ? (
+                                          <span className="text-[11px] text-amber-700 italic px-2 py-1">
+                                            Đang xử lý ngầm...
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            disabled={isBatchRunning || isAnalyzing}
+                                            onClick={() => handleRunSingleInPlace(item.url, item.title)}
+                                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
+                                            title="Chạy ngầm bài này ngay tại đây và lưu bản nháp"
+                                          >
+                                            <span>Chạy riêng bài này</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* =====================================================================
+                CHẾ ĐỘ BÓC TÁCH 1 BÀI VIẾT ĐƠN LẺ TỪ URL
+            ===================================================================== */}
+                    {scanMode === "single" && (
+                      <div className="space-y-6">
+                        <form onSubmit={handleScanAndGenerate} className="space-y-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                            {/* URL Input */}
+                            <div className="lg:col-span-7">
+                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                URL bài viết đối thủ cạnh tranh (URL mẫu) <span className="text-amber-600">*</span>
+                              </label>
+                              <div className="relative">
+                                <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                                <input
+                                  type="url"
+                                  placeholder="https://doithu.com/bai-viet-to-chuc-su-kien"
+                                  value={competitorUrl}
+                                  onChange={(e) => setCompetitorUrl(e.target.value)}
+                                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Target Keyword */}
+                            <div className="lg:col-span-5">
+                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                Từ khóa mục tiêu (Focus keyword)
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="VD: tổ chức lễ khánh thành nhà máy"
+                                value={targetKeyword}
+                                onChange={(e) => setTargetKeyword(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
+                              />
+                            </div>
+                          </div>
+
+                          {/* DÒNG GỢI Ý MẪU THỬ NGHIỆM */}
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="text-[11px] text-slate-500 font-medium flex items-center mr-1">
+                              <Sparkles className="w-3 h-3 text-amber-600 mr-1" /> Thử nghiệm mẫu:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCompetitorUrl("https://viet-power.vn/to-chuc-teambuilding-bai-bien");
+                                setTargetKeyword("tổ chức teambuilding bãi biển");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer"
+                            >
+                              🏃 Teambuilding bãi biển (Viet Power)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCompetitorUrl("https://sukienachau.com/to-chuc-le-khai-truong");
+                                setTargetKeyword("tổ chức lễ khai trương trọn gói");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-[11px] font-medium transition cursor-pointer"
+                            >
+                              🎪 Lễ khai trương trọn gói (Á Châu)
+                            </button>
+                          </div>
+
+                          {/* Submit CTA */}
+                          <div className="flex justify-end pt-2">
+                            <button
+                              type="submit"
+                              disabled={isAnalyzing || !competitorUrl.trim()}
+                              className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                            >
+                              {isAnalyzing ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>Đang phân tích đối thủ...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Radar className="w-4 h-4 text-[#0A1E5E]" />
+                                  <span>Quét và phân tích đối thủ ngay</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </form>
+
+                        {/* Dashboard vận hành khi chưa bấm phân tích */}
+                        {!isAnalyzing && (
+                          <div className="pt-4 border-t border-slate-200 space-y-4 animate-in fade-in duration-300">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-center space-x-2 text-xs font-bold text-slate-900">
+                                <Activity className="w-4 h-4 text-amber-600" />
+                                <span>Tổng quan dữ liệu Radar SEO đang vận hành</span>
+                              </div>
+                              <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                                <span>🎯 <strong>9</strong> đối thủ mục tiêu</span>
+                                <span>•</span>
+                                <span>📑 <strong>{postsList.length}</strong> bài viết trong kho</span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                              {/* CỘT TRÁI (7 COLS): BÀI VIẾT GẦN ĐÂY */}
+                              <div className="lg:col-span-7 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Bài viết gần đây trong Kho SEO</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveNavSection("posts")}
+                                    className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                                  >
+                                    <span>Xem tất cả ({postsList.length})</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {postsList.slice(0, 3).map((post) => (
+                                    <div
+                                      key={post.id}
+                                      className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-3 group shadow-2xs"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-800 truncate transition-colors">
+                                          {post.title}
+                                        </h4>
+                                        <div className="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
+                                          <span className={`px-1.5 py-0.2 rounded font-semibold ${post.status === "published"
+                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                                            }`}>
+                                            {post.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                                          </span>
+                                          {post.focus_keyword && (
+                                            <span className="truncate">Từ khóa: <strong className="text-slate-700">{post.focus_keyword}</strong></span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditPost(post)}
+                                        className="px-2.5 py-1.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                                      >
+                                        <Edit3 className="w-3 h-3" />
+                                        <span>Mở sửa</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* CỘT PHẢI (5 COLS): TOP ĐỐI THỦ MỤC TIÊU */}
+                              <div className="lg:col-span-5 p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                    <Globe className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Top đối thủ mục tiêu</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveNavSection("competitors")}
+                                    className="text-[11px] text-amber-700 hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                                  >
+                                    <span>Danh bạ 9 đối thủ</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {DEFAULT_COMPETITOR_PRESETS.slice(0, 3).map((comp) => (
+                                    <div
+                                      key={comp.id}
+                                      className="p-2.5 rounded-xl bg-white hover:bg-slate-100/90 border border-slate-200 transition flex items-center justify-between gap-2 shadow-2xs"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <span className="text-xs font-bold text-slate-900 block truncate">
+                                          {comp.name}
+                                        </span>
+                                        <span className="text-[10px] text-slate-500 font-mono block truncate">
+                                          {comp.domain.replace(/^https?:\/\//, "")}
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setScanMode("domain");
+                                          handleSelectCompetitorPreset(comp, true);
+                                        }}
+                                        className="px-2 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#0A1E5E] text-[11px] font-bold border border-[#D4AF37]/40 transition flex items-center space-x-1 shrink-0 cursor-pointer shadow-2xs"
+                                      >
+                                        <Zap className="w-3 h-3 fill-current" />
+                                        <span>Quét</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Visual Step Progress Indicator chuẩn Skill System Content v2.4.5 (13 Bước Workflow Tự Động) */}
+                    {isAnalyzing && (
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 animate-in fade-in duration-300 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-bold text-amber-800 flex items-center">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2 text-amber-600" />
+                            Skill System Content v2.4.5 — 13 Bước Workflow Tự Động:
+                          </div>
+                          <span className="text-[10px] text-emerald-700 font-mono bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
+                            Bước {processStep}/6: Đang thực thi
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep > 1
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                                : processStep === 1
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                                  : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              1
+                            </span>
+                            <span className="truncate text-[11px]">Ý định tìm kiếm</span>
+                          </div>
+
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep > 2
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                                : processStep === 2
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                                  : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              2
+                            </span>
+                            <span className="truncate text-[11px]">Khoảng trống</span>
+                          </div>
+
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep > 3
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                                : processStep === 3
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs ring-1 ring-amber-400"
+                                  : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              3
+                            </span>
+                            <span className="truncate text-[11px] font-medium text-amber-800">Outline Planning</span>
+                          </div>
+
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep > 4
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                                : processStep === 4
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                                  : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              4
+                            </span>
+                            <span className="truncate text-[11px]">Specificity Deep</span>
+                          </div>
+
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep > 5
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                                : processStep === 5
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-2xs"
+                                  : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              5
+                            </span>
+                            <span className="truncate text-[11px]">Extractability & AI</span>
+                          </div>
+
+                          <div
+                            className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${processStep === 6
+                                ? "bg-emerald-100 border-emerald-400 text-emerald-900 font-bold shadow-2xs"
+                                : "bg-white border-slate-200 text-slate-400"
+                              }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              6
+                            </span>
+                            <span className="truncate text-[11px]">Kiểm tra &amp; bản cuối</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {errorMsg && (
+                      <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center shadow-xs">
+                        <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* KHI CÓ BÀI VIẾT ĐANG MỞ HOẶC VỪA TẠO XONG: HIỂN THỊ TRỰC TIẾP TRÌNH SOẠN THẢO */
+              <div className="space-y-6">
+                {/* Thanh trạng thái bài viết đang mở kèm nút "+ Viết bài mới khác" */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 border border-amber-300 text-xs gap-3 shadow-xs animate-in fade-in">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-amber-950 truncate text-xs">
+                        Đang soạn bài: <strong className="font-black text-slate-900">{editablePost?.title || "Bản thảo AI"}</strong>
+                      </p>
+                      <p className="text-[11px] text-amber-800">
+                        {editingPostId ? "Đang cập nhật bài viết từ Database" : "Bản thảo AI vừa phân tích & tạo ra"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditablePost(null);
+                      setAnalysisResult(null);
+                      setEditingPostId(null);
+                      setSaveStatus(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-300 transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer shadow-xs self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600" />
+                    <span>+ Viết bài mới khác</span>
+                  </button>
+                </div>
+
+                <div id="radar-results-editor" className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+                  {editingPostId && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-800 text-xs gap-2 animate-in fade-in">
+                      <span className="font-semibold flex items-center">
+                        <Edit3 className="w-4 h-4 mr-2 text-amber-600" />
+                        Đang ở chế độ chỉnh sửa bài viết đã có trong Database
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="px-3 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-medium border border-slate-200 transition-all w-fit cursor-pointer shadow-2xs"
+                      >
+                        ✕ Hủy chỉnh sửa
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+                    {/* Tab Selector: Analysis Tab is clear & primary */}
+                    <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setActiveResultTab("analysis")}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeResultTab === "analysis"
+                            ? "bg-amber-500 text-slate-900 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                          }`}
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>1. Báo cáo phân tích đối thủ và lỗ hổng</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveResultTab("article")}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeResultTab === "article"
+                            ? "bg-amber-500 text-slate-900 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                          }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>2. Bài viết mới chuẩn SEO (Trường Hải)</span>
+                      </button>
+                    </div>
+
+                    {/* Action buttons: Save draft, Schedule, Publish */}
+                    <div className="flex items-center space-x-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveToSupabase("draft")}
+                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                        title="Lưu bản nháp"
+                      >
+                        <Save className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Lưu nháp</span>
+                      </button>
+
+                      {/* Nút Hẹn Lịch Đăng Bài */}
+                      <button
+                        type="button"
+                        onClick={() => setShowScheduleModal(true)}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                        title="Hẹn giờ đăng bài tự động"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Hẹn lịch đăng</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveToSupabase("published")}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5 text-[#0A1E5E]" />
+                        <span>Xuất bản ngay</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {saveStatus && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center shadow-xs">
+                      <CheckCircle2 className="w-4 h-4 mr-2 shrink-0 text-emerald-600" />
+                      <span>{saveStatus}</span>
+                    </div>
+                  )}
+
+                  {/* TAB 1: BÁO CÁO PHÂN TÍCH ĐỐI THỦ CHUYÊN SÂU */}
+                  {activeResultTab === "analysis" && analysisResult && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                        {/* Cột 1: Bối cảnh bài đối thủ */}
+                        <div className="lg:col-span-5 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                            <h3 className="font-bold text-slate-900 text-sm flex items-center">
+                              <Layers className="w-4 h-4 mr-2 text-amber-600" />
+                              Bối cảnh và cấu trúc đối thủ
+                            </h3>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              Điểm SEO: {analysisResult.seoScore || 65}/100
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500 block text-[11px]">Tiêu đề H1 của đối thủ:</span>
+                            <p className="font-bold text-slate-900 text-xs mt-1 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                              {analysisResult.h1 || "Không xác định"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500 block text-[11px] mb-1.5">
+                              Dàn ý các phân đoạn chính (H2, H3):
+                            </span>
+                            <ul className="space-y-1.5 text-slate-700 max-h-56 overflow-y-auto pr-1">
+                              {analysisResult.headings?.map((h: string, hIdx: number) => (
+                                <li key={hIdx} className="flex items-start bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
+                                  <span className="text-amber-600 font-bold mr-2 shrink-0">#</span>
+                                  <span className="leading-snug">{h}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-slate-500">
+                            <span>Dung lượng bài đối thủ: ~<strong className="text-slate-800">{analysisResult.wordCountEstimate || 500}</strong> từ</span>
+                          </div>
+                        </div>
+
+                        {/* Cột 2: Ma trận Lỗ hổng vs Vũ khí Trường Hải */}
+                        <div className="lg:col-span-7 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                            <h3 className="font-bold text-slate-900 text-sm flex items-center">
+                              <ShieldAlert className="w-4 h-4 mr-2 text-amber-600" />
+                              Ma trận đối soát: Lỗ hổng đối thủ vs vũ khí Trường Hải
+                            </h3>
+                            <span className="text-[10px] text-slate-500 font-semibold">
+                              {analysisResult.weaknesses?.length || 0} điểm phát hiện
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-slate-600 leading-relaxed font-normal">
+                            Hệ thống đã phân tích bối cảnh bài đối thủ và đề xuất các luận điểm thế mạnh độc quyền để bài viết mới của Trường Hải hoàn toàn vượt trội:
+                          </p>
+
+                          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {analysisResult.weaknesses?.map((w: string, wIdx: number) => {
+                              const parts = w.split(/➔\s*(?:🎯)?\s*Vũ khí Trường Hải:/i);
+                              const competitorWeakness = parts[0]?.replace(/^⚠️\s*Lỗ hổng:\s*/i, "").trim();
+                              const truongHaiAdvantage = parts[1]?.trim();
+
+                              if (truongHaiAdvantage) {
+                                return (
+                                  <div
+                                    key={wIdx}
+                                    className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5 hover:border-slate-300 transition-colors shadow-2xs"
+                                  >
+                                    <div className="flex items-start space-x-2.5">
+                                      <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 font-bold text-[10px] shrink-0 border border-rose-200">
+                                        Lỗ hổng đối thủ
+                                      </span>
+                                      <p className="text-slate-700 text-xs leading-relaxed">
+                                        {competitorWeakness}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-start space-x-2.5 pt-2 border-t border-slate-100">
+                                      <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px] shrink-0 border border-amber-200">
+                                        Vũ khí Trường Hải
+                                      </span>
+                                      <p className="text-slate-900 text-xs font-semibold leading-relaxed">
+                                        {truongHaiAdvantage}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div
+                                  key={wIdx}
+                                  className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed"
+                                >
+                                  {w.replace(/⚠️/g, "").replace(/🎯/g, "")}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                            <span className="text-slate-500 text-[11px]">Từ khóa liên quan:</span>
+                            {analysisResult.targetKeywords?.map((kw: string, kIdx: number) => (
+                              <span
+                                key={kIdx}
+                                className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 text-[10px] font-mono shadow-2xs"
+                              >
+                                #{kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Hộp chuyển hướng hành động sang viết bài */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-amber-50 border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                        <div className="space-y-1 text-center sm:text-left">
+                          <h4 className="font-bold text-slate-900 text-sm flex items-center justify-center sm:justify-start space-x-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            <span>Đã hoàn tất phân tích đối soát lỗ hổng đối thủ!</span>
+                          </h4>
+                          <p className="text-xs text-slate-600">
+                            Bài viết mới chuẩn SEO đã được tạo sẵn với đầy đủ các vũ khí và cam kết của Trường Hải Event.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveResultTab("article")}
+                          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black text-xs flex items-center space-x-2 shadow-sm shrink-0 cursor-pointer"
+                        >
+                          <span>Xem và biên tập bài viết mới</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: ARTICLE EDITOR */}
+                  {activeResultTab === "article" && editablePost && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <div className="lg:col-span-8">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Tiêu đề bài viết SEO
+                          </label>
+                          <input
+                            type="text"
+                            value={editablePost.title || ""}
+                            onChange={(e) =>
+                              setEditablePost({ ...editablePost, title: e.target.value })
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-4">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Từ khóa chính (Focus keyword)
+                          </label>
+                          <input
+                            type="text"
+                            value={editablePost.focus_keyword || ""}
+                            onChange={(e) =>
+                              setEditablePost({
+                                ...editablePost,
+                                focus_keyword: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <div className="lg:col-span-6">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Đường dẫn tĩnh (Slug URL)
+                          </label>
+                          <input
+                            type="text"
+                            value={editablePost.slug || ""}
+                            onChange={(e) =>
+                              setEditablePost({ ...editablePost, slug: e.target.value })
+                            }
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs font-mono outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-6">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Meta description (tóm tắt chuẩn SEO)
+                          </label>
+                          <input
+                            type="text"
+                            value={editablePost.meta_description || ""}
+                            onChange={(e) =>
+                              setEditablePost({
+                                ...editablePost,
+                                meta_description: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Thước đo chuẩn SEO On-Page Real-time */}
+                      <SeoScoreChecklist
+                        title={editablePost.title || ""}
+                        focusKeyword={editablePost.focus_keyword || ""}
+                        metaDescription={editablePost.meta_description || ""}
+                        slug={editablePost.slug || ""}
+                        content={editablePost.content || ""}
+                        onAutoOptimize={(fixes) => {
+                          setEditablePost((prev: any) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              title: fixes.title ?? prev.title,
+                              content: fixes.content ?? prev.content,
+                              meta_description: fixes.metaDescription ?? prev.meta_description,
+                            };
+                          });
+                        }}
+                      />
+
+                      <div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-slate-200 gap-2">
+                          <div className="flex items-center space-x-2">
+                            <label className="text-xs font-bold text-slate-900">
+                              Nội dung bài viết chuẩn SEO
+                            </label>
+                            <span className="text-[11px] text-slate-500">
+                              ({editablePost.content?.length || 0} ký tự)
+                            </span>
+                          </div>
+
+                          {/* Bộ chuyển đổi: Xem trước trực quan vs Soạn thảo mã nguồn */}
+                          <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setArticlePreviewMode("preview")}
+                              className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${articlePreviewMode === "preview"
+                                  ? "bg-amber-500 text-slate-900 shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                                }`}
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Xem trước giao diện thực tế</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setArticlePreviewMode("edit")}
+                              className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${articlePreviewMode === "edit"
+                                  ? "bg-amber-500 text-slate-900 shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                                }`}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Chỉnh sửa mã nguồn</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {articlePreviewMode === "preview" ? (
+                          <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 text-slate-800 shadow-xs border border-slate-200 max-h-[600px] overflow-y-auto">
+                            <div className="pb-4 mb-6 border-b border-slate-200 flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                Bản xem trước như hiển thị trên trang tin tức
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                Đã tối ưu cấu trúc & loại bỏ ký tự thừa
+                              </span>
+                            </div>
+                            <ArticleContentRenderer content={editablePost.content || ""} />
+                          </div>
+                        ) : (
+                          <textarea
+                            rows={18}
+                            value={editablePost.content || ""}
+                            onChange={(e) =>
+                              setEditablePost({ ...editablePost, content: e.target.value })
+                            }
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-mono leading-relaxed outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37]"
+                            placeholder="Nội dung bài viết..."
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* MỤC 2: DUYỆT BÀI & KIỂM SOÁT CHẤT LƯỢNG (QA) */}
+      {(activeNavSection === "duyet_bai" || activeNavSection === "posts") && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#0A1E5E] text-[#D4AF37] flex items-center justify-center shrink-0 shadow-xs">
+                <CheckSquare className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Kho bài viết & Duyệt chất lượng (QA)
                 </h2>
+                <p className="text-xs text-slate-500">
+                  Quản lý kho bài đăng, rà soát [CẦN SỐ LIỆU] và kiểm định chất lượng trước khi Đăng lên website.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={fetchPosts}
+              className="inline-flex items-center text-xs text-amber-700 hover:underline self-end sm:self-auto cursor-pointer font-semibold"
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+              Làm mới danh sách ({postsList.length})
+            </button>
+          </div>
+
+          {/* Banner Hướng Dẫn Quy Trình QA */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-300 text-xs flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="text-amber-950 font-bold">
+                Quy trình duyệt: 1. Đọc nội dung ➔ 2. Điền số thật tại các thẻ [CẦN SỐ LIỆU] ➔ 3. Tick 4 mục QA ➔ 4. Xuất bản
+              </span>
+            </div>
+            {draftCount > 0 && (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-[11px] shadow-2xs animate-pulse">
+                {draftCount} bài nháp chờ duyệt
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {/* Notice Banner khi Duyệt / Xuất bản bài viết */}
+            {postNotice && (
+              <div
+                className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-xs transition-all ${postNotice.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : postNotice.type === "error"
+                      ? "bg-rose-50 border-rose-200 text-rose-800"
+                      : "bg-blue-50 border-blue-200 text-blue-800"
+                  }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span className="font-medium">{postNotice.text}</span>
+                </div>
+                <div className="flex items-center space-x-2 self-end sm:self-auto">
+                  {postNotice.slug && (
+                    <Link
+                      href={`/tin-tuc/${postNotice.slug}`}
+                      target="_blank"
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-400 text-[#0A1E5E] font-black text-xs inline-flex items-center space-x-1.5 shadow-xs hover:brightness-105 transition shrink-0"
+                    >
+                      <span>Xem bài viết trên web</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPostNotice(null)}
+                    className="text-slate-500 hover:text-slate-800 text-xs px-2 py-1 cursor-pointer"
+                    title="Đóng thông báo"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Search & Filter Toolbar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
+              {/* Search Input */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo tiêu đề, từ khóa, slug..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-400 transition"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs p-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
-              {/* Mode Switcher Buttons */}
-              <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/10 self-start sm:self-auto">
+              {/* Filter Pills */}
+              <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 self-start sm:self-auto">
                 <button
                   type="button"
-                  onClick={() => setScanMode("domain")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                    scanMode === "domain"
-                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
-                      : "text-slate-300 hover:text-white"
-                  }`}
+                  onClick={() => setStatusFilter("draft")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${statusFilter === "draft"
+                      ? "bg-[#0A1E5E] text-[#D4AF37] shadow-xs font-bold"
+                      : "text-amber-900 hover:bg-amber-100/50"
+                    }`}
                 >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Quét Domain / Sitemap</span>
-                  <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Khuyên dùng
-                  </span>
+                  <span>Bài chờ duyệt ({draftCount})</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setScanMode("single")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                    scanMode === "single"
-                      ? "bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] shadow-md shadow-[#D4AF37]/20"
-                      : "text-slate-300 hover:text-white"
-                  }`}
+                  onClick={() => setStatusFilter("published")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${statusFilter === "published"
+                      ? "bg-emerald-600 text-white shadow-xs font-bold"
+                      : "text-emerald-700 hover:bg-emerald-50"
+                    }`}
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Link bài viết đơn lẻ</span>
+                  <span>Bài đã xuất bản ({publishedCount})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${statusFilter === "all"
+                      ? "bg-slate-800 text-white shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                    }`}
+                >
+                  Tất cả bài viết ({postsList.length})
                 </button>
               </div>
             </div>
 
-            {/* =====================================================================
-                CHẾ ĐỘ 2: QUÉT TỰ ĐỘNG THEO DOMAIN / SITEMAP
-            ===================================================================== */}
-            {scanMode === "domain" && (
-              <div className="space-y-6">
-                {/* DANH BẠ ĐỐI THỦ MẪU NẠP SẴN (PRESET DIRECTORY) */}
-                <CompetitorPresetDirectory
-                  currentDomain={domainInput}
-                  onSelectCompetitor={handleSelectCompetitorPreset}
-                  isScanning={isScanningDomain}
-                />
+            {/* Bulk Action Bar khi có bài viết được tích chọn */}
+            {selectedPostIds.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/90 border-2 border-amber-400 shadow-md">
+                <div className="flex items-center space-x-2.5">
+                  <span className="flex items-center justify-center min-w-6 h-6 px-1.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-xs">
+                    {selectedPostIds.length}
+                  </span>
+                  <span className="text-xs font-bold text-amber-950">
+                    Đã chọn <span className="underline font-black">{selectedPostIds.length}</span> / {filteredPosts.length} bài viết
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPostIds([])}
+                    className="text-xs text-slate-600 hover:text-slate-900 underline ml-2 cursor-pointer font-medium"
+                  >
+                    Bỏ chọn tất cả
+                  </button>
+                </div>
 
-                {/* Domain Input Form */}
-                <form onSubmit={handleScanDomain} className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <label className="block text-xs font-semibold text-slate-300">
-                        Hoặc nhập tên miền / website đối thủ tùy ý <span className="text-[#D4AF37]">*</span>
-                      </label>
+                <div className="flex items-center space-x-2 self-end sm:self-auto">
+                  {/* Xuất bản hàng loạt */}
+                  <button
+                    type="button"
+                    onClick={handleBulkPublishPosts}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Xuất bản ({selectedPostIds.length})</span>
+                  </button>
 
-                      {domainInput.trim() && (
+                  {/* Xóa hàng loạt */}
+                  <button
+                    type="button"
+                    onClick={handleBulkDeletePosts}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xóa {selectedPostIds.length} bài đã chọn</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 uppercase text-[10px] text-slate-600 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllVisibleSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isSomeVisibleSelected;
+                        }}
+                        onChange={handleSelectAllVisible}
+                        className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                        title="Chọn / Bỏ chọn tất cả bài viết trên danh sách hiện tại"
+                      />
+                    </th>
+                    <th className="py-3 px-4">Tiêu đề bài viết & Cảnh báo</th>
+                    <th className="py-3 px-4">Từ khóa chính</th>
+                    <th className="py-3 px-4">Trạng thái</th>
+                    <th className="py-3 px-4">Thời gian tạo</th>
+                    <th className="py-3 px-4 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredPosts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <FileText className="w-8 h-8 text-slate-400" />
+                          <p className="text-xs">
+                            {searchQuery
+                              ? `Không tìm thấy bài viết nào khớp với từ khóa "${searchQuery}"`
+                              : "Không có bài viết nào trong danh mục này"}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPosts.map((post) => {
+                      const neededMatches = post.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || [];
+                      const neededCount = neededMatches.length;
+                      const isSelected = selectedPostIds.includes(post.id);
+
+                      return (
+                        <tr
+                          key={post.id}
+                          className={`transition-colors ${isSelected
+                              ? "bg-amber-50/80 hover:bg-amber-100/60 border-l-4 border-l-amber-500"
+                              : "hover:bg-slate-50/80"
+                            }`}
+                        >
+                          <td className="py-3.5 px-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectPost(post.id)}
+                              className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                              title={`Chọn bài: ${post.title}`}
+                            />
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs">
+                            <div className="truncate font-bold text-slate-900">{post.title}</div>
+                            {neededCount > 0 ? (
+                              <div className="mt-1 flex items-center">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  <AlertTriangle className="w-3 h-3 mr-1 text-amber-700" />
+                                  Có {neededCount} vị trí [CẦN SỐ LIỆU]
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="mt-1 flex items-center">
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                  <CheckCircle2 className="w-2.5 h-2.5 mr-1 text-emerald-600" />
+                                  Đầy đủ số liệu
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-700">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-medium">
+                              {post.focus_keyword || "N/A"}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {post.status === "published" ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                                Đã xuất bản
+                              </span>
+                            ) : post.status === "scheduled" ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                <Calendar className="w-3 h-3 mr-1 text-indigo-600" />
+                                Lên lịch
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <Clock className="w-3 h-3 mr-1 text-amber-600" />
+                                Chờ duyệt
+                              </span>
+                            )}
+                          </td>
+                          {/* HIỂN THỊ RÕ GIỜ : PHÚT : GIÂY VÀ NGÀY/THÁNG/NĂM */}
+                          <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap font-mono text-[11px]">
+                            <span className="flex items-center text-slate-600">
+                              <Clock className="w-3 h-3 text-amber-600 mr-1.5 shrink-0" />
+                              {formatFullDateTime(post.created_at)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                            {/* NÚT SOÁT QA & ĐIỀN SỐ THẬT */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewingPost(post);
+                                setQaReport(null);
+                                setReviewingChecklist({
+                                  dataChecked: false,
+                                  keywordChecked: false,
+                                  brandBrainChecked: false,
+                                  formatChecked: false,
+                                });
+                                // Tự động chạy máy soát lỗi QA ngay khi bấm mở
+                                runAutomatedQaReview(post);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 text-amber-950 border border-amber-300 inline-flex items-center space-x-1 transition-all cursor-pointer shadow-2xs"
+                              title="Soát lỗi [CẦN SỐ LIỆU] & Duyệt QA"
+                            >
+                              <CheckSquare className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Kiểm tra</span>
+                            </button>
+
+                            {/* Nút Duyệt đăng nhanh */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(post)}
+                              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs ${post.status === "published"
+                                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                                  : "bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E]"
+                                }`}
+                            >
+                              {post.status === "published" ? "Thu hồi nháp" : "Đăng ngay"}
+                            </button>
+
+                            {/* Nút Sửa bài viết trong AI Studio */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleStartEditPost(post);
+                                setActiveNavSection("viet_bai");
+                              }}
+                              className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 hover:border-amber-200 inline-flex items-center transition-all cursor-pointer"
+                              title="Mở trong trình soạn thảo để sửa"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Nút Xem bài viết */}
+                            <Link
+                              href={`/tin-tuc/${post.slug}`}
+                              target="_blank"
+                              className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center"
+                              title="Xem bài viết trên web"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
+
+                            {/* NÚT XÓA BẢN NHÁP / BÀI VIẾT */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post)}
+                              className="px-2 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center transition-colors cursor-pointer"
+                              title="Xóa bài viết này"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    }))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SOÁT LỖI [CẦN SỐ LIỆU] & KIỂM ĐỊNH QA */}
+      {reviewingPost && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
+                    QA & KIỂM ĐỊNH BÀI VIẾT
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono">
+                    Từ khóa: <strong>{reviewingPost.focus_keyword || "Chưa gán"}</strong>
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                  {reviewingPost.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewingPost(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 text-xs">
+              {/* HỆ THỐNG MÁY TỰ ĐỘNG SOÁT LỖI & CHẤM ĐIỂM QA 20 TIÊU CHÍ */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-[#0A1E5E] to-slate-900 text-white shadow-md space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm">
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="text-sm font-black text-white">
+                          Máy Tự Động Soát Lỗi & Chấm Điểm QA
+                        </h4>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/20 text-amber-300">
+                          20 Tiêu Chuẩn E-E-A-T
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 mt-0.5">
+                        Tự động rà soát từ cấm, đối chiếu Bộ não thương hiệu và kiểm tra cấu trúc SEO thay cho người duyệt.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isQaRunning}
+                    onClick={() => runAutomatedQaReview()}
+                    className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isQaRunning ? "animate-spin" : ""}`} />
+                    <span>{isQaRunning ? "Đang soát bài..." : "Soát lại ngay"}</span>
+                  </button>
+                </div>
+
+                {/* KẾT QUẢ SOÁT TỰ ĐỘNG NẾU CÓ BÁO CÁO */}
+                {qaReport && (
+                  <div className="pt-2 space-y-3">
+                    {/* Thẻ Điểm Số & Đánh Giá */}
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3.5">
+                        <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black shrink-0 border-2 ${qaReport.score >= 80
+                            ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                            : qaReport.score >= 60
+                              ? "bg-amber-500/20 border-amber-400 text-amber-300"
+                              : "bg-rose-500/20 border-rose-400 text-rose-300"
+                          }`}>
+                          <span className="text-xl leading-none">{qaReport.score}</span>
+                          <span className="text-[9px] uppercase tracking-wider mt-0.5">/100</span>
+                        </div>
+                        <div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block ${qaReport.isOverallPass
+                              ? "bg-emerald-400 text-slate-950"
+                              : "bg-amber-400 text-slate-950"
+                            }`}>
+                            {qaReport.isOverallPass ? "✅ ĐẠT CHUẨN XUẤT BẢN" : "⚠️ CẦN SỬA LỖI TRƯỚC KHI ĐĂNG"}
+                          </span>
+                          <p className="text-xs text-slate-200 mt-1 font-medium">
+                            Đã kiểm tra: <strong className="text-white">{qaReport.summary.passedChecks} tiêu chí Đạt</strong> •{" "}
+                            <strong className={qaReport.summary.failedChecks > 0 ? "text-rose-300" : "text-slate-300"}>
+                              {qaReport.summary.failedChecks} tiêu chí Lỗi
+                            </strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Nút Sửa Tự Động Từ Cấm Nếu Phát Hiện */}
+                      {qaReport.summary.forbiddenWordCount > 0 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            saveCustomCompetitor({
-                              name: "",
-                              domain: domainInput,
-                              badge: "Đã lưu nhanh",
-                              description: `Đối thủ lưu từ ô nhập: ${domainInput}`,
-                            });
-                            alert("Đã lưu đối thủ này vào danh bạ riêng!");
-                          }}
-                          className="text-[11px] font-semibold text-[#D4AF37] hover:underline flex items-center space-x-1 cursor-pointer"
+                          onClick={handleAutoFixForbiddenWords}
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:brightness-110 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer self-start sm:self-auto shrink-0"
                         >
-                          <span>⭐ Lưu domain này vào danh bạ riêng</span>
+                          <Wand2 className="w-3.5 h-3.5" />
+                          <span>Máy tự động sửa {qaReport.summary.forbiddenWordCount} từ cấm</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="relative flex-1">
-                        <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                        <input
-                          type="text"
-                          required
-                          placeholder="VD: viet-power.vn hoặc https://viet-power.vn"
-                          value={domainInput}
-                          onChange={(e) => setDomainInput(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={isScanningDomain || !domainInput.trim()}
-                        className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer shrink-0"
-                      >
-                        {isScanningDomain ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Đang dò tìm Sitemap...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Radar className="w-4 h-4 text-[#0A1E5E]" />
-                            <span>Quét bài viết đối thủ</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Yêu cầu AI bổ sung dùng chung cho cả batch */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
-                      <label className="text-xs font-semibold text-slate-300">
-                        Chỉ đạo nội dung cho Gemini AI (áp dụng cho tất cả bài viết được cào)
-                      </label>
-                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
-                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
-                      </span>
-                    </div>
-
-                    {/* Quick inject pills from event profiles */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Lễ Khai Trương Showroom Nam Hải Auto",
-                            "Công ty Cổ phần Ô tô Nam Hải",
-                            250,
-                            "Cầu Giấy, Hà Nội",
-                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Khai trương Nam Hải (250 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
-                            "Tập Đoàn Sun Group",
-                            500,
-                            "Meliá Hà Nội 5 sao",
-                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Gala Sun Group Meliá (500 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Hội Nghị Thượng Đỉnh AI FPT Software",
-                            "FPT Software Toàn Cầu",
-                            400,
-                            "Trung tâm Hội nghị Quốc gia NCC",
-                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Hội Nghị FPT NCC (400 khách)
-                      </button>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      placeholder="VD: Nhấn mạnh Trường Hải Event trực tiếp sở hữu tổng kho Line Array, LED P2.5; báo giá bóc tách theo quy mô, hotline 0844 198 333..."
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                    />
-                  </div>
-                </form>
-
-                {/* Batch Progress Bar khi đang chạy Radar hàng loạt */}
-                {isBatchRunning && (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#0A1E5E]/80 border border-[#D4AF37]/40 space-y-3 animate-in fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center space-x-2 font-bold text-[#D4AF37]">
-                        <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
-                        <span>Đang chạy Radar tự động: Bài {batchProgress.current} / {batchProgress.total}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-300 truncate max-w-md">
-                        Đang xử lý: <span className="font-semibold text-white">{batchProgress.currentTitle}</span>
-                      </div>
-                    </div>
-
-                    {/* Progress Track */}
-                    <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden relative">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#D4AF37] to-emerald-400 transition-all duration-500 rounded-full"
-                        style={{
-                          width: `${Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
-                      <span>Tiến độ: {Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%</span>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-emerald-400 font-medium">✓ Thành công: {batchProgress.successCount}</span>
-                        {batchProgress.errorCount > 0 && (
-                          <span className="text-rose-400 font-medium">✕ Lỗi: {batchProgress.errorCount}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* KẾT QUẢ QUÉT SITEMAP & DANH SÁCH BÀI VIẾT */}
-                {scannedResult && (
-                  <div className="space-y-4 pt-2 border-t border-white/10 animate-in fade-in">
-                    {/* =========================================================
-                        BATCH ACTION BAR: THANH CÔNG CỤ CHẠY HÀNG LOẠT TRÊN CÙNG
-                    ========================================================= */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-white/[0.08] border border-white/15 shadow-xl space-y-4">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                            <h3 className="text-sm font-bold text-white tracking-wide">
-                              Tìm thấy {scannedResult.totalFound} bài viết chi tiết từ {scannedResult.domain}
-                            </h3>
-                          </div>
-                          <p className="text-xs text-slate-300">
-                            {scannedResult.sitemapFound
-                              ? `Nguồn: ${scannedResult.sitemapFound}`
-                              : "Đã lọc qua Recursive Sitemap & Category Crawler"} •{" "}
-                            <span className="text-emerald-400 font-bold">{scannedResult.unscrapedCount} bài mới</span> chưa cào •{" "}
-                            Đã chọn <span className="text-[#D4AF37] font-extrabold text-sm">{selectedUrls.length}</span> / {scannedResult.totalFound} bài
-                          </p>
-                        </div>
-
-                        {/* NÚT LỚN NỔI BẬT: CHẠY RADAR HÀNG LOẠT */}
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <button
-                            type="button"
-                            disabled={isBatchRunning || selectedUrls.length === 0}
-                            onClick={handleRunBatchRadar}
-                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] hover:from-amber-300 hover:to-[#D4AF37] text-[#0A1E5E] font-black text-xs shadow-xl shadow-[#D4AF37]/30 flex items-center justify-center space-x-2.5 disabled:opacity-40 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-                          >
-                            {isBatchRunning ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin text-[#0A1E5E]" />
-                                <span>ĐANG CHẠY HÀNG ĐỢI ({batchProgress.current}/{batchProgress.total})...</span>
-                              </>
-                            ) : (
-                              <>
-                                <PlayCircle className="w-4 h-4 text-[#0A1E5E]" />
-                                <span>🚀 CHẠY RADAR HÀNG LOẠT ({selectedUrls.length} BÀI ĐÃ CHỌN)</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* THANH ĐIỀU KHIỂN CHỌN BÀI & BỘ LỌC */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10 text-xs">
-                        {/* Checkbox Chọn tất cả */}
-                        <div className="flex items-center space-x-3">
-                          <label className="flex items-center space-x-2 cursor-pointer font-semibold text-slate-200 hover:text-white select-none">
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedUrls.length > 0 &&
-                                selectedUrls.length ===
-                                  scannedResult.urls.filter(
-                                    (u) => domainFilter === "all" || !u.isScraped
-                                  ).length
-                              }
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  const list = scannedResult.urls
-                                    .filter((u) => domainFilter === "all" || !u.isScraped)
-                                    .map((u) => u.url);
-                                  handleSelectAllUrls(list);
-                                } else {
-                                  handleDeselectAllUrls();
-                                }
-                              }}
-                              className="w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
-                            />
-                            <span>Chọn tất cả danh sách đang hiển thị</span>
-                          </label>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const unscraped = scannedResult.urls
-                                .filter((u) => !u.isScraped)
-                                .map((u) => u.url);
-                              handleSelectAllUrls(unscraped);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 text-[11px] transition cursor-pointer"
-                          >
-                            Chỉ chọn bài chưa cào ({scannedResult.unscrapedCount})
-                          </button>
-                        </div>
-
-                        {/* Bộ lọc hiển thị (Tất cả vs Chỉ bài chưa cào) */}
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-slate-400 font-medium flex items-center mr-1">
-                            <ListFilter className="w-3.5 h-3.5 mr-1 text-slate-400" /> Xem:
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setDomainFilter("all")}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                              domainFilter === "all"
-                                ? "bg-[#D4AF37] text-[#0A1E5E] font-bold shadow"
-                                : "bg-white/5 text-slate-400 hover:text-white"
+                    {/* Chi tiết các lỗi phát hiện (nếu có) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {qaReport.checks.map((chk: any) => (
+                        <div
+                          key={chk.id}
+                          className={`p-2.5 rounded-xl border flex items-start space-x-2 ${chk.status === "pass"
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"
+                              : chk.status === "warn"
+                                ? "bg-amber-500/10 border-amber-500/20 text-amber-200"
+                                : "bg-rose-500/20 border-rose-500/40 text-rose-200"
                             }`}
-                          >
-                            Tất cả ({scannedResult.totalFound})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDomainFilter("unscraped")}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                              domainFilter === "unscraped"
-                                ? "bg-emerald-500 text-white font-bold shadow"
-                                : "bg-white/5 text-slate-400 hover:text-white"
-                            }`}
-                          >
-                            Chưa cào ({scannedResult.unscrapedCount})
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* DANH SÁCH BÀI VIẾT VỚI TRẠNG THÁI TIẾN TRÌNH THỜI GIAN THỰC */}
-                    <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-white/10 p-2.5 bg-black/30">
-                      {scannedResult.urls
-                        .filter((item) => domainFilter === "all" || !item.isScraped)
-                        .map((item, idx) => {
-                          const isSelected = selectedUrls.includes(item.url);
-                          return (
-                            <div
-                              key={item.url}
-                              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
-                                item.status === "scraping"
-                                  ? "bg-sky-500/15 border-sky-400/50 ring-1 ring-sky-400/40"
-                                  : item.status === "generating"
-                                  ? "bg-amber-500/15 border-amber-400/50 ring-1 ring-amber-400/40"
-                                  : item.status === "waiting"
-                                  ? "bg-white/10 border-white/20 opacity-80"
-                                  : item.status === "success"
-                                  ? "bg-emerald-500/15 border-emerald-500/40"
-                                  : isSelected
-                                  ? "bg-white/10 border-[#D4AF37]/50"
-                                  : "bg-white/5 border-white/5 hover:bg-white/10"
-                              }`}
-                            >
-                              {/* Cột Trái: Checkbox + Tiêu đề + Link */}
-                              <div className="flex items-start space-x-3 min-w-0 flex-1">
-                                <input
-                                  type="checkbox"
-                                  id={`checkbox-${idx}`}
-                                  checked={isSelected}
-                                  onChange={() => handleToggleSelectUrl(item.url)}
-                                  disabled={isBatchRunning}
-                                  className="mt-1 w-4 h-4 rounded text-[#D4AF37] bg-white/10 border-white/20 focus:ring-[#D4AF37] cursor-pointer"
-                                />
-                                <div className="min-w-0 flex-1 space-y-0.5">
-                                  <label
-                                    htmlFor={`checkbox-${idx}`}
-                                    className="text-xs font-semibold text-white block truncate cursor-pointer hover:text-[#D4AF37] transition"
-                                    title={item.title}
-                                  >
-                                    {item.title}
-                                  </label>
-                                  <a
-                                    href={item.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[11px] text-slate-400 hover:text-slate-200 truncate flex items-center space-x-1"
-                                  >
-                                    <span className="truncate">{item.url}</span>
-                                    <ExternalLink className="w-3 h-3 shrink-0" />
-                                  </a>
-                                </div>
-                              </div>
-
-                              {/* Cột Phải: Badge Trạng thái + Nút Chạy riêng tại chỗ */}
-                              <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                                {/* Trạng thái Queue Runner chi tiết */}
-                                {item.status === "waiting" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
-                                    <Clock className="w-3 h-3 text-amber-400" />
-                                    <span>Chờ xử lý...</span>
-                                  </span>
-                                ) : item.status === "scraping" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center space-x-1.5 animate-pulse">
-                                    <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
-                                    <span>Đang cào & phân tích</span>
-                                  </span>
-                                ) : item.status === "generating" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center space-x-1.5 animate-pulse">
-                                    <Sparkles className="w-3 h-3 animate-spin text-[#D4AF37]" />
-                                    <span>Đang sinh bài (AI)</span>
-                                  </span>
-                                ) : item.status === "success" ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1.5 shadow-sm">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                    <span>Hoàn thành (Đã lưu nháp)</span>
-                                  </span>
-                                ) : item.status === "error" ? (
-                                  <span
-                                    className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center space-x-1.5"
-                                    title={item.error}
-                                  >
-                                    <AlertCircle className="w-3 h-3 text-rose-400" />
-                                    <span>Lỗi xử lý</span>
-                                  </span>
-                                ) : item.isScraped ? (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                                    Đã cào trước đó
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                    Chưa cào
-                                  </span>
-                                )}
-
-                                {/* NÚT CHẠY RIÊNG TẠI CHỖ (KHÔNG CHUYỂN TAB) */}
-                                {item.status === "success" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      // Tìm bài viết trong postsList hoặc chuyển sang xem kết quả nếu muốn
-                                      const foundPost = postsList.find(
-                                        (p) =>
-                                          p.competitor_source_url === item.url ||
-                                          p.title === item.title
-                                      );
-                                      if (foundPost) {
-                                        handleStartEditPost(foundPost);
-                                      } else {
-                                        setActiveResultTab("article");
-                                      }
-                                    }}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-bold transition cursor-pointer flex items-center space-x-1"
-                                    title="Xem bản nháp đã lưu trong Database"
-                                  >
-                                    <span>Xem nháp</span>
-                                    <Eye className="w-3 h-3" />
-                                  </button>
-                                ) : item.status === "scraping" || item.status === "generating" ? (
-                                  <span className="text-[11px] text-amber-300 italic px-2 py-1">
-                                    Đang xử lý ngầm...
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={isBatchRunning || isAnalyzing}
-                                    onClick={() => handleRunSingleInPlace(item.url, item.title)}
-                                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A1E5E] text-slate-200 text-[11px] font-medium transition cursor-pointer flex items-center space-x-1"
-                                    title="Chạy ngầm bài này ngay tại đây và lưu bản nháp"
-                                  >
-                                    <span>Chạy riêng bài này</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* =====================================================================
-                CHẾ ĐỘ 1: NHẬP LINK BÀI VIẾT ĐƠN LẺ (GIỮ NGUYÊN TOÀN BỘ TÍNH NĂNG)
-            ===================================================================== */}
-            {scanMode === "single" && (
-              <div className="space-y-6">
-                {/* Sample Buttons theo từng Search Intent */}
-                <div className="flex flex-wrap items-center gap-1.5 text-xs pb-3 border-b border-white/5">
-                  <span className="text-slate-400 text-[11px] font-medium mr-1">Mẫu test v2.4.5:</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://hoabinhevents.com/chi-phi-to-chuc-le-khanh-thanh-nha-may-la-bao-nhieu",
-                        "báo giá tổ chức lễ khánh thành nhà máy",
-                        "Nhấn mạnh vào năng lực từng khánh thành Nhà máy EIFFEL Damsan, múa lân sư rồng và kho thiết bị Line Array nhập khẩu trực tiếp."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🎉 Lễ Khai trương
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://vietnamevents.com/to-chuc-year-end-party",
-                        "tổ chức year end party công ty",
-                        "Tập trung vào concept Gatsby / Oscar, visual 3D mapping, kịch bản vinh danh 3 cung bậc cảm xúc, hotline 0844 198 333."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🥂 Year End Party
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://vietranstour.com/tour-team-building-doanh-nghiep",
-                        "tour team building kết hợp gala dinner",
-                        "Nhấn mạnh mô hình Hybrid Event & Travel một đầu mối, sở hữu đội xe 16-45 chỗ đời mới, bao trọn khâu đưa đón và sân khấu gala bãi biển."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🏖️ Team Building
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://marcom.com.vn/to-chuc-hoi-nghi-hoi-thao-chuyen-nghiep",
-                        "tổ chức hội thảo chuyên đề doanh nghiệp",
-                        "Tập trung vào hệ thống micro cổ ngỗng UHF 16 kênh chống nhiễu, màn hình LED P2.5 trong nhà độ mịn cao không lóa mắt, teabreak VIP."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🎤 Hội nghị / Tọa đàm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillSample(
-                        "https://chothueamthanhas.com/bang-gia-thue-am-thanh-anh-sang-ha-noi",
-                        "báo giá thuê âm thanh ánh sáng màn hình led hà nội",
-                        "Báo giá gốc từ kho, không qua trung gian, thông số loa Line Array nhập khẩu, màn LED P2.5/P3.91, kỹ thuật trực chiến 100%."
-                      )
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition cursor-pointer"
-                  >
-                    🔊 Thuê thiết bị kho
-                  </button>
-                </div>
-
-                <form onSubmit={handleScanAndGenerate} className="space-y-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    {/* URL Input */}
-                    <div className="lg:col-span-7">
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        URL bài viết đối thủ cạnh tranh <span className="text-[#D4AF37]">*</span>
-                      </label>
-                      <div className="relative">
-                        <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                        <input
-                          type="url"
-                          required
-                          placeholder="https://doithu.com/bai-viet-to-chuc-su-kien"
-                          value={competitorUrl}
-                          onChange={(e) => setCompetitorUrl(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Target Keyword */}
-                    <div className="lg:col-span-5">
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Từ khóa mục tiêu (Focus keyword)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="VD: tổ chức lễ khánh thành nhà máy"
-                        value={targetKeyword}
-                        onChange={(e) => setTargetKeyword(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                      />
-                    </div>
-                  </div>
-
-                  {/* =========================================================================
-                      BỘ KẾT NỐI HỒ SƠ SỰ KIỆN THỰC TẾ & BẰNG CHỨNG E-E-A-T DOANH NGHIỆP
-                  ========================================================================= */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.04] border border-[#D4AF37]/35 shadow-xl space-y-3.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/10">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
-                          <ShieldCheck className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                            <span>Liên kết Hồ Sơ Sự Kiện Thực Tế</span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-[#D4AF37] text-[#0A1E5E]">
-                              E-E-A-T Độc Bản
-                            </span>
-                          </h4>
-                          <p className="text-[11px] text-slate-300">
-                            Tự động lấy ảnh hiện trường, bóc tách chi phí thật và trích dẫn khách hàng vào bài viết SEO
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Dropdown Selector */}
-                      <div className="sm:w-72">
-                        <select
-                          value={selectedEventId}
-                          onChange={(e) => setSelectedEventId(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl bg-[#0A1E5E] border border-[#D4AF37]/40 text-[#D4AF37] text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37] transition cursor-pointer"
                         >
-                          <option value="auto">🎯 AI Tự Động Chọn Theo Từ Khóa</option>
-                          {availableProfiles.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              [{p.categoryLabel || p.category}] {p.title.slice(0, 32)}... ({p.guestCount} khách)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Active Event Preview Card */}
-                    {activeEventProfile && (
-                      <div className="p-3 sm:p-3.5 rounded-xl bg-black/25 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5">
-                        <div className="flex items-start sm:items-center space-x-3 min-w-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={activeEventProfile.coverImage}
-                            alt={activeEventProfile.title}
-                            className="w-16 h-14 sm:w-20 sm:h-16 rounded-lg object-cover border border-white/15 shrink-0 shadow-md"
-                          />
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
-                                {activeEventProfile.categoryLabel || activeEventProfile.category}
-                              </span>
-                              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Đã hoàn thành ({activeEventProfile.guestCount} khách VIP)
-                              </span>
+                          {chk.status === "pass" ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                          ) : chk.status === "warn" ? (
+                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-0.5 flex-1 min-w-0">
+                            <div className="font-bold flex items-center justify-between">
+                              <span className="truncate">{chk.name}</span>
+                              {chk.status !== "pass" && (
+                                <span className="text-[10px] font-mono font-normal opacity-80">
+                                  {chk.scoreImpact} điểm
+                                </span>
+                              )}
                             </div>
-                            <h5 className="text-xs sm:text-sm font-bold text-white truncate max-w-md">
-                              {activeEventProfile.title}
-                            </h5>
-                            <p className="text-[11px] text-slate-300 truncate">
-                              🏢 {activeEventProfile.client?.company} • 📍 {activeEventProfile.location?.venue}
+                            <p className="text-[10px] opacity-90 leading-snug">
+                              {chk.message}
                             </p>
+                            {chk.matches && chk.matches.length > 0 && (
+                              <p className="text-[10px] font-mono text-amber-300 truncate">
+                                Phát hiện: {chk.matches.join(", ")}
+                              </p>
+                            )}
                           </div>
                         </div>
-
-                        {/* Dải ảnh hiện trường & Tùy chọn */}
-                        <div className="flex flex-wrap md:flex-col items-start md:items-end gap-2 shrink-0">
-                          <div className="flex items-center space-x-1.5">
-                            <span className="text-[10px] text-slate-400 mr-1 hidden sm:inline">Ảnh hiện trường:</span>
-                            {(activeEventProfile.gallery || []).slice(0, 3).map((img: any, gIdx: number) => (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                key={gIdx}
-                                src={img.url}
-                                alt={img.caption}
-                                title={img.caption}
-                                className="w-8 h-8 rounded-md object-cover border border-white/20 hover:scale-125 transition-transform cursor-pointer"
-                              />
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setActiveAdminTab("events")}
-                            className="text-[11px] text-[#D4AF37] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                          >
-                            <span>Xem chi tiết hồ sơ sự kiện</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Checkbox Options */}
-                    <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-200">
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeRealImages}
-                          onChange={(e) => setIncludeRealImages(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>🖼️ Nhúng ảnh thực tế hiện trường</span>
-                      </label>
-
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeRealPricing}
-                          onChange={(e) => setIncludeRealPricing(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>💰 Bóc tách báo giá & dự toán chi phí thật</span>
-                      </label>
-
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={includeTestimonial}
-                          onChange={(e) => setIncludeTestimonial(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-white/10 border-white/20 cursor-pointer"
-                        />
-                        <span>⭐ Đánh giá của khách hàng (Social proof)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Custom Prompt Instructions */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
-                      <label className="text-xs font-semibold text-slate-300">
-                        Yêu cầu bổ sung cho AI (tùy chọn: góc nhìn độc bản, chương trình khuyến mãi...)
-                      </label>
-                      <span className="text-[11px] text-[#D4AF37] font-semibold flex items-center">
-                        <Sparkles className="w-3 h-3 mr-1" /> Nạp minh chứng từ Hồ sơ sự kiện:
-                      </span>
-                    </div>
-
-                    {/* Quick inject pills from event profiles */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Lễ Khai Trương Showroom Nam Hải Auto",
-                            "Công ty Cổ phần Ô tô Nam Hải",
-                            250,
-                            "Cầu Giấy, Hà Nội",
-                            "Màn LED P3 Cabin đúc, Line Array RCF Italy, Múa Lân Sư Rồng"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Khai trương Nam Hải (250 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Gala Dinner & Kỷ Niệm 15 Năm Sun Group",
-                            "Tập Đoàn Sun Group",
-                            500,
-                            "Meliá Hà Nội 5 sao",
-                            "Màn LED cong P2.5 45m², D&B Audiotechnik Đức, Visual 3D Hologram"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Gala Sun Group Meliá (500 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Hội Nghị Thượng Đỉnh AI FPT Software",
-                            "FPT Software Toàn Cầu",
-                            400,
-                            "Trung tâm Hội nghị Quốc gia NCC",
-                            "Tai nghe phiên dịch 400 đại biểu, Cabin ISO, Livestream 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Hội Nghị FPT NCC (400 khách)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          injectEventProof(
-                            "Teambuilding Viettel Telecom",
-                            "Viettel Telecom",
-                            350,
-                            "Flamingo Đại Lải 5 sao",
-                            "Game tool liên hoàn hơi độc quyền, Âm thanh JBL ngoài trời, Flycam 4K"
-                          )
-                        }
-                        className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition"
-                      >
-                        + Teambuilding Viettel (350 khách)
-                      </button>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      placeholder="VD: Nhấn mạnh uy tín từng tổ chức sự kiện cho Vinpearl, Vietcombank, Cầu Thăng Long; lồng ghép hotline 0844 198 333..."
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent transition"
-                    />
-                  </div>
-
-                  {/* Submit CTA */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
-                    <div className="text-xs text-slate-400 flex items-center space-x-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      <span>Quy trình tự động: Cào qua Jina ➔ Phân tích H1-H3 và lỗ hổng ➔ Tái tạo bài viết</span>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isAnalyzing || !competitorUrl}
-                      className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#f5e08b] to-[#D4AF37] text-[#0A1E5E] shadow-lg shadow-[#D4AF37]/20 hover:scale-105 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      {isAnalyzing ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Đang phân tích đối thủ...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Radar className="w-4 h-4 text-[#0A1E5E]" />
-                          <span>Quét và phân tích đối thủ ngay</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* Visual Step Progress Indicator chuẩn Skill System Content v2.4.5 (13 Bước Workflow Tự Động) */}
-            {isAnalyzing && (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-[#D4AF37] flex items-center">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
-                    Skill System Content v2.4.5 — 13 Bước Workflow Tự Động:
-                  </div>
-                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    Bước {processStep}/6: Đang thực thi
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 1
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      1
-                    </span>
-                    <span className="truncate text-[11px]">Intent & SERP</span>
-                  </div>
-
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 2
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      2
-                    </span>
-                    <span className="truncate text-[11px]">Gap Analysis</span>
-                  </div>
-
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 3
-                        ? "bg-[#0A1E5E] border-[#D4AF37] text-white shadow-sm ring-1 ring-[#D4AF37]/50"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      3
-                    </span>
-                    <span className="truncate text-[11px] font-medium text-[#D4AF37]">Outline Planning</span>
-                  </div>
-
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 4
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      4
-                    </span>
-                    <span className="truncate text-[11px]">Specificity Deep</span>
-                  </div>
-
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 5
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      5
-                    </span>
-                    <span className="truncate text-[11px]">Extractability & AI</span>
-                  </div>
-
-                  <div
-                    className={`p-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
-                      processStep >= 6
-                        ? "bg-[#0A1E5E] border-emerald-500 text-white shadow-sm"
-                        : "bg-white/5 border-white/5 text-slate-400"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold shrink-0">
-                      6
-                    </span>
-                    <span className="truncate text-[11px]">QA & Final Output</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {errorMsg && (
-              <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center">
-                <AlertCircle className="w-4 h-4 mr-2 text-rose-400 shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* =====================================================================
-            RESULTS WORKSPACE: BÁO CÁO PHÂN TÍCH ĐỐI THỦ & TRÌNH BIÊN TẬP
-        ===================================================================== */}
-        {(analysisResult || editablePost) && (
-          <div id="radar-results-editor" className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
-            {editingPostId && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs gap-2 animate-in fade-in">
-                <span className="font-semibold flex items-center">
-                  <Edit3 className="w-4 h-4 mr-2 text-amber-400" />
-                  Đang ở chế độ chỉnh sửa bài viết đã có trong Database
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-all w-fit"
-                >
-                  ✕ Hủy chỉnh sửa
-                </button>
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
-              {/* Tab Selector: Analysis Tab is clear & primary */}
-              <div className="inline-flex p-1 rounded-xl bg-white/5 border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setActiveResultTab("analysis")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                    activeResultTab === "analysis"
-                      ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>1. Báo cáo phân tích đối thủ và lỗ hổng</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveResultTab("article")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                    activeResultTab === "article"
-                      ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>2. Bài viết mới chuẩn SEO (Trường Hải)</span>
-                </button>
-              </div>
-
-              {/* Action buttons: Save draft, Schedule, Publish */}
-              <div className="flex items-center space-x-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => handleSaveToSupabase("draft")}
-                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/20 font-bold flex items-center space-x-1.5 transition-all"
-                  title="Lưu bản nháp"
-                >
-                  <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Lưu nháp</span>
-                </button>
-
-                {/* Nút Hẹn Lịch Đăng Bài */}
-                <button
-                  type="button"
-                  onClick={() => setShowScheduleModal(true)}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 font-bold flex items-center space-x-1.5 transition-all"
-                  title="Hẹn giờ đăng bài tự động"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Hẹn lịch đăng</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSaveToSupabase("published")}
-                  className="px-4 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#edd47a] text-[#0A1E5E] font-black flex items-center space-x-1.5 shadow-md transition-all"
-                >
-                  <Send className="w-3.5 h-3.5 text-[#0A1E5E]" />
-                  <span>Xuất bản ngay</span>
-                </button>
-              </div>
-            </div>
-
-            {saveStatus && (
-              <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center">
-                <CheckCircle2 className="w-4 h-4 mr-2 shrink-0 text-emerald-400" />
-                <span>{saveStatus}</span>
-              </div>
-            )}
-
-            {/* TAB 1: BÁO CÁO PHÂN TÍCH ĐỐI THỦ CHUYÊN SÂU */}
-            {activeResultTab === "analysis" && analysisResult && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
-                  {/* Cột 1: Bối cảnh bài đối thủ */}
-                  <div className="lg:col-span-5 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                      <h3 className="font-bold text-white text-sm flex items-center">
-                        <Layers className="w-4 h-4 mr-2 text-[#D4AF37]" />
-                        Bối cảnh và cấu trúc đối thủ
-                      </h3>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37] text-[#0A1E5E]">
-                        Điểm SEO: {analysisResult.seoScore || 65}/100
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Tiêu đề H1 của đối thủ:</span>
-                      <p className="font-bold text-white text-xs mt-1 bg-black/20 p-2.5 rounded-xl border border-white/5">
-                        {analysisResult.h1 || "Không xác định"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[11px] mb-1.5">
-                        Dàn ý các phân đoạn chính (H2, H3):
-                      </span>
-                      <ul className="space-y-1.5 text-slate-300 max-h-56 overflow-y-auto pr-1">
-                        {analysisResult.headings?.map((h: string, hIdx: number) => (
-                          <li key={hIdx} className="flex items-start bg-white/5 p-2 rounded-lg">
-                            <span className="text-[#D4AF37] font-bold mr-2 shrink-0">#</span>
-                            <span className="leading-snug">{h}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between text-slate-400">
-                      <span>Dung lượng bài đối thủ: ~<strong>{analysisResult.wordCountEstimate || 500}</strong> từ</span>
-                    </div>
-                  </div>
-
-                  {/* Cột 2: Ma trận Lỗ hổng vs Vũ khí Trường Hải */}
-                  <div className="lg:col-span-7 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                      <h3 className="font-bold text-amber-300 text-sm flex items-center">
-                        <ShieldAlert className="w-4 h-4 mr-2 text-amber-400" />
-                        Ma trận đối soát: Lỗ hổng đối thủ vs vũ khí Trường Hải
-                      </h3>
-                      <span className="text-[10px] text-slate-400">
-                        {analysisResult.weaknesses?.length || 0} điểm phát hiện
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-light">
-                      Hệ thống đã phân tích bối cảnh bài đối thủ và đề xuất các luận điểm thế mạnh độc quyền để bài viết mới của Trường Hải hoàn toàn vượt trội:
-                    </p>
-
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                      {analysisResult.weaknesses?.map((w: string, wIdx: number) => {
-                        const parts = w.split(/➔\s*(?:🎯)?\s*Vũ khí Trường Hải:/i);
-                        const competitorWeakness = parts[0]?.replace(/^⚠️\s*Lỗ hổng:\s*/i, "").trim();
-                        const truongHaiAdvantage = parts[1]?.trim();
-
-                        if (truongHaiAdvantage) {
-                          return (
-                            <div
-                              key={wIdx}
-                              className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 hover:border-white/20 transition-colors"
-                            >
-                              <div className="flex items-start space-x-2.5">
-                                <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 font-bold text-[10px] shrink-0 border border-rose-500/30">
-                                  Lỗ hổng đối thủ
-                                </span>
-                                <p className="text-slate-300 text-xs leading-relaxed">
-                                  {competitorWeakness}
-                                </p>
-                              </div>
-
-                              <div className="flex items-start space-x-2.5 pt-2 border-t border-white/5">
-                                <span className="px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#D4AF37] font-bold text-[10px] shrink-0 border border-[#D4AF37]/30">
-                                  Vũ khí Trường Hải
-                                </span>
-                                <p className="text-white text-xs font-semibold leading-relaxed">
-                                  {truongHaiAdvantage}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={wIdx}
-                            className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-200 text-xs leading-relaxed"
-                          >
-                            {w.replace(/⚠️/g, "").replace(/🎯/g, "")}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="pt-3 border-t border-white/10 flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 text-[11px]">Từ khóa liên quan:</span>
-                      {analysisResult.targetKeywords?.map((kw: string, kIdx: number) => (
-                        <span
-                          key={kIdx}
-                          className="px-2 py-0.5 rounded bg-white/10 text-slate-300 text-[10px] font-mono"
-                        >
-                          #{kw}
-                        </span>
                       ))}
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* Hộp chuyển hướng hành động sang viết bài */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0A1E5E] to-[#122868] border border-[#D4AF37]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="space-y-1 text-center sm:text-left">
-                    <h4 className="font-bold text-white text-sm flex items-center justify-center sm:justify-start space-x-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
-                      <span>Đã hoàn tất phân tích đối soát lỗ hổng đối thủ!</span>
+              {/* HỘP 1: RÀ SOÁT CÁC CHỖ [CẦN SỐ LIỆU] */}
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-700" />
+                    <h4 className="font-bold text-amber-950 text-xs">
+                      Rà soát các thẻ [CẦN SỐ LIỆU] & Thông số thực tế
                     </h4>
-                    <p className="text-xs text-slate-300 font-light">
-                      Bài viết mới chuẩn SEO đã được tạo sẵn với đầy đủ các vũ khí và cam kết của Trường Hải Event.
-                    </p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveResultTab("article")}
-                    className="px-6 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-black text-xs flex items-center space-x-2 shadow-lg shrink-0 cursor-pointer"
-                  >
-                    <span>Xem và biên tập bài viết mới</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: ARTICLE EDITOR */}
-            {activeResultTab === "article" && editablePost && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className="lg:col-span-8">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Tiêu đề bài viết SEO
-                    </label>
-                    <input
-                      type="text"
-                      value={editablePost.title || ""}
-                      onChange={(e) =>
-                        setEditablePost({ ...editablePost, title: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                    />
-                  </div>
-
-                  <div className="lg:col-span-4">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Từ khóa chính (Focus keyword)
-                    </label>
-                    <input
-                      type="text"
-                      value={editablePost.focus_keyword || ""}
-                      onChange={(e) =>
-                        setEditablePost({
-                          ...editablePost,
-                          focus_keyword: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                    />
-                  </div>
+                  <span className="text-[11px] font-mono font-bold text-amber-900 bg-amber-200/60 px-2 py-0.5 rounded">
+                    {(reviewingPost.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || []).length} vị trí
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className="lg:col-span-6">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Đường dẫn tĩnh (Slug URL)
-                    </label>
-                    <input
-                      type="text"
-                      value={editablePost.slug || ""}
-                      onChange={(e) =>
-                        setEditablePost({ ...editablePost, slug: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-slate-300 text-xs font-mono outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                    />
-                  </div>
-
-                  <div className="lg:col-span-6">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Meta description (tóm tắt chuẩn SEO)
-                    </label>
-                    <input
-                      type="text"
-                      value={editablePost.meta_description || ""}
-                      onChange={(e) =>
-                        setEditablePost({
-                          ...editablePost,
-                          meta_description: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                    />
-                  </div>
-                </div>
-
-                {/* Thước đo chuẩn SEO On-Page Real-time */}
-                <SeoScoreChecklist
-                  title={editablePost.title || ""}
-                  focusKeyword={editablePost.focus_keyword || ""}
-                  metaDescription={editablePost.meta_description || ""}
-                  slug={editablePost.slug || ""}
-                  content={editablePost.content || ""}
-                />
-
-                <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-white/10 gap-2">
-                    <div className="flex items-center space-x-2">
-                      <label className="text-xs font-bold text-white">
-                        Nội dung bài viết chuẩn SEO
-                      </label>
-                      <span className="text-[11px] text-slate-400">
-                        ({editablePost.content?.length || 0} ký tự)
-                      </span>
-                    </div>
-
-                    {/* Bộ chuyển đổi: Xem trước trực quan vs Soạn thảo mã nguồn */}
-                    <div className="inline-flex p-1 rounded-xl bg-white/10 border border-white/15 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setArticlePreviewMode("preview")}
-                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
-                          articlePreviewMode === "preview"
-                            ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm"
-                            : "text-slate-300 hover:text-white"
-                        }`}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Xem trước giao diện thực tế</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setArticlePreviewMode("edit")}
-                        className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
-                          articlePreviewMode === "edit"
-                            ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm"
-                            : "text-slate-300 hover:text-white"
-                        }`}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Chỉnh sửa mã nguồn</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {articlePreviewMode === "preview" ? (
-                    <div className="p-6 sm:p-8 rounded-3xl bg-white text-slate-800 shadow-2xl border border-slate-200 max-h-[600px] overflow-y-auto">
-                      <div className="pb-4 mb-6 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                          Bản xem trước như hiển thị trên trang tin tức
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Đã tối ưu cấu trúc & loại bỏ ký tự thừa
-                        </span>
+                {(() => {
+                  const matches = reviewingPost.content?.match(/\[CẦN (?:SỐ LIỆU|KIỂM CHỨNG)[^\]]*\]/gi) || [];
+                  if (matches.length === 0) {
+                    return (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-center space-x-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Bài viết không còn thẻ [CẦN SỐ LIỆU] nào. Thông số thực tế đã hoàn chỉnh!</span>
                       </div>
-                      <ArticleContentRenderer content={editablePost.content || ""} />
+                    );
+                  }
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-amber-800">
+                        AI đã đánh dấu các vị trí cần thông số người thật duyệt. Bạn có thể bấm "Điền số thật" để thay thế ngay hoặc mở AI Studio để sửa sâu:
+                      </p>
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {matches.map((m, idx) => (
+                          <div key={idx} className="p-2 rounded-lg bg-white border border-amber-200 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[11px] font-bold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded truncate">
+                              {m}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const replacement = window.prompt(`Nhập số liệu thực tế thay thế cho "${m}":`, "");
+                                if (replacement !== null && replacement.trim()) {
+                                  const newContent = reviewingPost.content.replace(m, replacement.trim());
+                                  const updated = { ...reviewingPost, content: newContent };
+                                  setReviewingPost(updated);
+                                  handleDirectUpdateContent(updated);
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded bg-[#0A1E5E] text-[#D4AF37] font-bold text-[10px] hover:bg-slate-800 cursor-pointer shrink-0"
+                            >
+                              Điền số thật
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    <textarea
-                      rows={18}
-                      value={editablePost.content || ""}
-                      onChange={(e) =>
-                        setEditablePost({ ...editablePost, content: e.target.value })
-                      }
-                      className="w-full p-4 rounded-2xl bg-white/5 border border-white/15 text-slate-200 text-xs font-mono leading-relaxed outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                      placeholder="Nội dung bài viết..."
+                  );
+                })()}
+              </div>
+
+              {/* HỘP 2: CHECKLIST QA TRƯỚC KHI ĐĂNG */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center space-x-2 text-slate-900 font-bold text-xs">
+                  <CheckCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Danh sách kiểm tra trước khi đăng:</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={reviewingChecklist.dataChecked}
+                      onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, dataChecked: e.target.checked })}
+                      className="mt-0.5 accent-amber-600 rounded"
                     />
-                  )}
+                    <span className="leading-snug">
+                      <strong>1. Số liệu thực tế:</strong> Đã rà soát & thay thế các thẻ [CẦN SỐ LIỆU] bằng thông số thật.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={reviewingChecklist.keywordChecked}
+                      onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, keywordChecked: e.target.checked })}
+                      className="mt-0.5 accent-amber-600 rounded"
+                    />
+                    <span className="leading-snug">
+                      <strong>2. Từ khóa & Cấu trúc SEO:</strong> Từ khóa chính nằm trong Tiêu đề, H1, H2 và xuất hiện tự nhiên.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={reviewingChecklist.brandBrainChecked}
+                      onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, brandBrainChecked: e.target.checked })}
+                      className="mt-0.5 accent-amber-600 rounded"
+                    />
+                    <span className="leading-snug">
+                      <strong>3. Bộ não thương hiệu:</strong> Đã trích dẫn dự án hoặc thiết bị thật sẵn kho của Trường Hải Event.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start space-x-2 p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={reviewingChecklist.formatChecked}
+                      onChange={(e) => setReviewingChecklist({ ...reviewingChecklist, formatChecked: e.target.checked })}
+                      className="mt-0.5 accent-amber-600 rounded"
+                    />
+                    <span className="leading-snug">
+                      <strong>4. FAQ & Lời kêu gọi:</strong> Đầy đủ 3 câu hỏi thường gặp và hotline liên hệ 096.386.1313.
+                    </span>
+                  </label>
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* MODAL HẸN LỊCH ĐĂNG BÀI */}
-        {showScheduleModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0A1E5E] border border-[#D4AF37]/40 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4">
-              <div className="flex items-center space-x-2 text-white">
-                <Calendar className="w-5 h-5 text-[#D4AF37]" />
-                <h3 className="font-bold text-base">Hẹn lịch đăng bài tự động</h3>
+              {/* HỘP 3: XEM TRƯỚC TOÀN VĂN BÀI VIẾT */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                    <Eye className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Xem trước bài viết thực tế</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Độ dài: {reviewingPost.content?.length || 0} ký tự
+                  </span>
+                </div>
+                <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 max-h-96 overflow-y-auto shadow-inner">
+                  <ArticleContentRenderer content={reviewingPost.content || ""} />
+                </div>
               </div>
+            </div>
 
-              <p className="text-xs text-slate-300">
-                Chọn ngày và giờ bạn muốn bài viết này tự động được xuất bản lên chuyên mục Tin tức & Cẩm nang:
-              </p>
+            {/* Modal Actions Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  handleStartEditPost(reviewingPost);
+                  setReviewingPost(null);
+                  setActiveNavSection("viet_bai");
+                }}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-slate-300 font-bold text-xs flex items-center space-x-1.5 cursor-pointer shadow-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                <span>Mở trình soạn thảo</span>
+              </button>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  Thời gian xuất bản dự kiến:
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37]"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-2">
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => setShowScheduleModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/10 text-slate-300 text-xs font-semibold hover:bg-white/15"
+                  onClick={() => setReviewingPost(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
                 >
-                  Hủy
+                  Đóng
                 </button>
+
                 <button
                   type="button"
-                  disabled={!scheduledTime}
-                  onClick={() => handleSaveToSupabase("scheduled")}
-                  className="px-5 py-2 rounded-xl bg-[#D4AF37] text-[#0A1E5E] text-xs font-bold hover:bg-amber-400 disabled:opacity-50"
+                  onClick={async () => {
+                    await handlePublishDirect(reviewingPost);
+                    setReviewingPost(null);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:brightness-105 text-[#0A1E5E] font-black text-xs flex items-center space-x-1.5 shadow-md cursor-pointer transition-all hover:scale-105"
                 >
-                  Xác nhận hẹn lịch
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>🚀 Phê Duyệt & Xuất Bản Lên Web Ngay</span>
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* =====================================================================
-            DASHBOARD METRIC CARDS (THỐNG KÊ TỔNG QUAN)
-        ===================================================================== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-              <FileText className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Tổng bài viết SEO</p>
-              <h3 className="text-2xl font-black text-white">{postsList.length}</h3>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Đã xuất bản</p>
-              <h3 className="text-2xl font-black text-emerald-400">{publishedCount}</h3>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Bản nháp chờ duyệt</p>
-              <h3 className="text-2xl font-black text-amber-400">{draftCount}</h3>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#06123B] border border-white/10 shadow-xl flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] shrink-0">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Khách cần tư vấn</p>
-              <h3 className="text-2xl font-black text-[#D4AF37]">{leadsList.length}</h3>
             </div>
           </div>
         </div>
+      )}
 
-        {/* =====================================================================
-            CMS DATA WORKSPACE: POSTS MANAGEMENT & LEADS MANAGEMENT
-        ===================================================================== */}
-        <div className="bg-[#06123B] rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
-          {/* Main CMS Tab Switcher */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
-            <div className="inline-flex flex-wrap p-1 rounded-xl bg-white/5 border border-white/10 gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("posts")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "posts"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Quản Lý Bài Viết SEO ({postsList.length})</span>
-              </button>
+      {/* MỤC 0: TOP GOOGLE (Radar đợt 1: từ khóa → top Google → cào bài) */}
+      {activeNavSection === "top_google" && <RadarPipeline onOpenPosts={() => setActiveNavSection("duyet_bai")} />}
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("leads")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "leads"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Khách Hàng Đăng Ký Tư Vấn ({leadsList.length})</span>
-              </button>
+      {/* MỤC 4: QUẢN LÝ ĐỐI THỦ (COMPETITORS) */}
+      {(activeNavSection === "doi_thu" || activeNavSection === "competitors") && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <CompetitorsManager
+            onSelectCompetitorForScan={(domain, name) => {
+              setDomainInput(domain);
+              setScanMode("domain");
+              setEditablePost(null);
+              setAnalysisResult(null);
+              setActiveNavSection("viet_bai");
+              window.scrollTo({ top: 350, behavior: "smooth" });
+            }}
+            onRefreshStats={refreshRadarStats}
+          />
+        </div>
+      )}
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminTab("events")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
-                  activeAdminTab === "events"
-                    ? "bg-[#D4AF37] text-[#0A1E5E] shadow-md font-black"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>Hồ Sơ Sự Kiện & Lưu Trữ Dự Án ({eventProfilesCount})</span>
-              </button>
+      {/* MỤC 5: KHOẢNG TRỐNG SEO & LẬP LỊCH QUÉT NGẦM (CONTENT GAP & CRON) */}
+      {(activeNavSection === "ke_hoach" ||
+        activeNavSection === "content_gap" ||
+        activeNavSection === "cron") && (
+          <div className="space-y-6">
+            {/* 4 THẺ CHỈ SỐ TỔNG QUAN KẾ HOẠCH TỪ KHÓA */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* Card 1: Số lượng đối thủ đang theo dõi */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Đối thủ theo dõi</p>
+                <div className="mt-2 flex items-baseline space-x-1.5">
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
+                    {trackedCompetitors.filter((c) => c.isActive).length}
+                  </h3>
+                  <span className="text-xs text-slate-500 font-semibold">
+                    đang bật / {trackedCompetitors.length} đối thủ
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 2: Tổng số bài viết đã quét của đối thủ */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bài đối thủ đã đọc</p>
+                <div className="mt-2 flex items-baseline space-x-1.5">
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
+                    {trackedCompetitors.reduce((acc, c) => acc + (c.scannedPagesCount || 0), 0)}
+                  </h3>
+                  <span className="text-xs text-slate-500 font-semibold">bài viết</span>
+                </div>
+              </div>
+
+              {/* Card 3: Khoảng trống SEO (Chủ đề web đang thiếu) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-amber-200 bg-amber-50/40 shadow-2xs">
+                <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Chủ đề web đang thiếu</p>
+                <div className="mt-2 flex items-baseline space-x-1.5">
+                  <h3 className="text-2xl sm:text-3xl font-black text-amber-900">
+                    {contentGaps.filter((g) => g.ourSiteStatus === "missing").length}
+                  </h3>
+                  <span className="text-xs text-amber-800 font-semibold">từ khóa cần viết</span>
+                </div>
+              </div>
+
+              {/* Card 4: Bài viết ưu tiên cao */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-rose-200 bg-rose-50/40 shadow-2xs">
+                <p className="text-xs font-bold text-rose-800 uppercase tracking-wide">Đề xuất ưu tiên số 1</p>
+                <div className="mt-2 flex items-baseline space-x-1.5">
+                  <h3 className="text-2xl sm:text-3xl font-black text-rose-900">
+                    {contentGaps.filter((g) => g.ourSiteStatus === "missing" && g.priority === "high").length}
+                  </h3>
+                  <span className="text-xs text-rose-800 font-semibold">chủ đề quan trọng</span>
+                </div>
+              </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                fetchPosts();
-                fetchLeads();
-                if (typeof window !== "undefined") {
-                  setEventProfilesCount(getStoredEventProfiles().length);
-                }
-              }}
-              className="inline-flex items-center text-xs text-[#D4AF37] hover:underline self-end sm:self-auto"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              Làm mới dữ liệu
-            </button>
+            {/* MÀN HÌNH TÍCH HỢP: LẬP LỊCH QUÉT 02:30 SÁNG & BẢN ĐỒ KHOẢNG TRỐNG SEO */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+              <ContentGapDashboard
+                onGenerateDraftFromGap={(gap) => {
+                  setCompetitorUrl(gap.competitorUrl);
+                  setTargetKeyword(gap.targetKeyword);
+                  setScanMode("single");
+                  setEditablePost(null);
+                  setAnalysisResult(null);
+                  setActiveNavSection("viet_bai");
+                  window.scrollTo({ top: 350, behavior: "smooth" });
+                  // Tự động kích hoạt AI Studio bóc tách và viết bài ngay lập tức!
+                  executeScanAndGenerate(gap.competitorUrl, gap.targetKeyword);
+                }}
+                onRefreshData={refreshRadarStats}
+                onNavigateSection={setActiveNavSection}
+              />
+            </div>
           </div>
+        )}
 
-          {activeAdminTab === "posts" ? (
-            <div className="space-y-4">
-              {/* Notice Banner khi Duyệt / Xuất bản bài viết */}
-              {postNotice && (
-                <div
-                  className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-md transition-all ${
-                    postNotice.type === "success"
-                      ? "bg-emerald-950/70 border-emerald-500/40 text-emerald-300"
-                      : postNotice.type === "error"
-                      ? "bg-rose-950/70 border-rose-500/40 text-rose-300"
-                      : "bg-blue-950/70 border-blue-500/40 text-blue-300"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span className="font-medium">{postNotice.text}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 self-end sm:self-auto">
-                    {postNotice.slug && (
-                      <Link
-                        href={`/tin-tuc/${postNotice.slug}`}
-                        target="_blank"
-                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-400 text-[#0A1E5E] font-black text-xs inline-flex items-center space-x-1.5 shadow hover:brightness-110 transition shrink-0"
-                      >
-                        <span>Xem bài viết trên web</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setPostNotice(null)}
-                      className="text-slate-400 hover:text-white text-xs px-2 py-1"
-                      title="Đóng thông báo"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
-              {/* Search & Filter Toolbar */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 pb-1">
-                {/* Search Input */}
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo tiêu đề, từ khóa, slug..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent placeholder:text-slate-500 transition"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Filter Pills */}
-                <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-white/5 border border-white/10 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      statusFilter === "all"
-                        ? "bg-[#D4AF37] text-[#0A1E5E] shadow-sm font-bold"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    Tất cả ({postsList.length})
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter("published")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
-                      statusFilter === "published"
-                        ? "bg-emerald-500 text-white shadow-sm font-bold"
-                        : "text-emerald-400 hover:bg-emerald-500/10"
-                    }`}
-                  >
-                    <span>Đã duyệt ({publishedCount})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter("draft")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1 ${
-                      statusFilter === "draft"
-                        ? "bg-amber-500 text-slate-900 shadow-sm font-bold"
-                        : "text-amber-400 hover:bg-amber-500/10"
-                    }`}
-                  >
-                    <span>Nháp ({draftCount})</span>
-                  </button>
-                </div>
-              </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-2">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center">
-                <FileText className="w-5 h-5 mr-2 text-[#D4AF37]" />
-                Quản lý bài viết SEO (bảng 'posts')
-              </h2>
-              <p className="text-xs text-slate-400">
-                Theo dõi các bài viết được Radar AI tạo ra, duyệt chuyển trạng thái, hẹn lịch hoặc xóa bài viết
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={fetchPosts}
-              className="inline-flex items-center text-xs text-[#D4AF37] hover:underline"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              Làm mới danh sách
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
-                <tr>
-                  <th className="py-3 px-4">Tiêu đề bài viết</th>
-                  <th className="py-3 px-4">Từ khóa chính</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4">Thời gian tạo</th>
-                  <th className="py-3 px-4 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredPosts.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <FileText className="w-8 h-8 text-slate-600" />
-                        <p className="text-xs">
-                          {searchQuery
-                            ? `Không tìm thấy bài viết nào khớp với từ khóa "${searchQuery}"`
-                            : "Không có bài viết nào trong danh mục này"}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-white max-w-xs truncate">
-                      {post.title}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-300">
-                      <span className="px-2 py-0.5 rounded bg-white/10 text-[11px]">
-                        {post.focus_keyword || "N/A"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {post.status === "published" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Published
-                        </span>
-                      ) : post.status === "scheduled" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Lên lịch
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Draft (Nháp)
-                        </span>
-                      )}
-                    </td>
-                    {/* HIỂN THỊ RÕ GIỜ : PHÚT : GIÂY VÀ NGÀY/THÁNG/NĂM */}
-                    <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap font-mono text-[11px]">
-                      <span className="flex items-center text-slate-300">
-                        <Clock className="w-3 h-3 text-[#D4AF37] mr-1.5 shrink-0" />
-                        {formatFullDateTime(post.created_at)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
-                      {/* Nút Duyệt / Thu hồi */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(post)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                          post.status === "published"
-                            ? "bg-white/10 hover:bg-white/20 text-slate-300"
-                            : "bg-[#D4AF37] hover:bg-amber-400 text-[#0A1E5E] font-bold"
-                        }`}
-                      >
-                        {post.status === "published" ? "Thu hồi nháp" : "Duyệt đăng"}
-                      </button>
-
-                      {/* Nút Sửa bài viết */}
-                      <button
-                        type="button"
-                        onClick={() => handleStartEditPost(post)}
-                        className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 inline-flex items-center transition-all ml-1"
-                        title="Chỉnh sửa bài viết"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-
-                      {/* Nút Xem bài viết */}
-                      <Link
-                        href={`/tin-tuc/${post.slug}`}
-                        target="_blank"
-                        className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 inline-flex items-center ml-1"
-                        title="Xem bài viết"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </Link>
-
-                      {/* NÚT XÓA BẢN NHÁP / BÀI VIẾT */}
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePost(post)}
-                        className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 inline-flex items-center transition-colors"
-                        title="Xóa bài viết này"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </td>
-                  </tr>
-                )))}
-              </tbody>
-            </table>
-          </div>
-            </div>
-          ) : activeAdminTab === "leads" ? (
-            /* =====================================================================
-               LEADS MANAGEMENT TABLE (DANH SÁCH KHÁCH HÀNG BÁO GIÁ)
-            ===================================================================== */
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-6">
-                <ConversionFunnel leads={leadsList} showCardWrapper={true} />
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 text-slate-900">
-                  <CustomerSourcesChart leads={leadsList} />
-                </div>
-              </div>
-
-              {/* LỊCH VẬN HÀNH SỰ KIỆN & ĐIỀU PHỐI (RADAR CALENDAR) */}
-              <div className="text-slate-900">
-                <EventCalendar leads={leadsList} onRefreshLeads={fetchLeads} showWrapperCard={true} />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-400">
-                  Danh sách khách hàng điền form nhận báo giá từ website Trường Hải Event & Travel
-                </p>
-                <span className="text-xs text-emerald-400 font-semibold flex items-center">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1.5" />
-                  Đồng bộ Real-time từ Supabase
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-white/5 uppercase text-[10px] text-slate-400">
-                    <tr>
-                      <th className="py-3 px-4">Khách hàng</th>
-                      <th className="py-3 px-4">Thông tin liên hệ</th>
-                      <th className="py-3 px-4">Nhu cầu sự kiện</th>
-                      <th className="py-3 px-4">Ghi chú chi tiết</th>
-                      <th className="py-3 px-4 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {leadsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">
-                          <div className="flex flex-col items-center justify-center space-y-2">
-                            <Users className="w-8 h-8 text-slate-600" />
-                            <p className="text-xs">Chưa có khách hàng nào để lại yêu cầu tư vấn</p>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      leadsList.map((lead) => (
-                        <tr key={lead.id || Math.random()} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-white">
-                            <div>
-                              <span>{lead.full_name}</span>
-                              <span className="block text-[10px] text-slate-400 font-normal">
-                                {lead.created_at
-                                  ? formatFullDateTime(lead.created_at)
-                                  : "Mới gửi"}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <div className="space-y-1">
-                              <a
-                                href={`tel:${lead.phone}`}
-                                className="flex items-center text-[#D4AF37] hover:underline font-bold"
-                              >
-                                <PhoneCall className="w-3 h-3 mr-1" />
-                                {lead.phone}
-                              </a>
-                              {lead.email && (
-                                <a
-                                  href={`mailto:${lead.email}`}
-                                  className="flex items-center text-slate-400 hover:text-slate-200 text-[11px]"
-                                >
-                                  <Mail className="w-3 h-3 mr-1" />
-                                  {lead.email}
-                                </a>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-4">
-                            <span className="px-2.5 py-1 rounded-lg bg-[#0A1E5E] border border-[#D4AF37]/30 text-[#D4AF37] font-semibold text-[11px] inline-block">
-                              {lead.event_type}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-4 text-slate-300 max-w-sm">
-                            <p className="line-clamp-2 text-xs">
-                              {lead.notes || "Không có ghi chú thêm."}
-                            </p>
-                          </td>
-
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLead(lead.id)}
-                              className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 inline-flex items-center transition-colors"
-                              title="Xóa yêu cầu tư vấn này"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            /* =====================================================================
-               EVENT PROFILES MANAGEMENT & ARCHIVE (HỒ SƠ SỰ KIỆN & CASE STUDIES)
-            ===================================================================== */
+      {/* MỤC 3: BỘ NÃO THƯƠNG HIỆU (EVENTS & BRAND BRAIN) */}
+      {(activeNavSection === "bo_nao" || activeNavSection === "events") && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-8">
+          <BrandBrainViewer />
+          <div className="pt-8 border-t border-slate-200">
             <EventProfileArchive
               onOpenInRadarEditor={(post) => {
                 setEditablePost(post);
                 setActiveResultTab("article");
                 setArticlePreviewMode("edit");
+                setActiveNavSection("viet_bai");
                 setTimeout(() => {
                   const editorEl = document.getElementById("radar-results-editor");
                   if (editorEl) editorEl.scrollIntoView({ behavior: "smooth" });
                 }, 100);
+              }}
+              onSelectForRadarWriter={(profile) => {
+                setSelectedEventId(profile.id);
+                setScanMode("single");
+                if (profile.seoMeta?.suggestedKeyword) {
+                  setTargetKeyword((prev) => prev || profile.seoMeta?.suggestedKeyword || "");
+                }
+                setEditablePost(null);
+                setAnalysisResult(null);
+                setActiveNavSection("viet_bai");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              onNavigateRadarTab={(tab, options) => {
+                if (tab === "duyet_bai" && options?.postSlug) {
+                  setStatusFilter("all");
+                  setSearchQuery(options.postSlug);
+                }
+                setActiveNavSection(tab);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              onProfilesChange={(updatedProfiles) => {
+                setAvailableProfiles(updatedProfiles);
+                setEventProfilesCount(updatedProfiles.length);
               }}
               onPostCreated={(newPost) => {
                 setPostsList((prev) => [newPost, ...prev]);
                 fetchPosts();
               }}
             />
-          )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* NHẬT KÝ CA QUÉT (LOGS) */}
+      {activeNavSection === "logs" && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <RadarActivityLogs onRefreshData={refreshRadarStats} />
+        </div>
+      )}
     </div>
   );
 }

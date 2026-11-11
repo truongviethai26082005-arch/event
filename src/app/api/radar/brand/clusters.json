@@ -1,0 +1,138 @@
+{
+  "_meta": {
+    "id": "A4",
+    "title": "Danh mục cụm chủ đề",
+    "rule": "AI chỉ được gán bài vào một 'id' có trong danh sách này. Không khớp cụm nào thì gán 'ngoai-pham-vi'. Không tự đặt tên cụm mới.",
+    "seed_keywords_note": "seed_keywords là gợi ý ban đầu, CHƯA kiểm tra lượng tìm kiếm. Cần kiểm tra bằng Google Keyword Planner hoặc Google Search Console rồi sửa lại.",
+    "business_value": "cao = gần với dịch vụ chính, khách tìm là đang muốn thuê; trung_binh = có liên quan, thường là khách đang tìm hiểu; thap = chỉ hỗ trợ thương hiệu."
+  },
+  "clusters": [
+    {
+      "id": "khai-truong-khanh-thanh",
+      "name": "Khai trương, khánh thành, khởi công, kỷ niệm",
+      "includes": "Lễ khai trương cửa hàng, showroom, văn phòng; lễ khánh thành; lễ khởi công động thổ; lễ kỷ niệm thành lập; lễ cắt băng, thông xe",
+      "excludes": "Khai trương online, chọn ngày giờ phong thủy (đặt vào cụm này chỉ khi bài có phần tổ chức sự kiện)",
+      "service_id": "khai-truong-khanh-thanh",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức lễ khai trương trọn gói",
+      "seed_keywords": ["tổ chức lễ khai trương", "kịch bản lễ khai trương", "lễ khánh thành", "lễ khởi công động thổ", "chi phí tổ chức khai trương", "múa lân khai trương"]
+    },
+    {
+      "id": "year-end-party-gala",
+      "name": "Year End Party, tiệc tất niên, gala dinner",
+      "includes": "Tiệc tất niên, YEP, gala dinner, tiệc tri ân khách hàng, tiệc kỷ niệm nội bộ",
+      "excludes": "Gala dinner trong tour du lịch (đặt vào tour-doanh-nghiep nếu trọng tâm là chuyến đi)",
+      "service_id": "tiec-tat-nien-yep",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức Year End Party cho doanh nghiệp",
+      "seed_keywords": ["tổ chức year end party", "tiệc tất niên công ty", "concept year end party", "kịch bản year end party", "gala dinner là gì", "trò chơi tiệc tất niên"]
+    },
+    {
+      "id": "teambuilding",
+      "name": "Team building",
+      "includes": "Team building bãi biển, trong nhà, ngoài trời; trò chơi team building; hội thao công ty",
+      "excludes": "Team building chỉ là một mục nhỏ trong bài tour (đặt vào tour-doanh-nghiep)",
+      "service_id": "team-building-tour-mice",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức team building cho công ty",
+      "seed_keywords": ["tổ chức team building", "team building bãi biển", "trò chơi team building", "hội thao công ty", "kịch bản team building"]
+    },
+    {
+      "id": "tour-doanh-nghiep",
+      "name": "Tour doanh nghiệp, du lịch MICE",
+      "includes": "Company trip, du lịch công ty, du lịch MICE, du lịch kết hợp hội nghị, khen thưởng",
+      "excludes": "Tour cá nhân thuần nghỉ dưỡng không liên quan doanh nghiệp (đặt vào du-lich-trai-nghiem hoặc ngoai-pham-vi)",
+      "service_id": "team-building-tour-mice",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức tour du lịch cho doanh nghiệp",
+      "seed_keywords": ["du lịch công ty", "tour du lịch doanh nghiệp", "du lịch mice là gì", "company trip", "tour hạ long cho công ty"]
+    },
+    {
+      "id": "hoi-nghi-hoi-thao",
+      "name": "Hội nghị, hội thảo, ra mắt sản phẩm, mở bán",
+      "includes": "Hội nghị khách hàng, hội thảo, lễ ra mắt sản phẩm, sự kiện mở bán bất động sản, đại hội cổ đông",
+      "excludes": "",
+      "service_id": "hoi-nghi-hoi-thao-bds",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức hội nghị, hội thảo chuyên nghiệp",
+      "seed_keywords": ["tổ chức hội nghị", "tổ chức hội thảo", "sự kiện ra mắt sản phẩm", "sự kiện mở bán bất động sản", "hội nghị khách hàng"]
+    },
+    {
+      "id": "thiet-bi-su-kien",
+      "name": "Thiết bị âm thanh, ánh sáng, sân khấu, màn hình LED",
+      "includes": "Cho thuê âm thanh, ánh sáng, màn hình LED, sân khấu, nhà bạt; kiến thức chọn thiết bị",
+      "excludes": "Mua bán thiết bị, sửa chữa thiết bị",
+      "service_id": "cho-thue-trang-thiet-bi",
+      "business_value": "cao",
+      "pillar_topic": "Cho thuê thiết bị sự kiện tại Hà Nội",
+      "seed_keywords": ["cho thuê âm thanh ánh sáng", "cho thuê màn hình led", "cho thuê sân khấu", "cho thuê nhà bạt sự kiện", "màn hình led p3.91"]
+    },
+    {
+      "id": "family-day-le-hoi",
+      "name": "Family day, Trung thu, Tết thiếu nhi, họp lớp",
+      "includes": "Ngày hội gia đình công ty, trung thu cho con em nhân viên, Tết thiếu nhi 1/6, họp lớp, lễ hội trường học",
+      "excludes": "",
+      "service_id": "family-day-trung-thu",
+      "business_value": "trung_binh",
+      "pillar_topic": "Tổ chức Family Day và sự kiện cho thiếu nhi",
+      "seed_keywords": ["tổ chức family day", "tổ chức trung thu cho công ty", "tổ chức tết thiếu nhi", "tổ chức họp lớp"]
+    },
+    {
+      "id": "van-tai-xe",
+      "name": "Cho thuê xe du lịch, đưa đón sự kiện",
+      "includes": "Thuê xe 16, 29, 45 chỗ; xe limousine; đưa đón sân bay, hội nghị",
+      "excludes": "",
+      "service_id": "van-tai-xe-du-lich",
+      "business_value": "trung_binh",
+      "pillar_topic": "Cho thuê xe du lịch tại Hà Nội",
+      "seed_keywords": ["thuê xe 29 chỗ hà nội", "thuê xe 45 chỗ", "thuê xe limousine", "thuê xe đưa đón sự kiện"]
+    },
+    {
+      "id": "du-lich-trai-nghiem",
+      "name": "Du lịch học tập, trải nghiệm, thiện nguyện",
+      "includes": "Tour trải nghiệm cho học sinh, sinh viên; tour thiện nguyện vùng cao; dã ngoại học tập",
+      "excludes": "",
+      "service_id": "du-lich-trai-nghiem-thien-nguyen",
+      "business_value": "trung_binh",
+      "pillar_topic": "Tour trải nghiệm và thiện nguyện cho trường học, tập thể",
+      "seed_keywords": ["tour trải nghiệm cho học sinh", "du lịch thiện nguyện", "dã ngoại học tập", "tour về nguồn"]
+    },
+    {
+      "id": "kien-thuc-su-kien",
+      "name": "Kiến thức tổ chức sự kiện chung",
+      "includes": "Quy trình tổ chức sự kiện, lập ngân sách, checklist, kịch bản MC, kinh nghiệm chọn công ty sự kiện, xu hướng sự kiện",
+      "excludes": "Bài chỉ nói về một loại sự kiện cụ thể (đặt vào cụm của loại đó)",
+      "service_id": null,
+      "business_value": "trung_binh",
+      "pillar_topic": "Cẩm nang tổ chức sự kiện cho doanh nghiệp",
+      "seed_keywords": ["quy trình tổ chức sự kiện", "lập kế hoạch tổ chức sự kiện", "checklist tổ chức sự kiện", "kịch bản mc sự kiện", "công ty tổ chức sự kiện hà nội"]
+    },
+    {
+      "id": "sinh-nhat-tiec-cuoi",
+      "name": "Tổ chức sự kiện sinh nhật, tiệc cưới",
+      "includes": "Tiệc sinh nhật công ty, sinh nhật VIP cá nhân, tiệc thôi nôi, tiệc cưới ngoài trời, tiệc cưới bãi biển, trang trí tiệc cưới, lễ đính hôn, kỷ niệm ngày cưới",
+      "excludes": "Sinh nhật nhỏ tại nhà hàng không có setup sự kiện âm thanh ánh sáng",
+      "service_id": "sinh-nhat-tiec-cuoi",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức sự kiện sinh nhật, tiệc cưới trọn gói đẳng cấp",
+      "seed_keywords": [
+        "tổ chức sinh nhật trọn gói",
+        "tổ chức tiệc cưới ngoài trời",
+        "kịch bản tiệc sinh nhật công ty",
+        "trang trí tiệc cưới sang trọng",
+        "tổ chức kỷ niệm ngày cưới",
+        "chi phí tổ chức tiệc cưới trọn gói"
+      ]
+    },
+    {
+      "id": "ngoai-pham-vi",
+      "name": "Ngoài phạm vi",
+      "includes": "Tin tức nội bộ của đối thủ, tuyển dụng, chủ đề ngoài ngành sự kiện du lịch",
+      "excludes": "",
+      "service_id": null,
+      "business_value": "thap",
+      "pillar_topic": null,
+      "seed_keywords": []
+    }
+  ]
+}

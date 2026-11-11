@@ -1,8 +1,11 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export type LeadStatus = "NEW" | "QUOTED" | "NEGOTIATING" | "WON" | "LOST";
 export type LeadSource =
   | "WEBSITE_FORM"
   | "HOTLINE"
   | "ZALO_OA"
+  | "FACEBOOK"
   | "REFERRAL"
   | "OTHER";
 export type EventStatus =
@@ -32,10 +35,101 @@ export interface AdminLead {
   assigned_to: string | null;
   equipment_status: string | null;
   created_at: string;
+  // Các trường dưới đây có sau migration 20261108000000_lead_crm_phase_a.sql
+  quoted_at?: string | null;
+  negotiating_at?: string | null;
+  won_at?: string | null;
+  lost_at?: string | null;
+  lost_stage?: LeadStatus | null;
+  lost_reason?: string | null;
+  last_contacted_at?: string | null;
+  form_token?: string | null;
+  form_submitted_at?: string | null;
+  // Có sau migration 20261109010000_crm_ai_pricing.sql
+  ai_score?: "HOT" | "WARM" | "COLD" | null;
+  ai_score_reason?: string | null;
+  ai_summary?: string | null;
+  ai_needs?: {
+    event_type?: string | null;
+    event_date?: string | null;
+    location?: string | null;
+    guest_count?: string | null;
+    budget?: string | null;
+    requirements?: string[];
+    missing_info?: string[];
+  } | null;
+  ai_suggested_package?: string | null;
+  ai_next_action?: string | null;
+  ai_message?: string | null;
+  ai_analyzed_at?: string | null;
 }
 
 export const ADMIN_LEAD_SELECT =
   "id,full_name,company_name,phone,email,event_type,guest_count,budget,actual_revenue,event_date,event_time,event_status,location,notes,status,source,assigned_to,equipment_status,created_at";
+
+/** Bộ cột đầy đủ khi DB đã chạy migration CRM giai đoạn A. */
+export const ADMIN_LEAD_SELECT_FULL = `${ADMIN_LEAD_SELECT},quoted_at,negotiating_at,won_at,lost_at,lost_stage,lost_reason,last_contacted_at,form_token,form_submitted_at`;
+
+/** Bộ cột đầy đủ + kết quả AI (migration 20261109010000_crm_ai_pricing.sql). */
+export const ADMIN_LEAD_SELECT_AI = `${ADMIN_LEAD_SELECT_FULL},ai_score,ai_score_reason,ai_summary,ai_needs,ai_suggested_package,ai_next_action,ai_message,ai_analyzed_at`;
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  type: string;
+  actor: string | null;
+  from_status: string | null;
+  to_status: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface LeadQuote {
+  id: string;
+  lead_id: string;
+  version: number;
+  items: { title: string; unit?: string; quantity: number; unitPrice: number }[];
+  subtotal: number;
+  discount: number;
+  vat_percent: number;
+  total: number;
+  notes: string | null;
+  sent_via: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** Lỗi do DB chưa có cột / bảng / hàm của migration mới. */
+export function isMissingSchemaError(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return (
+    ["42703", "42P01", "42883", "PGRST200", "PGRST202", "PGRST204", "PGRST205"].includes(error.code || "") ||
+    /column|schema cache|does not exist/i.test(error.message || "")
+  );
+}
+
+/**
+ * Tải toàn bộ lead cho trang quản trị. Thử bộ cột đầy đủ trước; nếu DB chưa chạy
+ * migration CRM giai đoạn A thì lùi về bộ cột cũ và báo `crmReady = false`.
+ */
+export async function fetchAdminLeads(
+  supabase: Pick<SupabaseClient, "from">
+): Promise<{ leads: AdminLead[]; crmReady: boolean; aiReady: boolean }> {
+  const ai = await supabase.from("leads").select(ADMIN_LEAD_SELECT_AI).order("created_at", { ascending: false });
+  if (!ai.error) return { leads: (ai.data ?? []) as unknown as AdminLead[], crmReady: true, aiReady: true };
+  if (!isMissingSchemaError(ai.error)) throw ai.error;
+
+  const full = await supabase.from("leads").select(ADMIN_LEAD_SELECT_FULL).order("created_at", { ascending: false });
+  if (!full.error) return { leads: (full.data ?? []) as AdminLead[], crmReady: true, aiReady: false };
+  if (!isMissingSchemaError(full.error)) throw full.error;
+
+  const basic = await supabase.from("leads").select(ADMIN_LEAD_SELECT).order("created_at", { ascending: false });
+  if (basic.error) throw basic.error;
+  return { leads: (basic.data ?? []) as AdminLead[], crmReady: false, aiReady: false };
+}
+
+export const CRM_MIGRATION_NOTICE =
+  "Cơ sở dữ liệu chưa chạy migration supabase/migrations/20261108000000_lead_crm_phase_a.sql: lịch sử hoạt động, mốc thời gian, lưu báo giá và gộp lead đang tạm tắt.";
 
 export interface AdminService {
   id: string;
@@ -74,7 +168,7 @@ export const LEAD_STATUSES: LeadStatus[] = [
 ];
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
-  NEW: "Mới",
+  NEW: "Mới tiếp nhận",
   QUOTED: "Đã báo giá",
   NEGOTIATING: "Đang thương lượng",
   WON: "Đã chốt",
@@ -85,6 +179,7 @@ export const LEAD_SOURCES: LeadSource[] = [
   "WEBSITE_FORM",
   "HOTLINE",
   "ZALO_OA",
+  "FACEBOOK",
   "REFERRAL",
   "OTHER",
 ];
@@ -99,7 +194,8 @@ export const EVENT_STATUSES: EventStatus[] = [
 export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
   WEBSITE_FORM: "Form website",
   HOTLINE: "Hotline",
-  ZALO_OA: "Zalo OA",
+  ZALO_OA: "Zalo",
+  FACEBOOK: "Facebook",
   REFERRAL: "Giới thiệu",
   OTHER: "Khác",
 };
@@ -133,9 +229,35 @@ export function formatCurrency(value: number | null | undefined) {
   }).format(value);
 }
 
+export const VN_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
+/** Giá trị chỉ có ngày ("2026-11-08"), không kèm giờ. */
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+/**
+ * Ngày theo giờ Việt Nam dạng yyyy-mm-dd, dùng để so sánh / lọc theo ngày.
+ * Thời điểm (created_at...) được đổi sang giờ VN; ngày thuần (event_date) giữ nguyên.
+ */
+export function toVnDateKey(value: string | null | undefined) {
+  if (!value) return "";
+  if (isDateOnly(value)) return value.trim();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  // en-CA cho định dạng yyyy-mm-dd
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: VN_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export function formatDate(value: string | null | undefined) {
   if (!value) return "Chưa xác định";
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const key = toVnDateKey(value);
+  const date = new Date(`${key}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "Chưa xác định";
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",

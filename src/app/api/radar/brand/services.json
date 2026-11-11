@@ -1,0 +1,503 @@
+{
+  "_meta": {
+    "id": "A2",
+    "title": "Danh mục dịch vụ & Gói sự kiện",
+    "source": "src/app/dich-vu/data/services-data.ts (CORE_SERVICES, PRICING_TIERS, PROMOTION_COMBOS) và src/lib/company-data.ts (SERVICES_DATA)",
+    "rule": "Mỗi bài phải link về đúng 'page_url' của dịch vụ liên quan. Không có giá công khai: AI không được tự đưa con số giá, chỉ ghi theo 'price_policy' hoặc 'price_display'.",
+    "note": "Dữ liệu được đồng bộ từ trang /dich-vu và có thể chỉnh sửa trực tiếp tại phân hệ Quản trị Radar (/admin-radar)."
+  },
+  "services": [
+    {
+      "id": "le-khai-truong",
+      "name": "Lễ Khai Trương",
+      "short_name": "Lễ Khai Trương",
+      "category": "su-kien",
+      "badge": "Dịch Vụ Mũi Nhọn",
+      "page_url": "/dich-vu#le-khai-truong",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "description": "Tổ chức trọn gói Lễ Khai Trương chuẩn nghi lễ phong thủy khởi sắc, thu hút truyền thông và kích hoạt tài lộc cho showroom, chi nhánh, cửa hàng bán lẻ.",
+      "offerings": [
+        "Kịch bản nghi thức cắt băng khai trương, khai quang điểm nhãn chuẩn chỉ từng mốc thời gian",
+        "Đội múa Lân Sư Rồng Tứ Quý Hưng Long, trống hội chào mừng, MC & PG đón khách",
+        "Bộ khay cắt băng khai trương bọc lụa đỏ hoa sen kim tuyến mạ vàng cao cấp",
+        "Thi công sân khấu chịu lực, thảm đỏ, cổng hơi, photobooth check-in 3D",
+        "Tiệc trà Teabreak bánh ngọt Pháp, trái cây tươi và minigame hoạt náo"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Khu vực đón khách & Lễ tân",
+          "items": [
+            "Cổng chào hơi 10m - 15m in decal logo sắc nét",
+            "Thảm đỏ dẫn lối từ cổng vào trung tâm sân khấu",
+            "Bàn lễ tân đón khách bọc váy quây sang trọng kèm khay hoa tươi",
+            "Photobooth chụp ảnh check-in 3D nổi khối kích thước 3m x 5m"
+          ]
+        },
+        {
+          "category": "Khu vực Sân khấu & Lễ chính",
+          "items": [
+            "Sân khấu khung sắt chịu lực trải thảm đỏ / thảm xám ghi mới 100%",
+            "Màn hình LED P3.91 ngoài trời độ sáng cao hiển thị visual động",
+            "Hệ thống loa Line Array công suất chuẩn quốc tế, micro không dây UHF",
+            "Bộ cắt băng khai trương cao cấp (kéo vàng, hoa lụa, găng tay trắng)",
+            "Bục phát biểu mica sang trọng có gắn logo thương hiệu"
+          ]
+        },
+        {
+          "category": "Không gian che chắn & Tiện ích",
+          "items": [
+            "Nhà bạt không gian kết cấu nhôm đúc khẩu độ 10m - 18m kiên cố",
+            "Quạt công nghiệp công suất lớn / Quạt hơi nước điều hòa",
+            "Bàn tiệc tròn/dài bọc khăn nhung + Ghế banquet gắn nơ theo tone màu"
+          ]
+        }
+      ],
+      "workflow": [
+        { "step": 1, "title": "Tiếp nhận & Khảo sát", "desc": "Đội ngũ kỹ thuật đo đạc mặt bằng thực tế trong vòng 12h, kiểm tra nguồn điện và giấy phép." },
+        { "step": 2, "title": "Lên Kịch bản & 3D Demo", "desc": "Xây dựng kịch bản chương trình chi tiết từng phút và bản vẽ 3D phối cảnh sân khấu độc bản." },
+        { "step": 3, "title": "Báo giá bóc tách minh bạch", "desc": "Lập bảng dự toán chi tiết từng hạng mục thiết bị, nhân sự, quà tặng, cam kết không phát sinh." },
+        { "step": 4, "title": "Sản xuất & Lắp đặt trước 24h", "desc": "Vận chuyển thiết bị, dàn dựng hoàn tất trước giờ G tối thiểu 12-24 giờ để chạy tổng duyệt." },
+        { "step": 5, "title": "Tổng duyệt & Vận hành", "desc": "Đạo diễn sự kiện điều phối toàn bộ âm thanh ánh sáng, MC, lễ tân và xử lý phát sinh tại chỗ." },
+        { "step": 6, "title": "Nghiệm thu & Bàn giao Media", "desc": "Dọn dẹp mặt bằng sạch sẽ, gửi toàn bộ video/ảnh chụp sự kiện chất lượng cao và quyết toán." }
+      ],
+      "target_audience": "Doanh nghiệp khai trương trụ sở mới, chi nhánh ngân hàng, showroom ôtô, cửa hàng bán lẻ.",
+      "price_policy": "Liên hệ nhận báo giá ngay"
+    },
+    {
+      "id": "le-khanh-thanh",
+      "name": "Lễ Khánh Thành",
+      "short_name": "Lễ Khánh Thành",
+      "category": "su-kien",
+      "badge": "Đại Lễ Trang Trọng",
+      "page_url": "/dich-vu#le-khanh-thanh",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "description": "Tổ chức trọng thể Lễ Khánh Thành nhà máy, công trình, dự án trọng điểm với quy trình nghi lễ chuẩn mực, trang thiết bị đồng bộ và an toàn tuyệt đối.",
+      "offerings": [
+        "Nhà bạt không gian hợp kim nhôm khẩu độ lớn, chống mưa bão kiên cố",
+        "Nghi thức bấm nút / cắt băng khánh thành kết hợp hiệu ứng pháo điện, pháo kim tuyến",
+        "Hệ thống âm thanh Line Array, màn hình LED ngoài trời siêu nét",
+        "Đón tiếp đại biểu cấp cao, khánh tiết, hoa tươi và tiệc chiêu đãi trang trọng"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Nhà bạt & Hạ tầng che chắn",
+          "items": [
+            "Nhà bạt nhôm khẩu độ 15m - 24m chống nóng bạt 2 da Hàn Quốc",
+            "Sàn gỗ chịu lực lót thảm đỏ toàn bộ khuôn viên đại lễ",
+            "Hệ thống điều hòa cây công suất lớn / quạt công nghiệp"
+          ]
+        },
+        {
+          "category": "Sân khấu & Nghi lễ chính",
+          "items": [
+            "Bục bấm nút khánh thành quả cầu LED / bục bấm nút điện tử",
+            "Màn hình LED ngoài trời P3.91 diện tích lớn",
+            "Dàn Line Array ngoài trời công suất cao, micro đại biểu chống hú"
+          ]
+        }
+      ],
+      "target_audience": "Chủ đầu tư khu công nghiệp, ban quản lý dự án xây dựng, nhà máy sản xuất, công trình giao thông hạ tầng.",
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "hoi-nghi-hoi-thao",
+      "name": "Hội Nghị, Hội Thảo",
+      "short_name": "Hội Nghị & Hội Thảo",
+      "category": "su-kien",
+      "badge": "Chuẩn Quốc Tế",
+      "page_url": "/dich-vu#hoi-nghi-hoi-thao",
+      "cluster_ids": ["hoi-nghi-hoi-thao"],
+      "description": "Giải pháp tổ chức Hội nghị khách hàng, Đại hội cổ đông, Hội thảo khoa học và Lễ ra mắt sản phẩm đạt tiêu chuẩn quốc tế.",
+      "offerings": [
+        "Hệ thống âm thanh hội nghị chuẩn quốc tế, micro cổ ngỗng Bosch / Shure",
+        "Màn hình LED P2.5 siêu nét trình chiếu báo cáo 4K & Stage Monitor nhắc bài",
+        "Quy trình check-in mã QR tự động hóa, lễ tân song ngữ đón khách",
+        "Khu trưng bày sản phẩm, sa bàn dự án và tiệc trà Teabreak giữa giờ"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Hạ tầng Trình chiếu & Họp kỹ thuật",
+          "items": [
+            "Màn hình LED P2.5 trong nhà độ phân giải cao hỗ trợ video render 4K",
+            "Hệ thống micro cổ ngỗng Bosch / Shure cho bàn chủ tọa và đại biểu",
+            "Cabin dịch thuật cách âm tiêu chuẩn + Tai nghe phiên dịch hồng ngoại",
+            "Laptop điều khiển cấu hình cao, bộ switch chuyển slide không trễ"
+          ]
+        },
+        {
+          "category": "Khu vực sảnh đón & Lễ tân",
+          "items": [
+            "Bàn check-in công nghệ có máy quét QR tốc độ cao",
+            "Hệ thống standee chỉ dẫn điện tử và backdrop chụp ảnh VIP",
+            "Đội ngũ lễ tân ngoại hình đồng đều, giao tiếp tiếng Anh tốt"
+          ]
+        }
+      ],
+      "target_audience": "Chủ đầu tư bất động sản, công ty dược phẩm, viện nghiên cứu, trường đại học, hiệp hội doanh nghiệp và các công ty cổ phần tổ chức ĐHĐCĐ.",
+      "price_policy": "Dự toán linh hoạt theo quy mô"
+    },
+    {
+      "id": "tiec-tat-nien-yep-gala-dinner",
+      "name": "Tiệc Tất Niên - Y.E.P, Gala Dinner",
+      "short_name": "Year End Party & Gala",
+      "category": "su-kien",
+      "badge": "Mùa Cao Điểm",
+      "page_url": "/dich-vu#tiec-tat-nien-yep-gala-dinner",
+      "cluster_ids": ["year-end-party-gala"],
+      "description": "Chương trình gắn kết nội bộ thăng hoa cảm xúc, tôn vinh cống hiến của nhân sự và tri ân một năm nỗ lực với concept độc bản.",
+      "offerings": [
+        "Ý tưởng concept Y.E.P theo câu chuyện thương hiệu từ visual đến kịch bản",
+        "Đạo diễn âm thanh, ánh sáng, visual màn hình LED đỉnh cao",
+        "Kịch bản vinh danh nhân sự xúc động & quay số may mắn Lucky Draw",
+        "MC hoạt náo năng lượng, ban nhạc acoustic, vũ đoàn, ca sĩ khách mời"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Âm thanh & Ánh sáng biểu diễn",
+          "items": [
+            "Dàn âm thanh Line Array cao cấp đáp ứng từ 100 đến 2.000 khách",
+            "Hệ thống đèn Moving Head Beam 380W, Par LED 54 bóng tạo hiệu ứng màu",
+            "Đèn Follow rọi lối đi danh dự của các cá nhân được tôn vinh",
+            "Máy tạo khói lạnh CO2, pháo sáng kim tuyến cho khoảnh khắc đếm ngược"
+          ]
+        },
+        {
+          "category": "Visual & Màn hình hiển thị",
+          "items": [
+            "Màn hình LED P2.5 siêu nét độ tương phản cao trong nhà",
+            "Bộ điều khiển xử lý hình ảnh 4K đa màn hình",
+            "Thiết kế visual motion graphic đồng bộ theo nhận diện thương hiệu"
+          ]
+        }
+      ],
+      "target_audience": "Tập đoàn kinh tế, doanh nghiệp FDI, công ty công nghệ, tổng công ty nhà nước, các khối trường học và ngân hàng tổ chức liên hoan cuối năm.",
+      "price_policy": "Liên hệ nhận báo giá trọn gói"
+    },
+    {
+      "id": "team-building",
+      "name": "Team Building",
+      "short_name": "Team Building & Gắn Kết",
+      "category": "du-lich",
+      "badge": "Gắn Kết Đội Ngũ",
+      "page_url": "/dich-vu#team-building",
+      "cluster_ids": ["teambuilding", "tour-doanh-nghiep"],
+      "description": "Chương trình Team Building bãi biển, resort và dã ngoại bứt phá giới hạn, truyền lửa nhiệt huyết và gắn kết tinh thần đồng đội.",
+      "offerings": [
+        "Kho đạo cụ Game hơi khổng lồ, kịch bản thử thách trí tuệ & thể lực",
+        "MC Team Building năng lượng cao dẫn dắt cảm xúc và truyền lửa",
+        "Kết hợp trọn gói Tour du lịch nghỉ dưỡng MICE, khách sạn resort 4-5 sao",
+        "Ekip quay phim Flycam trên không xếp chữ tên thương hiệu doanh nghiệp"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Đạo cụ Game bãi biển / Ngoài trời",
+          "items": [
+            "Bộ phao hơi khổng lồ (Ngựa hơi, bánh xe lăn, ống phao vượt chướng ngại)",
+            "Bóng Yoga khổng lồ 2m, gậy hơi, áo lưới chia đội nhiều màu",
+            "Cờ lệnh, cờ tiêu, loa kéo công suất lớn ngoài bãi biển"
+          ]
+        },
+        {
+          "category": "Dịch vụ Media & Lưu niệm",
+          "items": [
+            "Ekip quay phim Flycam trên không bắt trọn khung hình chữ tên công ty",
+            "Thợ chụp ảnh ghi lại từng khoảnh khắc vui vẻ của từng thành viên",
+            "Banner xe, Backdrop check-in bãi biển thiết kế cá nhân hóa"
+          ]
+        }
+      ],
+      "target_audience": "Doanh nghiệp tổ chức du lịch hè, chuyến du lịch khen thưởng nhân viên xuất sắc, kick-off đầu quý.",
+      "price_policy": "Liên hệ nhận báo giá theo đoàn"
+    },
+    {
+      "id": "trung-thu",
+      "name": "Trung Thu",
+      "short_name": "Đêm Hội Trăng Rằm",
+      "category": "su-kien",
+      "badge": "Lễ Hội Văn Hóa",
+      "page_url": "/dich-vu#trung-thu",
+      "cluster_ids": ["family-day-le-hoi"],
+      "description": "Lễ hội Đêm Trăng Cổ Tích với không gian rực rỡ sắc màu truyền thống, kết hợp hài hòa giữa nét văn hóa dân gian và hiện đại.",
+      "offerings": [
+        "Hoạt cảnh Chú Cuội – Chị Hằng, múa Lân Sư Rồng rước đèn phá cỗ trông trăng",
+        "Gian hàng hội chợ dân gian: nặn tò he, tô tượng, làm đèn lồng giấy bồi",
+        "Xiếc nghệ thuật, ảo thuật tương tác cao, chú hề bong bóng tạo hình",
+        "Mâm ngũ quả tỉa hoa nghệ thuật và tiệc ngọt Teabreak cho các bé"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Không gian trang trí Trung Thu",
+          "items": [
+            "Tiểu cảnh check-in vầng trăng khổng lồ, cây đa, chú Cuội",
+            "Mâm ngũ quả rồng phụng tỉa nghệ thuật truyền thống",
+            "Hệ thống lồng đèn ngôi sao, lồng đèn kéo quân treo trang trí"
+          ]
+        }
+      ],
+      "target_audience": "Ban quản lý khu đô thị, công đoàn doanh nghiệp, trường mầm non, tiểu học và các tổ chức cộng đồng.",
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "tet-thieu-nhi",
+      "name": "Tết Thiếu Nhi",
+      "short_name": "Ngày Hội Thiếu Nhi 1/6",
+      "category": "su-kien",
+      "badge": "Gia Đình & Thiếu Nhi",
+      "page_url": "/dich-vu#tet-thieu-nhi",
+      "cluster_ids": ["family-day-le-hoi"],
+      "description": "Ngày hội Quốc tế Thiếu nhi 1/6 bùng nổ sắc màu, kiến tạo sân chơi vận động sáng tạo và bổ ích cho con em cán bộ nhân viên.",
+      "offerings": [
+        "Cổng chào bóng nghệ thuật, Mascot thú nhồi bông đón các bé check-in",
+        "Khu trò chơi vận động liên hoàn, góc Workshop sáng tạo nghệ thuật DIY",
+        "Show diễn bong bóng xà phòng khổng lồ, ảo thuật vui nhộn và chú hề vặn bóng",
+        "Tiệc buffet ngọt Kids Party, trao học bổng và quà tặng khen thưởng"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Sân chơi & Giải trí trẻ em",
+          "items": [
+            "Cổng bong bóng nghệ thuật đa dạng chủ đề hoạt hình",
+            "Nhà hơi lâu đài mini, góc vẽ tranh cát, tô tượng",
+            "Hệ thống âm thanh sân khấu trong trẻo, micro không dây"
+          ]
+        }
+      ],
+      "target_audience": "Công đoàn các cơ quan ban ngành, doanh nghiệp, bệnh viện, trường học và khu dân cư cao cấp.",
+      "price_policy": "Liên hệ nhận báo giá"
+    },
+    {
+      "id": "thiet-bi-su-kien",
+      "name": "Hình Ảnh Thiết Bị Sự Kiện",
+      "short_name": "Trang Thiết Bị Sự Kiện",
+      "category": "su-kien",
+      "badge": "Thiết Bị Tiêu Chuẩn Cao",
+      "page_url": "/dich-vu#thiet-bi-su-kien",
+      "cluster_ids": ["thiet-bi-su-kien"],
+      "description": "Trực tiếp sở hữu và cho thuê hệ thống trang thiết bị sự kiện đồng bộ hiện đại, đáp ứng mọi quy mô từ 50 đến hơn 5.000 khách.",
+      "offerings": [
+        "Dàn âm thanh Line Array công suất khủng, mixer digital Allen & Heath/Yamaha",
+        "Màn hình LED Cabinet P2.5 trong nhà và P3.91 chống nước ngoài trời",
+        "Hệ thống ánh sáng Moving Beam 380W/450W, Par LED 54 bóng, khói lạnh, pháo điện",
+        "Nhà bạt không gian hợp kim nhôm khẩu độ 10m - 24m, sân khấu modul, dù tròn, bàn ghế Banquet"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Hệ thống Âm thanh biểu diễn",
+          "items": [
+            "Loa Line Array Active/Passive công suất lớn cho sân khấu 200 - 5.000 khách",
+            "Loa Sub đôi đánh lực uy lực, loa Monitor kiểm âm sân khấu",
+            "Bàn Mixer kỹ thuật số (Yamaha, Allen & Heath, Behringer)",
+            "Micro không dây chuyên nghiệp Shure, Sennheiser bắt sóng ổn định"
+          ]
+        },
+        {
+          "category": "Hệ thống Ánh sáng nghệ thuật",
+          "items": [
+            "Đèn Moving Head Beam 380W / 450W hiệu ứng tia sắc nét",
+            "Đèn Par LED 54 bóng 3W nhuộm màu sân khấu rực rỡ",
+            "Đèn Blinder chớp sáng tạo cao trào, đèn rọi COB vàng nắng cho mặt diễn viên",
+            "Bàn điều khiển ánh sáng GrandMA / Tiger Touch lập trình visual theo nhạc"
+          ]
+        },
+        {
+          "category": "Nhà bạt, Sân khấu & Bàn ghế",
+          "items": [
+            "Nhà bạt không gian kết cấu nhôm đúc bạt 2 da Hàn Quốc cách nhiệt",
+            "Sân khấu lắp ghép modul chịu lực cao, tăng giảm chiều cao từ 0.4m đến 1.5m",
+            "Bàn ghế Banquet bọc nơ sang trọng, bàn tròn ăn tiệc có kính xoay",
+            "Dù tròn sự kiện đường kính 18m - 26m vải dù dệt bền màu"
+          ]
+        }
+      ],
+      "target_audience": "Các công ty tổ chức sự kiện, cơ quan ban ngành, trường học, doanh nghiệp tự tổ chức chương trình, nhà hàng khách sạn.",
+      "price_policy": "Dự toán chuẩn chỉ - Tối ưu ngân sách"
+    },
+    {
+      "id": "hoat-dong-khac",
+      "name": "Hoạt Động Khác",
+      "short_name": "Dịch Vụ Mở Rộng",
+      "category": "du-lich",
+      "badge": "Linh Hoạt Đa Dạng",
+      "page_url": "/dich-vu#hoat-dong-khac",
+      "cluster_ids": ["du-lich-trai-nghiem", "van-tai-xe"],
+      "description": "Các dịch vụ mở rộng và giải pháp bổ trợ cho doanh nghiệp: vận tải du lịch, hội thao Sport Day, du lịch thiện nguyện vì cộng đồng.",
+      "offerings": [
+        "Lễ khởi công – động thổ, kỷ niệm thành lập, mở bán dự án BĐS",
+        "Hội thao doanh nghiệp (Sport Day), họp lớp – hội khóa cựu học sinh sinh viên",
+        "Tour du lịch trải nghiệm học tập và thiện nguyện vùng cao Tây Bắc, Đông Bắc",
+        "Cho thuê dàn xe du lịch đời mới 7, 16, 29, 35, 45 chỗ và VIP Limousine"
+      ],
+      "equipment_groups": [
+        {
+          "category": "Đội xe du lịch & Vận tải",
+          "items": [
+            "Xe Hyundai Universe 45 chỗ đời mới, ghế bọc da ngả êm ái",
+            "Xe Thaco Town 29 - 35 chỗ cao cấp, điều hòa mát rượi",
+            "Xe Ford Transit 16 chỗ và Dcar Limousine 9 - 19 chỗ VIP",
+            "Lái xe dày dặn kinh nghiệm, lịch sự và chu đáo"
+          ]
+        }
+      ],
+      "target_audience": "Doanh nghiệp tổ chức hoạt động ngoài trời, đoàn thể, ban liên lạc cựu sinh viên, trường học và các quỹ từ thiện.",
+      "price_policy": "Báo giá linh hoạt theo lịch trình"
+    }
+  ],
+  "packages": [
+    {
+      "id": "economy",
+      "name": "Gói Khởi Điểm (Basic)",
+      "scale": "Quy mô 30 - 80 khách",
+      "price_display": "Liên hệ báo giá",
+      "unit": "theo quy mô sự kiện",
+      "description": "Phù hợp cho sự kiện quy mô vừa và nhỏ, khai trương cửa hàng, tiệc nội bộ ấm cúng.",
+      "is_featured": false,
+      "features": [
+        "Dàn âm thanh tiêu chuẩn 4 loa Full + 2 Micro không dây",
+        "04 Đèn Par LED chiếu sáng sân khấu cơ bản",
+        "Sân khấu lắp ghép 12m² trải thảm đỏ mới",
+        "Backdrop bạt Hiflex khung sắt căng phẳng kích thước 3m x 4m",
+        "Kịch bản chương trình tiêu chuẩn và 01 kỹ thuật viên điều chỉnh âm thanh"
+      ],
+      "unsupported_features": [
+        "Màn hình LED hiển thị visual",
+        "Hệ thống đèn Moving Beam hiệu ứng",
+        "Đội ngũ Lễ tân & Lân Sư Rồng",
+        "Quay phim 4K Flycam"
+      ],
+      "cta_text": "Chọn Gói Khởi Điểm"
+    },
+    {
+      "id": "standard",
+      "name": "Gói Tiêu Chuẩn (Chuyên Nghiệp)",
+      "scale": "Quy mô 100 - 300 khách",
+      "price_display": "Liên hệ báo giá",
+      "unit": "theo quy mô sự kiện",
+      "description": "Lựa chọn được nhiều doanh nghiệp tin dùng, đáp ứng yêu cầu nghe nhìn và sân khấu chuyên nghiệp.",
+      "is_featured": true,
+      "features": [
+        "Hệ thống loa Line Array công suất chuẩn quốc tế + Loa Subwoofer uy lực",
+        "Màn hình LED P3.91 kích thước 15m² - 20m² sắc nét kèm visual chuyển động",
+        "Hệ thống ánh sáng 08 Beam 380W + 12 Par LED + Máy khói lạnh sân khấu",
+        "Sân khấu chịu lực 24m² trải thảm đỏ / xám ghi VIP + Bục phát biểu hoa tươi",
+        "Photobooth chụp ảnh 3D nổi khối kích thước 3m x 5m",
+        "Kịch bản đạo diễn chi tiết từng phút + 03 kỹ thuật viên trực chiến",
+        "Tặng gói quay phim Highlight sự kiện và bộ cắt băng khai trương"
+      ],
+      "unsupported_features": [
+        "Hệ thống dịch thuật song ngữ đa ngôn ngữ",
+        "Sân khấu 3D Mapping độc bản"
+      ],
+      "cta_text": "Chọn Gói Tiêu Chuẩn (Ưu Tiên)"
+    },
+    {
+      "id": "diamond",
+      "name": "Gói Kim Cương (VIP Luxury)",
+      "scale": "Quy mô 300 - 2.000+ khách",
+      "price_display": "Liên Hệ",
+      "unit": "May đo theo yêu cầu",
+      "description": "Giải pháp đại lễ cao cấp, đại hội cổ đông, ra mắt sản phẩm với đạo diễn sân khấu và hạ tầng biểu diễn quy mô lớn.",
+      "is_featured": false,
+      "features": [
+        "Dàn Line Array công suất 10.000W + Mixer Digital đa kênh",
+        "Hệ thống Màn hình LED P2.5 trong nhà hoặc chống nước ngoài trời 40m²+",
+        "Trọn gói ánh sáng nghệ thuật: Beam, Laser, Follow, Blinder, Pháo hoa nghệ thuật",
+        "Thi công Concept sân khấu độc bản 3D uốn lượn theo nhận diện thương hiệu",
+        "Ekip đạo diễn sự kiện, MC song ngữ VIP, ca sĩ/vũ đoàn nổi tiếng",
+        "Ekip Media 3 máy quay 4K + Flycam truyền hình trực tiếp lên màn LED (Livestream)",
+        "Bảo hiểm sự kiện trọn gói và cam kết an toàn vận hành"
+      ],
+      "unsupported_features": [],
+      "cta_text": "Nhận Tư Vấn Gói VIP"
+    }
+  ],
+  "combos": [
+    {
+      "id": "combo-khai-truong",
+      "code": "COMBO-KHAITRUONG",
+      "title": "Combo Khai Trương Hồng Phát - Đắc Tài Đắc Lộc",
+      "subtitle": "Dành cho Lễ Khai trương, Khánh thành, Khởi công xây dựng",
+      "category": "su-kien",
+      "service_group": "Tổ chức Sự kiện Khai trương",
+      "discount_badge": "Tiết kiệm đặc biệt",
+      "valid_until": "Áp dụng đến hết tháng này",
+      "is_popular": true,
+      "gift_items": [
+        "TẶNG NGAY 01 Đoàn Múa Lân Sư Rồng 4 Trống Hội (Trị giá 5.500.000đ)",
+        "TẶNG 04 Tháp Pháo Điện sân khấu chào mừng khoảnh khắc cắt băng",
+        "TẶNG 01 Bộ Kéo Vàng & Khay Cắt Băng Khai Trương Hoa Lụa VIP",
+        "Giảm thêm 10% khi thuê bổ sung Nhà bạt không gian hoặc Tiệc Teabreak"
+      ],
+      "conditions": [
+        "Áp dụng cho hợp đồng ký trước ngày tổ chức tối thiểu 5 ngày",
+        "Áp dụng tại khu vực TP Hà Nội và các tỉnh lân cận trong bán kính 60km"
+      ],
+      "recommended_for": "Showroom ô tô, chi nhánh ngân hàng, cửa hàng thời trang, spa, nhà máy khánh thành."
+    },
+    {
+      "id": "combo-yep",
+      "code": "COMBO-YEP2026",
+      "title": "Combo Tiệc Tất Niên Tri Ân - Bứt Phá Đêm Gala",
+      "subtitle": "Dành cho Year End Party, Gala Dinner, Tiệc Kỷ Niệm Thành Lập",
+      "category": "su-kien",
+      "service_group": "Tiệc Tất Niên & Gala Dinner",
+      "discount_badge": "Ưu Đãi Vàng",
+      "valid_until": "Ưu tiên 10 doanh nghiệp đăng ký sớm",
+      "is_popular": false,
+      "gift_items": [
+        "TẶNG Gói Quay Phim Highlight Sự Kiện 4K + Chụp Ảnh Toàn Đoàn (Trị giá 8.000.000đ)",
+        "TẶNG Toàn bộ Thiết kế Key Visual, Backdrop 3D và Thư Mời Điện Tử Online",
+        "TẶNG Phần mềm Quay số May Mắn Lucky Draw tương tác trên màn LED",
+        "Giảm 50% chi phí MC Chuyên Nghiệp điều phối chương trình gala"
+      ],
+      "conditions": [
+        "Áp dụng cho tiệc từ 100 khách trở lên đặt trọn gói âm thanh ánh sáng LED",
+        "Không áp dụng đồng thời với các chương trình chiết khấu tiền mặt khác"
+      ],
+      "recommended_for": "Doanh nghiệp tổ chức tiệc tất niên cuối năm muốn vinh danh nhân viên và tạo clip truyền thông lan tỏa."
+    },
+    {
+      "id": "combo-hoi-nghi-bds",
+      "code": "COMBO-HOINGHI",
+      "title": "Combo Hội Nghị Thượng Đỉnh & Lễ Mở Bán BĐS",
+      "subtitle": "Dành cho Hội thảo chuyên đề, ĐHĐCĐ, Ra mắt & Mở bán BĐS",
+      "category": "su-kien",
+      "service_group": "Hội nghị, Hội thảo & Mở bán BĐS",
+      "discount_badge": "Tiết kiệm đặc biệt",
+      "valid_until": "Có hạn theo slot thiết bị",
+      "is_popular": false,
+      "gift_items": [
+        "NÂNG CẤP MIỄN PHÍ Màn Hình LED P2.5 Siêu Nét (Độ phân giải hiển thị văn bản cực nét)",
+        "TẶNG Hệ Thống Quét Mã QR Check-in Tự Động đón khách tại sảnh",
+        "TẶNG 02 Nhân sự Lễ Tân Chuyên Nghiệp hỗ trợ đón khách trong 3 giờ đầu",
+        "TẶNG 01 Màn hình phụ kiểm âm và nhắc slide (Stage Monitor) cho diễn giả"
+      ],
+      "conditions": [
+        "Áp dụng cho các hội nghị diễn ra tại khách sạn, trung tâm hội nghị hoặc trụ sở doanh nghiệp",
+        "Thời gian lắp đặt và test thiết bị hoàn tất trước sự kiện 4 tiếng"
+      ],
+      "recommended_for": "Sàn giao dịch BĐS mở bán dự án, công ty dược phẩm, viện đào tạo, đại hội đồng cổ đông niêm yết."
+    },
+    {
+      "id": "combo-team-mice",
+      "code": "COMBO-TEAMMICE",
+      "title": "Combo Du Lịch Doanh Nghiệp & Team Building Bứt Phá",
+      "subtitle": "Dành cho Tour Du Lịch, Team Building Bãi Biển, Du Lịch Thiện Nguyện",
+      "category": "du-lich",
+      "service_group": "Du lịch Doanh nghiệp & MICE",
+      "discount_badge": "Hot Nhất Mùa Hè",
+      "valid_until": "Áp dụng cho đoàn từ 40 khách",
+      "is_popular": true,
+      "gift_items": [
+        "MIỄN PHÍ TOÀN BỘ Đạo Cụ Team Building Bạt Hơi Khổng Lồ trị giá 6.000.000đ",
+        "TẶNG Gói Flycam Trên Không bắt trọn khoảnh khắc xếp chữ tên thương hiệu",
+        "TẶNG 01 Backdrop Check-in Bãi Biển + Áo cờ đỏ sao vàng hoặc nón du lịch cho từng người",
+        "BẢO HIỂM DU LỊCH nâng cấp mức tối đa 120.000.000 VNĐ/người"
+      ],
+      "conditions": [
+        "Áp dụng cho đoàn khởi hành từ Hà Nội đi Hạ Long, Cát Bà, Sapa, Đà Nẵng, Quy Nhơn",
+        "Đoàn từ 80 khách trở lên được miễn phí thêm dịch vụ Karaoke Gala ngoài trời"
+      ],
+      "recommended_for": "Các công ty tổ chức kỳ nghỉ hè, team building tái tạo năng lượng cho toàn thể nhân viên."
+    }
+  ]
+}

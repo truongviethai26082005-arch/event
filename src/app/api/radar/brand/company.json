@@ -1,0 +1,51 @@
+{
+  "_meta": {
+    "id": "A1",
+    "title": "Hồ sơ công ty",
+    "source": "src/lib/company-data.ts (COMPANY_INFO, PARTNER_GROUPS)",
+    "rule": "AI chỉ được dùng các trường trong file này để nói về Trường Hải. Trường nằm trong 'claims_to_verify' chỉ được dùng khi 'verified' = true."
+  },
+  "legal_name": "Công ty TNHH Sự kiện và Du lịch Trường Hải",
+  "brand_name": "Trường Hải Event & Travel",
+  "short_name": "Trường Hải",
+  "english_name": "TRUONG HAI EVENT AND TRAVEL COMPANY LIMITED",
+  "slogan": "Sự kiện chuyên nghiệp – Du lịch trải nghiệm – Kết nối thành công",
+  "director": "Nguyễn Thị Thu Hằng",
+  "tax_id": "0111601327",
+  "address": "LK 628, ngõ Lực, đường Sinh Viên, thôn Thanh Kỳ, xã Bình Minh, TP Hà Nội",
+  "service_area": "Hà Nội và toàn quốc",
+  "hotline": "0844 198 333",
+  "email": "truonghaieventtravel@gmail.com",
+  "website": "https://truonghaievent.com",
+  "working_hours": "08:00 - 18:00 (Thứ 2 - Thứ 7), hỗ trợ sự kiện 24/7",
+  "business_lines": [
+    "Tổ chức sự kiện doanh nghiệp, cơ quan, trường học",
+    "Cung cấp thiết bị âm thanh, ánh sáng, sân khấu, màn hình LED",
+    "Tour du lịch doanh nghiệp, tập thể, cá nhân",
+    "Vận tải, cho thuê xe du lịch",
+    "Du lịch trải nghiệm và thiện nguyện"
+  ],
+  "client_groups": [
+    {
+      "group": "Đoàn thể và cơ quan nhà nước",
+      "clients": ["Trung ương Đoàn TNCS Hồ Chí Minh", "Thành Đoàn Hà Nội", "Công an TP Hà Nội (PA05, Phòng CSGT, Phòng CSHS)", "Công an Phường Yên Hòa", "Trung tâm Tình nguyện Quốc gia", "Tổng cục Đường bộ Việt Nam"]
+    },
+    {
+      "group": "Trường đại học và bệnh viện",
+      "clients": ["ĐH Bách Khoa Hà Nội", "ĐH Kinh tế Quốc dân", "ĐH Công Đoàn", "ĐH Tài nguyên và Môi trường", "ĐH Nội Vụ", "ĐH Vinh và ĐH Y khoa Vinh", "Bệnh viện Nhi Trung ương"]
+    },
+    {
+      "group": "Doanh nghiệp và tập đoàn",
+      "clients": ["Vietcombank", "VPBank", "NCB", "CellphoneS", "Hoàng Hà Mobile", "Digiworld (DGW)", "LocknLock", "Phúc Long Tea & Coffee", "Cen Invest và Tân Long Group", "Công ty CP LABCO", "Địa ốc TL K11 và The K-Park", "Công ty CP DAMSAN"]
+    }
+  ],
+  "claims_to_verify": [
+    { "claim": "500+ sự kiện thành công, quy mô từ 50 đến 5.000 khách", "verified": false, "note": "Đang hiển thị trên trang chủ. Cần công ty xác nhận trước khi AI dùng trong bài." },
+    { "claim": "100+ đối tác và doanh nghiệp", "verified": false, "note": "" },
+    { "claim": "10+ năm kinh nghiệm", "verified": false, "note": "Cần làm rõ đây là tuổi công ty hay kinh nghiệm của đội ngũ, và ghi năm thành lập." },
+    { "claim": "99% khách hàng hài lòng", "verified": false, "note": "Không có nguồn đo. Không nên dùng." },
+    { "claim": "Kho thiết bị rộng hơn 1.000 m² tại Hà Nội", "verified": false, "note": "Lấy từ src/app/dich-vu/data/services-data.ts." },
+    { "claim": "Giá gốc tận kho, không qua trung gian", "verified": false, "note": "Câu quảng cáo, chỉ dùng nếu có căn cứ." },
+    { "claim": "Có giấy phép kinh doanh lữ hành nội địa và quốc tế", "verified": false, "note": "Cần số giấy phép trước khi nhắc trong bài." }
+  ]
+}

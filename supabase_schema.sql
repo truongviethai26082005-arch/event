@@ -1,7 +1,7 @@
 -- =============================================================================
 -- HỆ THỐNG CƠ SỞ DỮ LIỆU SUPABASE CHO DỰ ÁN:
 -- CÔNG TY TNHH SỰ KIỆN VÀ DU LỊCH TRƯỜNG HẢI (TRƯỜNG HẢI EVENT & TRAVEL)
--- Tích hợp Công Cụ Quản Trị Radar SEO AI
+-- Tích hợp Công Cụ Quản Trị Radar SEO AI & Hệ Thống Quét Ngầm Đối Thủ
 -- =============================================================================
 
 -- Kích hoạt tiện ích tạo UUID
@@ -79,6 +79,77 @@ CREATE TABLE competitor_logs (
 );
 
 -- =============================================================================
+-- 6. BẢNG COMPETITORS: Quản lý danh sách đối thủ cạnh tranh đang theo dõi
+-- =============================================================================
+DROP TABLE IF EXISTS competitors CASCADE;
+CREATE TABLE competitors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    domain TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL DEFAULT 'tron-goi',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    priority_badge TEXT,
+    notes TEXT,
+    last_scanned_at TIMESTAMPTZ,
+    scanned_pages_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 7. BẢNG COMPETITOR_SCANNED_PAGES: Kho lưu trữ chữ/nội dung trang của đối thủ
+-- =============================================================================
+DROP TABLE IF EXISTS competitor_scanned_pages CASCADE;
+CREATE TABLE competitor_scanned_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    competitor_id UUID REFERENCES competitors(id) ON DELETE CASCADE,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    headings JSONB, -- Mảng cấu trúc H1, H2, H3
+    meta_description TEXT,
+    clean_text TEXT,
+    word_count INTEGER DEFAULT 0,
+    published_date TIMESTAMPTZ,
+    scanned_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 8. BẢNG CONTENT_GAP_IDEAS: Khoảng trống nội dung & Ý tưởng kế hoạch bài viết
+-- =============================================================================
+DROP TABLE IF EXISTS content_gap_ideas CASCADE;
+CREATE TABLE content_gap_ideas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic TEXT NOT NULL,
+    target_keyword TEXT NOT NULL,
+    competitor_source TEXT,
+    competitor_url TEXT,
+    cluster_category TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+    search_intent TEXT NOT NULL DEFAULT 'informational' CHECK (search_intent IN ('informational', 'commercial', 'transactional')),
+    our_site_status TEXT NOT NULL DEFAULT 'missing' CHECK (our_site_status IN ('missing', 'in_plan', 'drafted')),
+    suggested_title TEXT,
+    gap_reason TEXT,
+    estimated_search_volume TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 9. BẢNG RADAR_ACTIVITY_LOGS: Nhật ký vận hành hệ thống Radar SEO
+-- =============================================================================
+DROP TABLE IF EXISTS radar_activity_logs CASCADE;
+CREATE TABLE radar_activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_type TEXT NOT NULL CHECK (execution_type IN ('cron', 'dry-run', 'live-run', 'reschedule')),
+    status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'warning', 'error')),
+    competitor_name TEXT,
+    pages_scanned INTEGER DEFAULT 0,
+    gaps_found INTEGER DEFAULT 0,
+    message TEXT NOT NULL,
+    duration_sec INTEGER,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
 -- CẤU HÌNH ROW LEVEL SECURITY (RLS) ĐẢM BẢO AN TOÀN TRUY CẬP
 -- =============================================================================
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
@@ -86,6 +157,10 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitor_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitor_scanned_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_gap_ideas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE radar_activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Cho phép công chúng đọc dữ liệu dịch vụ và dự án
 CREATE POLICY "Public read services" ON services FOR SELECT USING (true);
@@ -101,8 +176,12 @@ CREATE POLICY "Enable all for posts" ON posts FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY "Public insert leads" ON leads FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public select leads" ON leads FOR SELECT USING (true);
 
--- Cho phép lưu log quét đối thủ
+-- Cho phép toàn quyền quản trị cho các module Radar SEO
 CREATE POLICY "Enable all for competitor_logs" ON competitor_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for competitors" ON competitors FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for competitor_scanned_pages" ON competitor_scanned_pages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for content_gap_ideas" ON content_gap_ideas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all for radar_activity_logs" ON radar_activity_logs FOR ALL USING (true) WITH CHECK (true);
 
 
 -- =============================================================================
@@ -111,70 +190,64 @@ CREATE POLICY "Enable all for competitor_logs" ON competitor_logs FOR ALL USING 
 
 -- 1. INSERT DỊCH VỤ THẬT
 INSERT INTO services (title, slug, category, description, image_url) VALUES
--- Mảng Sự kiện
-('Lễ kỷ niệm, khánh thành, khai trương, khởi công – động thổ', 'le-ky-niem-khanh-thanh-khai-truong', 'su-kien', 
- 'Tổ chức trọn gói các nghi lễ trọng thể mang tính bước ngoặt của doanh nghiệp với quy trình chuẩn chỉ, thiết bị đẳng cấp và kịch bản trang trọng.', 
- 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80'),
+('Lễ Khai Trương', 'le-khai-truong', 'su-kien', 
+ 'Tổ chức Lễ Khai Trương trọn gói chuẩn phong thủy, thu hút truyền thông và kích hoạt tài lộc cho cửa hàng, showroom, chi nhánh, văn phòng mới.', 
+ '/images/projects/khai-truong-cuong-phat.jpg'),
 
-('Tiệc tất niên Year End Party (Y.E.P), Gala Dinner & Team Building', 'tiec-tat-nien-gala-dinner-team-building', 'su-kien', 
- 'Chương trình gắn kết nội bộ thăng hoa cảm xúc, tôn vinh cống hiến của nhân sự và tri ân một năm nỗ lực với concept độc bản sáng tạo.', 
+('Lễ Khánh Thành', 'le-khanh-thanh', 'su-kien', 
+ 'Tổ chức trọng thể Lễ Khánh Thành nhà máy, công trình, dự án trọng điểm với quy trình nghi lễ chuẩn mực, trang nghiêm và an toàn tuyệt đối.', 
+ '/images/projects/khanh-thanh-eiffel-damsan.jpg'),
+
+('Hội Nghị, Hội Thảo', 'hoi-nghi-hoi-thao', 'su-kien', 
+ 'Giải pháp tổ chức Hội nghị khách hàng, Đại hội cổ đông, Hội thảo khoa học và Lễ ra mắt sản phẩm đạt tiêu chuẩn quốc tế từ 100 đến 2.000+ đại biểu.', 
+ '/images/projects/hoi-nghi-the-k-park.jpg'),
+
+('Tiệc Tất Niên - Y.E.P, Gala Dinner', 'tiec-tat-nien-yep-gala-dinner', 'su-kien', 
+ 'Đêm tiệc vinh danh thăng hoa cảm xúc, gắn kết nội bộ và tri ân chặng đường cống hiến với concept độc bản mang đậm dấu ấn văn hóa doanh nghiệp.', 
  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80'),
 
-('Sự kiện mở bán Bất động sản, Hội nghị & Hội thảo', 'su-kien-mo-ban-bds-hoi-nghi-hoi-thao', 'su-kien', 
- 'Giải pháp tổ chức lễ mở bán kích cầu giao dịch, hội thảo chuyên đề khoa học và xúc tiến thương mại quy mô từ hàng trăm đến hàng ngàn khách.', 
- 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=800&q=80'),
+('Team Building', 'team-building', 'du-lich', 
+ 'Chương trình Team Building bãi biển, resort và dã ngoại bứt phá giới hạn, truyền lửa nhiệt huyết và gắn kết tinh thần đồng đội vững mạnh.', 
+ '/images/projects/team-building-dia-oc-tl.jpg'),
 
-('Sự kiện Trung thu, Tết Thiếu nhi, Ngày hội gia đình & Họp lớp', 'trung-thu-tet-thieu-nhi-family-day', 'su-kien', 
- 'Không gian vui tươi, ấm cúng và đầy màu sắc dành cho các gia đình, trường học, cơ quan và các khóa cựu học sinh, sinh viên tri ân.', 
+('Trung Thu', 'trung-thu', 'su-kien', 
+ 'Tổ chức Đêm Hội Trăng Rằm lung linh sắc màu cổ tích dành cho con em cán bộ nhân viên doanh nghiệp, khu đô thị, chung cư và trường học.', 
  'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=800&q=80'),
 
-('Cung cấp thiết bị Âm thanh, Ánh sáng, Sân khấu, Màn hình LED', 'cung-cap-thiet-bi-am-thanh-anh-sang-san-khau', 'su-kien', 
- 'Kho thiết bị sự kiện hiện đại, nhập khẩu chính hãng với dàn Line Array công suất lớn, đèn Beam, Par Led, màn hình LED sắc nét phục vụ trong nhà và ngoài trời.', 
+('Tết Thiếu Nhi', 'tet-thieu-nhi', 'su-kien', 
+ 'Ngày hội Quốc tế Thiếu nhi 1/6 và Family Day sôi động, ngập tràn tiếng cười, gắn kết gia đình nhỏ trong đại gia đình doanh nghiệp.', 
+ 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80'),
+
+('Hình Ảnh & Thiết Bị Sự Kiện', 'thiet-bi-su-kien', 'su-kien', 
+ 'Sản xuất, thi công và cho thuê trọn gói hệ thống Âm thanh, Ánh sáng, Màn hình LED, Sân khấu, Nhà bạt không gian chính hãng với chi phí tối ưu.', 
  'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80'),
 
--- Mảng Du lịch
-('Tổ chức Tour Doanh nghiệp, Tập thể, Cá nhân', 'tour-doanh-nghiep-tap-the-ca-nhan', 'du-lich', 
- 'Thiết kế tour du lịch nghỉ dưỡng kết hợp Team Building, Gala Dinner tại các thiên đường nghỉ dưỡng như Hạ Long, Đà Nẵng, Phú Quốc, Sapa, Quy Nhơn...', 
- 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80'),
-
-('Dịch vụ Vận tải, Cho thuê Xe Du lịch đời mới', 'dich-vu-van-tai-xe-du-lich', 'du-lich', 
- 'Đội xe du lịch đời mới từ 7, 16, 29, 35 đến 45 chỗ và xe Limousine VIP phục vụ đưa đón hội nghị, đưa đón chuyên gia, đưa đón sân bay và các tuyến tour.', 
- 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80'),
-
-('Du lịch Tham quan, Học tập, Trải nghiệm & Thiện nguyện Cộng đồng', 'du-lich-trai-nghiem-thien-nguyen-cong-dong', 'du-lich', 
- 'Các tour giáo dục thực tế kết hợp thiện nguyện vì cộng đồng tại các bản làng vùng cao Tây Bắc, Đông Bắc; vừa bồi đắp tri thức vừa lan tỏa yêu thương.', 
- 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80');
+('Hoạt Động Khác', 'hoat-dong-khac', 'du-lich', 
+ 'Đa dạng giải pháp tổ chức Lễ khởi công – động thổ, Kỷ niệm thành lập, Hội thao, Họp lớp, Tour du lịch trải nghiệm – thiện nguyện và Cho thuê xe 7–45 chỗ.', 
+ 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80');
 
 
 -- 2. INSERT CÁC DỰ ÁN TIÊU BIỂU THẬT ĐÃ THỰC HIỆN
 INSERT INTO projects (title, category, client_name, description, image_url) VALUES
 ('Lễ thông xe Dự án sửa chữa Cầu Thăng Long', 'su-kien', 'Tổng cục Đường bộ Việt Nam',
  'Sự kiện quy mô quốc gia chào mừng công trình giao thông trọng điểm huyết mạch của Thủ đô Hà Nội. Trường Hải Event đảm nhận toàn bộ sân khấu, thiết bị âm thanh ánh sáng và điều phối nghi thức cắt băng thông xe.',
- 'https://images.unsplash.com/photo-1545558014-8692077e9b5c?auto=format&fit=crop&w=800&q=80'),
+ '/images/projects/cau-thang-long.jpg'),
 
 ('Lễ khánh thành Hệ thống Điện mặt trời Áp Mái tại Nhà máy EIFFEL', 'su-kien', 'Công ty Cổ phần DAMSAN',
  'Tổ chức lễ khánh thành nhà máy điện mặt trời công nghệ xanh với hơn 500 khách mời là lãnh đạo các sở ban ngành tỉnh Thái Bình và các đối tác tài chính quốc tế.',
- 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'),
+ '/images/projects/khanh-thanh-eiffel-damsan.jpg'),
 
-('Lễ mở bán Dự án Vinpearl Resort & Golf Nam Hội An', 'su-kien', 'Vingroup / Đơn vị Phân phối BĐS',
- 'Sự kiện mở bán siêu dự án nghỉ dưỡng thượng lưu thu hút hàng trăm nhà đầu tư VIP. Không gian sang trọng với công nghệ màn hình LED cong và sân khấu trình diễn nghệ thuật đẳng cấp.',
- 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'),
+('Hội nghị nhà chung cư bất thường - Chung cư The K Park', 'su-kien', 'Ban Quản trị & Cư dân The K Park',
+ 'Tổ chức Hội nghị nhà chung cư bất thường quy mô lớn tại Phường Phú La với hệ thống nhà bạt, âm thanh hội nghị, sân khấu và bàn ghế đại biểu chuyên nghiệp.',
+ '/images/projects/hoi-nghi-the-k-park.jpg'),
 
-('Chuỗi Lễ khai trương Điểm bán hàng: LocknLock, Toyoky, Nam Hải Ceramic', 'su-kien', 'LocknLock & Nam Hải Ceramic & Cafe Sài Gòn',
- 'Chuỗi sự kiện Grand Opening bùng nổ tại các trung tâm thương mại lớn, kết hợp biểu diễn múa Lân Sư Rồng, minigame bốc thăm trúng thưởng và activation kích hoạt thương hiệu.',
- 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80'),
+('Lễ Khai Trương Công ty TNHH SX KD & TM Cường Phát', 'su-kien', 'Công ty Cường Phát & Tân Phương',
+ 'Sự kiện Grand Opening trụ sở và cơ sở kinh doanh với nghi lễ cắt băng khai trương, múa Lân Sư Rồng, tiệc trà đón tiếp đại biểu và đối tác.',
+ '/images/projects/khai-truong-cuong-phat.jpg'),
 
-('Tiệc Tất niên Y.E.P & Hội chợ Xuân Tri ân', 'su-kien', 'Công An Phường Yên Hòa & Miss Hoa TOEIC & TL K11',
- 'Chương trình Gala mừng xuân ấm cúng, tái hiện không gian Tết cổ truyền kết hợp sân khấu âm nhạc sôi động, mang lại nụ cười và sự gắn kết cho cán bộ chiến sĩ và toàn thể nhân viên.',
- 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80'),
-
-('Company Trip 4N3Đ TL K11 & Hội thao 24 năm LABCO', 'du-lich', 'Địa Ốc TL K11 & Công ty CP LABCO',
- 'Chuỗi ngày hội thao quy mô toàn công ty kết hợp tour nghỉ dưỡng 4 ngày 3 đêm tại biển miền Trung, mang lại năng lượng tái tạo đỉnh cao và gắn kết 300+ cán bộ nhân viên.',
- 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80'),
-
-('Chương trình Thiện nguyện: Chắp cánh ước mơ (Yên Bái) & Hướng về Sìn Hồ (Lai Châu)', 'thien-nguyen', 'Trường Hải Event & Nhóm Tình nguyện Cộng đồng',
- 'Hành trình trao hơn 1.000 phần quà, áo ấm và học bổng cho các em nhỏ điểm trường khó khăn tại tỉnh Yên Bái và huyện biên giới Sìn Hồ (Lai Châu), thể hiện trách nhiệm xã hội sâu sắc.',
- 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80');
+('Chương trình Team Building Gắn Kết - Địa Ốc TL', 'du-lich', 'Công ty TNHH Địa Ốc TL',
+ 'Sự kiện Team Building và Gala Dinner gắn kết toàn thể cán bộ nhân viên Địa Ốc TL với chủ đề hành trình khám phá và bứt phá thành công.',
+ '/images/projects/team-building-dia-oc-tl.jpg');
 
 
 -- 3. INSERT BÀI VIẾT BLOG SEO MẪU ĐƯỢC DUYỆT ĐĂNG (status: 'published')
@@ -192,3 +265,11 @@ INSERT INTO posts (title, slug, content, meta_description, focus_keyword, status
  'Khám phá 7 concept tiệc tất niên Year End Party (YEP) độc đáo, bùng nổ cảm xúc cho doanh nghiệp, giúp tôn vinh cống hiến và tái tạo năng lượng cho năm mới.',
  'tổ chức year end party',
  'published');
+
+-- 4. INSERT ĐỐI THỦ MẪU BAN ĐẦU
+INSERT INTO competitors (name, domain, category, is_active, priority_badge, notes, scanned_pages_count) VALUES
+('Viet Power Event', 'https://viet-power.vn', 'teambuilding', true, 'Top 1 Teambuilding', 'Mạnh về kịch bản trò chơi bãi biển và tour trọn gói', 42),
+('Hòa Bình Events', 'https://hoabinhevents.com', 'hoi-nghi', true, 'Top 1 Hội nghị Quốc tế', 'Quy mô lớn, chuyên hội thảo y tế, đại hội cổ đông', 68),
+('Á Châu Event', 'https://sukienachau.com', 'tron-goi', true, 'Chuyên Khai Trương VIP', 'Đội ngũ PG, MC, múa lân sư rồng khai trương chuyên nghiệp', 35),
+('Cho Thuê Âm Thanh AS', 'https://chothueamthanhas.com', 'thiet-bi', true, 'Tổng kho Thiết bị LED', 'Báo giá bóc tách âm thanh ánh sáng, sân khấu nhôm truss', 29)
+ON CONFLICT (domain) DO NOTHING;

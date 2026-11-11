@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { supabase, isSupabaseConfigured, DatabaseLead } from "@/lib/supabase";
-import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick, landingInfo, trackLandingLead, markLeadFormSubmitted } from "@/app/admin-radar/lead-tracker";
+import { BUDGET_OPTIONS, DEFAULT_BUDGET, DEFAULT_GUESTS, GUEST_OPTIONS } from "@/lib/lead-form-options";
 import { PromotionCombo } from "../data/services-data";
 import {
   Send,
@@ -21,6 +21,7 @@ import {
   MessageCircle,
   MessageSquareText,
   ArrowRight,
+  Calendar,
 } from "lucide-react";
 
 interface LeadFormProps {
@@ -38,16 +39,23 @@ export default function LeadForm({
     fullName: "",
     phone: "",
     email: "",
-    eventType: initialService || "Tổ chức Lễ Khai trương, Khánh thành & Khởi công",
-    estimatedGuests: "100 - 300 khách",
-    budgetRange: "30.000.000đ - 70.000.000đ",
+    eventType: initialService || "Tổ chức Sự Kiện & Du Lịch Trọn Gói",
+    estimatedGuests: DEFAULT_GUESTS as string,
+    budgetRange: DEFAULT_BUDGET as string,
     eventDate: "",
     location: "Hà Nội",
     notes: "",
   });
 
+  useEffect(() => {
+    if (initialService) {
+      setFormData((prev) => ({ ...prev, eventType: initialService }));
+    }
+  }, [initialService]);
+
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+  const hiddenDateRef = useRef<HTMLInputElement>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const [submittedLeadParams, setSubmittedLeadParams] = useState<{
     name: string;
@@ -111,37 +119,38 @@ export default function LeadForm({
     }
 
     try {
-      // Build lead payload
-      const promoText = initialPromo ? ` [COMBO: ${initialPromo.code} - ${initialPromo.title}]` : "";
-      const eventTypeComposite = `${formData.eventType}${promoText} (Quy mô: ${formData.estimatedGuests} | Ngân sách: ${formData.budgetRange})`;
+      // Cổng vào phễu dùng chung: POST /api/leads.
+      // API tự lưu quy mô, ngân sách, ngày vào đúng cột và ghép phần chữ vào ghi chú.
+      const giftNote = initialPromo ? `Quà tặng áp dụng: ${initialPromo.giftItems.join(", ")}` : "";
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.fullName.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || undefined,
+          eventType: formData.eventType,
+          estimatedGuests: formData.estimatedGuests,
+          budgetRange: formData.budgetRange,
+          eventDate: formData.eventDate,
+          location: formData.location,
+          notes: [formData.notes, giftNote].filter(Boolean).join(" | "),
+          promoCode: initialPromo?.code,
+          promoTitle: initialPromo?.title,
+          channel: "GG_FORM",
+          ...landingInfo(),
+        }),
+      });
 
-      const detailedNotes = [
-        formData.notes ? `Yêu cầu: ${formData.notes}` : "",
-        formData.eventDate ? `Ngày dự kiến: ${formData.eventDate}` : "",
-        formData.location ? `Địa điểm: ${formData.location}` : "",
-        initialPromo ? `Quà tặng áp dụng: ${initialPromo.giftItems.join(", ")}` : "",
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
-      const leadRecord: DatabaseLead = {
-        full_name: formData.fullName.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim() || undefined,
-        event_type: eventTypeComposite,
-        notes: detailedNotes,
-      };
-
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.from("leads").insert([leadRecord]);
-        if (error) throw error;
-      } else {
+      if (response.status === 503) {
         // Fallback lưu offline trong localStorage khi chạy môi trường dev/chưa cấu hình Supabase
         const existing = JSON.parse(localStorage.getItem("offline_leads") || "[]");
-        existing.push({ ...leadRecord, created_at: new Date().toISOString() });
+        existing.push({ ...formData, created_at: new Date().toISOString() });
         localStorage.setItem("offline_leads", JSON.stringify(existing));
-        await new Promise((r) => setTimeout(r, 600));
+      } else if (!response.ok) {
+        throw new Error("Không thể lưu yêu cầu báo giá");
       }
+      markLeadFormSubmitted();
 
       setSubmitResult({
         type: "success",
@@ -185,8 +194,8 @@ export default function LeadForm({
         phone: "",
         email: "",
         eventType: "Tổ chức Lễ Khai trương, Khánh thành & Khởi công",
-        estimatedGuests: "100 - 300 khách",
-        budgetRange: "30.000.000đ - 70.000.000đ",
+        estimatedGuests: DEFAULT_GUESTS as string,
+        budgetRange: DEFAULT_BUDGET as string,
         eventDate: "",
         location: "Hà Nội",
         notes: "",
@@ -381,7 +390,7 @@ export default function LeadForm({
                         href={COMPANY_INFO.socials.zalo}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={() => trackLandingLead("ZALO")}
+                        onClick={(e) => handleContactClick(e, "ZALO")}
                         className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
@@ -462,7 +471,7 @@ export default function LeadForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Email nhận báo giá (File PDF/Excel)
+                      Email
                     </label>
                     <input
                       type="email"
@@ -486,56 +495,14 @@ export default function LeadForm({
                       }
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
                     >
-                      <option value="Dưới 50 khách (Sự kiện nhỏ / Cửa hàng)">Dưới 50 khách (Sự kiện nhỏ / Cửa hàng)</option>
-                      <option value="50 - 150 khách (Quy mô vừa)">50 - 150 khách (Quy mô vừa)</option>
-                      <option value="150 - 300 khách (Doanh nghiệp chuẩn)">150 - 300 khách (Doanh nghiệp chuẩn)</option>
-                      <option value="300 - 600 khách (Quy mô lớn)">300 - 600 khách (Quy mô lớn)</option>
-                      <option value="Trên 600 khách (Đại lễ / Festival / Hội nghị lớn)">Trên 600 khách (Đại lễ / Festival / Hội nghị lớn)</option>
+                      {GUEST_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                {/* Row 3: Service Selection */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Dịch vụ bạn quan tâm <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={formData.eventType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, eventType: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white font-medium"
-                  >
-                    <optgroup label="MẢNG TỔ CHỨC SỰ KIỆN">
-                      <option value="Tổ chức Lễ Khai trương, Khánh thành & Khởi công">
-                        Tổ chức Lễ Khai trương, Khánh thành & Khởi công
-                      </option>
-                      <option value="Tiệc Tất Niên (Year End Party) & Gala Dinner">
-                        Tiệc Tất Niên (Year End Party) & Gala Dinner
-                      </option>
-                      <option value="Tổ chức Hội Nghị, Hội Thảo & Sự Kiện Mở Bán BĐS">
-                        Tổ chức Hội Nghị, Hội Thảo & Sự Kiện Mở Bán BĐS
-                      </option>
-                      <option value="Sản Xuất, Thi Công & Cho Thuê Trang Thiết Bị Sự Kiện">
-                        Sản Xuất, Thi Công & Cho Thuê Trang Thiết Bị Sự Kiện
-                      </option>
-                    </optgroup>
-                    <optgroup label="MẢNG DU LỊCH & TEAM BUILDING">
-                      <option value="Team Building & Tour Doanh Nghiệp Nghỉ Dưỡng MICE">
-                        Team Building & Tour Doanh Nghiệp Nghỉ Dưỡng MICE
-                      </option>
-                      <option value="Dịch Vụ Vận Tải, Cho Thuê Xe Du Lịch Đời Mới 7-45 Chỗ">
-                        Dịch Vụ Vận Tải, Cho Thuê Xe Du Lịch Đời Mới 7-45 Chỗ
-                      </option>
-                      <option value="Du Lịch Trải Nghiệm & Thiện Nguyện Vì Cộng Đồng">
-                        Du Lịch Trải Nghiệm & Thiện Nguyện Vì Cộng Đồng
-                      </option>
-                    </optgroup>
-                  </select>
-                </div>
-
-                {/* Row 4: Budget & Expected Date */}
+                {/* Row 3: Budget & Expected Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -548,11 +515,9 @@ export default function LeadForm({
                       }
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
                     >
-                      <option value="Dưới 20.000.000đ (Tiết kiệm)">Dưới 20.000.000đ (Tiết kiệm)</option>
-                      <option value="20.000.000đ - 50.000.000đ">20.000.000đ - 50.000.000đ</option>
-                      <option value="50.000.000đ - 100.000.000đ">50.000.000đ - 100.000.000đ</option>
-                      <option value="100.000.000đ - 250.000.000đ">100.000.000đ - 250.000.000đ</option>
-                      <option value="Trên 250.000.000đ (VIP Đẳng cấp)">Trên 250.000.000đ (VIP Đẳng cấp)</option>
+                      {BUDGET_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -560,14 +525,34 @@ export default function LeadForm({
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Thời gian dự kiến tổ chức
                     </label>
-                    <input
-                      type="date"
-                      value={formData.eventDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, eventDate: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="dd/mm/yyyy"
+                        value={formData.eventDate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, eventDate: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[#0A1E5E] focus:border-transparent outline-none transition bg-white pr-10"
+                      />
+                      <input
+                        ref={hiddenDateRef}
+                        type="date"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const [yyyy, mm, dd] = e.target.value.split("-");
+                            setFormData({
+                              ...formData,
+                              eventDate: `${dd}/${mm}/${yyyy}`,
+                            });
+                          }
+                        }}
+                        className="absolute right-0 top-0 bottom-0 w-10 opacity-0 cursor-pointer z-10"
+                      />
+                      <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
 

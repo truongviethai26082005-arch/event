@@ -202,7 +202,7 @@ export default function AdminServicesPage() {
     <div className="mx-auto max-w-[1400px] space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">SERVICE CATALOG</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A78113]">Bán hàng</p>
           <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Dịch vụ &amp; gói sự kiện</h1>
           <p className="mt-1 text-sm text-slate-500">Quản lý nội dung dịch vụ đang hiển thị trên website.</p>
         </div>
@@ -256,7 +256,7 @@ export default function AdminServicesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
           <section role="dialog" aria-modal="true" aria-labelledby="service-editor-title" className="my-auto w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-7">
-              <div><p className="text-xs font-bold uppercase tracking-wider text-[#A78113]">Service editor</p><h2 id="service-editor-title" className="mt-1 text-xl font-extrabold text-slate-900">{editing === "new" ? "Tạo dịch vụ mới" : "Chỉnh sửa dịch vụ"}</h2></div>
+              <div><p className="text-xs font-bold uppercase tracking-wider text-[#A78113]">Dịch vụ</p><h2 id="service-editor-title" className="mt-1 text-xl font-extrabold text-slate-900">{editing === "new" ? "Tạo dịch vụ mới" : "Chỉnh sửa dịch vụ"}</h2></div>
               <button type="button" aria-label="Đóng biểu mẫu" onClick={() => setEditing(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={saveService} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-7">

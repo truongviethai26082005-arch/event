@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "title": "Công thức điểm ưu tiên cho kế hoạch nội dung (C5)",
+    "how_to_use": "Code tính điểm cho từng đề bài do c5-plan trả về: cộng điểm các thành phần dưới đây. Sắp xếp giảm dần; bằng điểm thì ưu tiên tru_cot trước. Màn Kế hoạch hiển thị cả tổng điểm lẫn từng thành phần để người dùng hiểu vì sao bài được xếp trên.",
+    "max_score": "16, cộng thêm điểm mùa vụ nếu có"
+  },
+  "components": {
+    "business_value": { "from": "clusters.json → business_value của cluster_id", "points": { "cao": 4, "trung_binh": 2, "thap": 0 } },
+    "intent": { "from": "item.intent", "points": { "muon_thue": 4, "can_nhac": 3, "tim_thong_tin": 2 } },
+    "competitor_count": { "from": "item.competitor_count", "points": { "1": 1, "2": 2, "3+": 3 } },
+    "gap_type": { "from": "item.gap_type", "points": { "chua_co": 2, "mong": 1, "chi_mot_doi_thu": 1 } },
+    "pillar_bonus": { "from": "item.role", "points": { "tru_cot": 3, "ve_tinh": 0 } }
+  },
+  "schedule": {
+    "posts_per_week": 2,
+    "rule": "Lấy đề bài theo thứ tự điểm. Bài vệ tinh của một cụm không được xếp lịch trước bài trụ cột của cụm đó.",
+    "seasonal_boost": [
+      { "cluster_id": "year-end-party-gala", "months": [9, 10, 11], "extra_points": 3, "note": "Doanh nghiệp tìm YEP từ khoảng tháng 9–11 để kịp tổ chức cuối năm. Đây là giả định, kiểm tra lại bằng Google Trends." },
+      { "cluster_id": "family-day-le-hoi", "months": [7, 8], "extra_points": 2, "note": "Chuẩn bị Trung thu. Giả định, kiểm tra bằng Google Trends." },
+      { "cluster_id": "tour-doanh-nghiep", "months": [3, 4, 5], "extra_points": 2, "note": "Chuẩn bị du lịch hè cho công ty. Giả định, kiểm tra bằng Google Trends." }
+    ]
+  }
+}

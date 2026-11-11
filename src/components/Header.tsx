@@ -38,6 +38,12 @@ interface NavItem {
 
 export default function Header() {
   const pathname = usePathname();
+  const isAdminPage = Boolean(
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/admin-radar") ||
+    pathname?.startsWith("/admin-login") ||
+    pathname === "/login"
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [openMobileSubmenu, setOpenMobileSubmenu] = useState<string | null>(null);
@@ -142,67 +148,22 @@ export default function Header() {
       id: "dich-vu",
       href: "/dich-vu",
       label: "Dịch Vụ Sự Kiện & Tour",
-      isMega: true,
       dropdown: {
-        columns: [
+        simple: [
           {
-            title: "MẢNG TỔ CHỨC SỰ KIỆN",
-            items: [
-              {
-                href: "/dich-vu#khai-truong-khanh-thanh",
-                label: "Khai Trương, Khánh Thành & Khởi Công",
-                desc: "Quy trình chuẩn chỉ, lân sư rồng, cắt băng trang trọng",
-                badge: "Hot",
-              },
-              {
-                href: "/dich-vu#tiec-tat-nien-yep",
-                label: "Year End Party & Gala Dinner",
-                desc: "Ý tưởng độc bản, âm thanh ánh sáng bùng nổ cảm xúc",
-                badge: "Mùa YEP",
-              },
-              {
-                href: "/dich-vu#hoi-nghi-hoi-thao-bds",
-                label: "Hội Nghị, Hội Thảo & Mở Bán BĐS",
-                desc: "Hệ thống check-in QR, visual LED P2.5 chuyên nghiệp",
-              },
-              {
-                href: "/dich-vu#su-kien",
-                label: "Trung Thu, Ngày Hội Gia Đình & Họp Lớp",
-                desc: "Gian hàng trò chơi dân gian, xiếc ảo thuật ấm cúng",
-              },
-              {
-                href: "/dich-vu#cho-thue-trang-thiet-bi",
-                label: "Cho Thuê Âm Thanh, Ánh Sáng & Màn LED",
-                desc: "Loa Line Array công suất lớn, Moving Beam nhập khẩu",
-              },
-            ],
+            href: "/dich-vu#su-kien",
+            label: "Sự Kiện",
+            desc: "Tổ chức sự kiện trọn gói doanh nghiệp",
           },
           {
-            title: "MẢNG DU LỊCH & BÁO GIÁ",
-            items: [
-              {
-                href: "/dich-vu#team-building-tour-mice",
-                label: "Tour Doanh Nghiệp & Team Building",
-                desc: "Hạ Long, Đà Nẵng, Phú Quốc - may đo theo ngân sách",
-                badge: "Trọn gói",
-              },
-              {
-                href: "/dich-vu#du-lich",
-                label: "Cho Thuê Xe Du Lịch Đời Mới",
-                desc: "Dàn xe 16 - 45 chỗ hiện đại, tài xế chuyên nghiệp",
-              },
-              {
-                href: "/dich-vu#khuyen-mai",
-                label: "Combo Ưu Đãi Sự Kiện 2024",
-                desc: "Tiết kiệm đến 30% khi đặt trọn gói âm thanh ánh sáng",
-                badge: "Tiết kiệm 30%",
-              },
-              {
-                href: "/dich-vu#bao-gia",
-                label: "Dự Toán Báo Giá Trực Tuyến",
-                desc: "Tính toán chi phí & nhận tư vấn chuyên viên 1-1",
-              },
-            ],
+            href: "/dich-vu#du-lich",
+            label: "Dịch Vụ - Tour",
+            desc: "Tour doanh nghiệp, team building & xe du lịch",
+          },
+          {
+            href: "/dich-vu#bao-gia",
+            label: "Báo Giá",
+            desc: "Dự toán chi phí & kịch bản nhanh 30 phút",
           },
         ],
       },
@@ -213,6 +174,11 @@ export default function Header() {
       label: "Hồ Sơ Năng Lực",
       dropdown: {
         simple: [
+          {
+            href: "/du-an",
+            label: "Dự Án Tiêu Biểu & Album Thực Tế",
+            desc: "Hình ảnh các sự kiện, đại lễ và tour đã triển khai",
+          },
           {
             href: "/ho-so-nang-luc#toan-bo",
             label: "Toàn Bộ E-Profile Năng Lực",
@@ -278,8 +244,9 @@ export default function Header() {
     return false;
   };
 
+  // Trang admin có thanh menu riêng (sticky): header không dính để khỏi che menu & nội dung
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/95 text-slate-800 shadow-lg border-b border-slate-200/90 backdrop-blur-md">
+    <header className={`${isAdminPage ? "relative" : "sticky top-0"} z-50 w-full bg-white/95 text-slate-800 shadow-lg border-b border-slate-200/90 backdrop-blur-md`}>
       {/* Top bar info */}
       <div className="bg-[#06123B] border-b border-white/10 text-xs py-1.5 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-slate-300">
@@ -308,10 +275,10 @@ export default function Header() {
 
       {/* Main Navbar */}
       <div className="max-w-7xl 2xl:max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo / Brand Name */}
-          <Link href="/" className="flex shrink-0 items-center space-x-3 group">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#D4AF37] via-[#F5E08B] to-[#997A15] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-300">
+          <Link href="/" className="flex shrink-0 items-center space-x-2.5 sm:space-x-3 group">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#D4AF37] via-[#F5E08B] to-[#997A15] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-300">
               <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center overflow-hidden">
                 <Image
                   src="/images/logo.png"
@@ -324,17 +291,19 @@ export default function Header() {
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-lg md:text-xl xl:text-2xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
+              <span className="font-extrabold text-base sm:text-xl xl:text-2xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
                 TRƯỜNG HẢI
               </span>
-              <span className="text-[11px] xl:text-xs uppercase tracking-widest text-[#B8860B] font-bold">
+              <span className="text-[9.5px] sm:text-[11px] xl:text-xs uppercase tracking-widest text-[#B8860B] font-bold">
                 EVENT & TRAVEL
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation with Dropdowns */}
-          <nav className="hidden lg:flex flex-1 items-center justify-center lg:space-x-1.5 xl:space-x-0 xl:justify-evenly mx-2 xl:mx-6 2xl:mx-10 max-w-5xl 2xl:max-w-6xl">
+          {!isAdminPage && (
+            <>
+              {/* Desktop Navigation with Dropdowns */}
+              <nav className="hidden lg:flex flex-1 items-center justify-center lg:space-x-1.5 xl:space-x-0 xl:justify-evenly mx-2 xl:mx-6 2xl:mx-10 max-w-5xl 2xl:max-w-6xl">
             {navItems.map((item) => {
               const active = isActive(item.href);
               const hasDropdown = Boolean(item.dropdown);
@@ -474,21 +443,31 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex lg:hidden items-center space-x-2">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+              {/* Mobile quick CTA & menu toggle button */}
+              <div className="flex lg:hidden items-center space-x-2">
+                <Link
+                  href="/dich-vu#bao-gia"
+                  onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
+                  className="sm:hidden px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#DC2626] to-[#D4AF37] text-white text-xs font-black shadow-md uppercase tracking-wider"
+                >
+                  Báo Giá
+                </Link>
+
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/60"
+                  aria-label="Toggle menu"
+                >
+                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Mobile Drawer with Accordion Submenus */}
-      {mobileMenuOpen && (
+      {!isAdminPage && mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-slate-200 px-4 pt-3 pb-6 space-y-2 shadow-2xl animate-in slide-in-from-top-2 duration-200 max-h-[80vh] overflow-y-auto">
           <div className="py-2 text-xs text-[#B8860B] font-semibold border-b border-slate-100 flex items-center">
             <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />

@@ -1,0 +1,103 @@
+{
+  "_meta": {
+    "id": "A3",
+    "title": "Hồ sơ sự kiện đã làm",
+    "source": "src/lib/company-data.ts (PROJECTS_DATA)",
+    "rule": "Đây là dự án duy nhất AI được nhắc tên trong bài. Chỉ dùng đúng các trường có trong file; không tự thêm số khách, ngân sách, nhận xét khách hàng nếu trường đó trống.",
+    "warning": "File src/app/admin-radar/event-profiles-data.ts có các hồ sơ như Sun Group, FPT Software, Viettel, VinFast kèm ngân sách và bảng chi phí tính tự động (totalBudget × tỷ lệ). Đó là dữ liệu mẫu, KHÔNG đưa vào Bộ não cho đến khi công ty xác nhận là dự án thật.",
+    "image_note": "proj-1 và proj-2 dùng ảnh thật trong /public/images/projects. Các dự án còn lại đang dùng ảnh stock Unsplash: không được chú thích là ảnh thực tế sự kiện."
+  },
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "Lễ thông xe dự án sửa chữa cầu Thăng Long",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "client": "Tổng cục Đường bộ Việt Nam và Bộ GTVT",
+      "year": 2021,
+      "location": "Hà Nội",
+      "scope": "Sân khấu, thiết bị âm thanh ánh sáng, điều phối nghi thức cắt băng thông xe",
+      "scale": null,
+      "budget": null,
+      "testimonial": null,
+      "real_photo": "/images/projects/cau-thang-long.jpg"
+    },
+    {
+      "id": "proj-2",
+      "title": "Lễ khánh thành hệ thống điện mặt trời áp mái tại nhà máy EIFFEL",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "client": "Công ty Cổ phần DAMSAN",
+      "year": 2022,
+      "location": "Thái Bình",
+      "scope": "Tổ chức lễ khánh thành, khách mời là lãnh đạo sở ngành tỉnh Thái Bình và đối tác",
+      "scale": "hơn 500 khách mời",
+      "budget": null,
+      "testimonial": null,
+      "real_photo": "/images/projects/nha-may-eiffel.jpg"
+    },
+    {
+      "id": "proj-3",
+      "title": "Lễ mở bán dự án Vinpearl Resort & Golf Nam Hội An",
+      "cluster_ids": ["hoi-nghi-hoi-thao"],
+      "client": "Vingroup / đơn vị phân phối bất động sản",
+      "year": 2022,
+      "location": "Quảng Nam",
+      "scope": "Sự kiện mở bán cho nhà đầu tư, màn hình LED cong, sân khấu biểu diễn",
+      "scale": "hàng trăm nhà đầu tư",
+      "budget": null,
+      "testimonial": null,
+      "real_photo": null
+    },
+    {
+      "id": "proj-4",
+      "title": "Chuỗi lễ khai trương điểm bán LocknLock, Toyoky, showroom Nam Hải Ceramic",
+      "cluster_ids": ["khai-truong-khanh-thanh"],
+      "client": "LocknLock, Nam Hải Ceramic, Cafe Sài Gòn",
+      "year": 2023,
+      "location": "Hà Nội và TP.HCM",
+      "scope": "Khai trương tại trung tâm thương mại: múa lân sư rồng, minigame bốc thăm, hoạt động kích hoạt thương hiệu",
+      "scale": null,
+      "budget": null,
+      "testimonial": null,
+      "real_photo": null
+    },
+    {
+      "id": "proj-5",
+      "title": "Tiệc tất niên YEP và hội chợ xuân tri ân",
+      "cluster_ids": ["year-end-party-gala"],
+      "client": "Công an phường Yên Hòa, Miss Hoa TOEIC, TL K11",
+      "year": 2023,
+      "location": "Hà Nội",
+      "scope": "Gala mừng xuân, dựng không gian Tết cổ truyền, sân khấu âm nhạc",
+      "scale": null,
+      "budget": null,
+      "testimonial": null,
+      "real_photo": null
+    },
+    {
+      "id": "proj-6",
+      "title": "Hội thao kỷ niệm 24 năm LABCO và company trip 4N3Đ TL K11",
+      "cluster_ids": ["teambuilding", "tour-doanh-nghiep"],
+      "client": "Công ty Cổ phần LABCO, Địa ốc TL K11",
+      "year": 2024,
+      "location": "Đà Nẵng – Hội An",
+      "scope": "Hội thao toàn công ty kết hợp tour nghỉ dưỡng 4 ngày 3 đêm",
+      "scale": "hơn 300 cán bộ nhân viên",
+      "budget": null,
+      "testimonial": null,
+      "real_photo": null
+    },
+    {
+      "id": "proj-7",
+      "title": "Chương trình thiện nguyện \"Chắp cánh ước mơ\" và \"Hướng về Sìn Hồ\"",
+      "cluster_ids": ["du-lich-trai-nghiem"],
+      "client": "Trường Hải Event và nhóm tình nguyện cộng đồng",
+      "year": 2024,
+      "location": "Yên Bái và Lai Châu",
+      "scope": "Trao quà, áo ấm, học bổng cho học sinh điểm trường khó khăn",
+      "scale": "hơn 1.000 phần quà",
+      "budget": null,
+      "testimonial": null,
+      "real_photo": null
+    }
+  ]
+}

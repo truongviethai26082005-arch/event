@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { PROMOTION_COMBOS, PromotionCombo } from "../data/services-data";
+import ScrollReveal from "./ScrollReveal";
 import {
   Sparkles,
   Gift,
@@ -9,7 +10,6 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertCircle,
   Percent,
   Flame,
 } from "lucide-react";
@@ -30,67 +30,75 @@ export default function PromotionSection({ onSelectPromo }: PromotionSectionProp
     <section id="khuyen-mai" className="py-16 bg-gradient-to-b from-white via-amber-50/30 to-slate-50 scroll-mt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
-        <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-amber-400/20 to-amber-500/10 border border-[#D4AF37]/40 text-[#0A1E5E] text-xs font-bold shadow-sm">
-            <Flame className="w-4 h-4 text-amber-600 animate-bounce" />
-            <span>ĐỘC QUYỀN MÙA SỰ KIỆN & DU LỊCH 2026</span>
+        <ScrollReveal direction="up" delay={50}>
+          <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-amber-400/20 to-amber-500/10 border border-[#D4AF37]/40 text-[#0A1E5E] text-xs font-bold shadow-sm">
+              <Flame className="w-4 h-4 text-amber-600 animate-bounce" />
+              <span>ĐỘC QUYỀN MÙA SỰ KIỆN & DU LỊCH 2026</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A1E5E] tracking-tight">
+              Gói Combo Ưu Đãi & Quà Tặng Đột Phá
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-light">
+              Thiết kế theo mô hình tích hợp của các tập đoàn sự kiện hàng đầu. 
+              Tối ưu chi phí trực tiếp tận kho, tặng kèm thiết bị và quà tặng cao cấp giúp gia tăng tối đa trải nghiệm của khách mời.
+            </p>
+
+            {/* Filter Sub-Tabs for Promo */}
+            <div className="inline-flex p-1 rounded-xl bg-slate-200/70 border border-slate-300/80 text-xs font-semibold">
+              <button
+                onClick={() => setFilterCategory("all")}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filterCategory === "all"
+                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
+                    : "text-slate-600 hover:text-[#0A1E5E]"
+                }`}
+              >
+                Tất Cả Ưu Đãi ({PROMOTION_COMBOS.length})
+              </button>
+              <button
+                onClick={() => setFilterCategory("su-kien")}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filterCategory === "su-kien"
+                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
+                    : "text-slate-600 hover:text-[#0A1E5E]"
+                }`}
+              >
+                Combo Sự Kiện
+              </button>
+              <button
+                onClick={() => setFilterCategory("du-lich")}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filterCategory === "du-lich"
+                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
+                    : "text-slate-600 hover:text-[#0A1E5E]"
+                }`}
+              >
+                Combo Tour & MICE
+              </button>
+            </div>
           </div>
-
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0A1E5E] tracking-tight">
-            Gói Combo Ưu Đãi & Quà Tặng Đột Phá
-          </h2>
-
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-light">
-            Thiết kế theo mô hình tích hợp của các tập đoàn sự kiện hàng đầu (như Hòa Bình Group). 
-            Tối ưu chi phí trực tiếp tận kho, tặng kèm thiết bị và quà tặng cao cấp giúp gia tăng tối đa trải nghiệm của khách mời.
-          </p>
-
-          {/* Filter Sub-Tabs for Promo */}
-          <div className="inline-flex p-1 rounded-xl bg-slate-200/70 border border-slate-300/80 text-xs font-semibold">
-            <button
-              onClick={() => setFilterCategory("all")}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                filterCategory === "all"
-                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
-                  : "text-slate-600 hover:text-[#0A1E5E]"
-              }`}
-            >
-              Tất Cả Ưu Đãi ({PROMOTION_COMBOS.length})
-            </button>
-            <button
-              onClick={() => setFilterCategory("su-kien")}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                filterCategory === "su-kien"
-                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
-                  : "text-slate-600 hover:text-[#0A1E5E]"
-              }`}
-            >
-              Combo Sự Kiện
-            </button>
-            <button
-              onClick={() => setFilterCategory("du-lich")}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                filterCategory === "du-lich"
-                  ? "bg-[#0A1E5E] text-[#D4AF37] shadow"
-                  : "text-slate-600 hover:text-[#0A1E5E]"
-              }`}
-            >
-              Combo Tour & MICE
-            </button>
-          </div>
-        </div>
+        </ScrollReveal>
 
         {/* Promo Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {filteredCombos.map((combo) => (
-            <div
+          {filteredCombos.map((combo, cIdx) => (
+            <ScrollReveal
               key={combo.id}
-              className={`relative rounded-3xl bg-white border transition-all duration-300 overflow-hidden flex flex-col justify-between hover:shadow-2xl ${
-                combo.isPopular
-                  ? "border-[#D4AF37] shadow-xl shadow-amber-500/10 ring-2 ring-[#D4AF37]/30"
-                  : "border-slate-200 shadow-md"
-              }`}
+              direction="up"
+              delay={cIdx * 120}
+              duration={650}
+              className="h-full"
             >
+              <div
+                className={`relative rounded-3xl bg-white border transition-all duration-300 overflow-hidden flex flex-col justify-between hover:shadow-2xl h-full ${
+                  combo.isPopular
+                    ? "border-[#D4AF37] shadow-xl shadow-amber-500/10 ring-2 ring-[#D4AF37]/30"
+                    : "border-slate-200 shadow-md"
+                }`}
+              >
               {/* Badge top */}
               {combo.isPopular && (
                 <div className="absolute top-0 right-0">
@@ -166,15 +174,8 @@ export default function PromotionSection({ onSelectPromo }: PromotionSectionProp
                 </button>
               </div>
             </div>
+          </ScrollReveal>
           ))}
-        </div>
-
-        {/* Small Trust Note */}
-        <div className="mt-10 p-4 rounded-2xl bg-white border border-slate-200/80 text-center max-w-2xl mx-auto shadow-sm flex items-center justify-center gap-2 text-xs text-slate-600">
-          <AlertCircle className="w-4 h-4 text-[#D4AF37] shrink-0" />
-          <span>
-            Các chương trình ưu đãi được bảo lưu giá trị trong <strong>30 ngày</strong> kể từ khi gửi Form đăng ký. Cam kết giữ nguyên chất lượng thiết bị chuẩn quốc tế!
-          </span>
         </div>
       </div>
     </section>

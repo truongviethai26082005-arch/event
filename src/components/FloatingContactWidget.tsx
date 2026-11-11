@@ -1,11 +1,23 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { Phone } from "lucide-react";
 import { COMPANY_INFO } from "@/lib/company-data";
-import { trackLandingLead } from "@/app/admin-radar/lead-tracker";
+import { handleContactClick } from "@/app/admin-radar/lead-tracker";
 
 export default function FloatingContactWidget() {
+  const pathname = usePathname();
+
+  // Không hiển thị cụm nút liên hệ nổi trên các trang quản trị (Admin Dashboard, Radar, Leads,...)
+  if (
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/admin-radar") ||
+    pathname?.startsWith("/admin-login") ||
+    pathname === "/login"
+  ) {
+    return null;
+  }
   const contactItems: {
     id: string;
     label: string;
@@ -32,7 +44,7 @@ export default function FloatingContactWidget() {
     {
       id: "messenger",
       label: "Nhắn tin Messenger",
-      href: "https://m.me/truonghaievent",
+      href: COMPANY_INFO.socials.messenger,
       bgClass: "bg-gradient-to-tr from-[#006AFF] via-[#00B2FF] to-[#A824FB] hover:opacity-95 shadow-[#006AFF]/30",
       leadSource: "FACEBOOK",
       icon: (
@@ -72,7 +84,7 @@ export default function FloatingContactWidget() {
   return (
     <aside
       aria-label="Kênh liên hệ nhanh"
-      className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2.5 sm:gap-3 pointer-events-auto"
+      className="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2 sm:gap-3 pointer-events-auto pb-[env(safe-area-inset-bottom,0px)]"
     >
       {contactItems.map((item) => (
         <a
@@ -80,13 +92,13 @@ export default function FloatingContactWidget() {
           href={item.href}
           target={item.isExternal ? "_blank" : undefined}
           rel={item.isExternal ? "noopener noreferrer" : undefined}
-          onClick={() => {
+          onClick={(e) => {
             if (item.leadSource) {
-              trackLandingLead(item.leadSource);
+              handleContactClick(e, item.leadSource);
             }
           }}
           aria-label={item.label}
-          className={`group relative flex items-center justify-center w-12 h-12 sm:w-[50px] sm:h-[50px] rounded-full text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 ${item.bgClass}`}
+          className={`group relative flex items-center justify-center w-11 h-11 sm:w-[50px] sm:h-[50px] rounded-full text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 ${item.bgClass}`}
         >
           {item.hasPulse && (
             <span className="absolute -inset-1.5 rounded-full bg-amber-400 opacity-40 animate-ping -z-10 pointer-events-none" />

@@ -116,6 +116,15 @@ function ThankYouContent() {
           {/* 1. KHUNG THÔNG BÁO THÀNH CÔNG (HERO CARD - NỀN XANH NAVY) */}
           {/* ========================================================= */}
           <div className="bg-gradient-to-r from-[#06123B] via-[#0A1E5E] to-[#122868] text-white p-8 sm:p-12 text-center relative overflow-hidden">
+            {/* Subtle Grid overlay matching homepage hero */}
+            <div 
+              className="absolute inset-0 opacity-[0.035] pointer-events-none"
+              style={{
+                backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
+                backgroundSize: "48px 48px",
+              }}
+            />
+
             {/* Ambient gold & blue glow circles */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -135,9 +144,18 @@ function ThankYouContent() {
               <span>YÊU CẦU BÁO GIÁ ĐÃ ĐƯỢC GHI NHẬN THÀNH CÔNG.</span>
             </div>
 
-            {/* Tiêu đề chính (đã loại bỏ dấu chấm thừa) */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              Cảm Ơn Quý Khách{trimmedName && trimmedName !== "Quý Khách" ? ` ${trimmedName}` : ""}!
+            {/* Tiêu đề chính phối phong cách thương hiệu Trường Hải (in hoa đậm gradient vàng kim + chữ ký Careera Script) */}
+            <h1 className="text-2xl sm:text-4xl md:text-[44px] font-bold tracking-tight leading-[1.25]">
+              <span className="text-white drop-shadow-sm">CẢM ƠN</span>{" "}
+              <span className="bg-gradient-to-r from-[#FFF4B8] via-[#D4AF37] to-[#F59E0B] bg-clip-text text-transparent drop-shadow-md">
+                QUÝ KHÁCH{capitalizedName && capitalizedName !== "Quý Khách" ? ` ${capitalizedName.toUpperCase()}` : ""}!
+              </span>
+              <span
+                style={{ fontFamily: "'Careera Script', 'Careera Script PERSONAL USE', cursive" }}
+                className="block mt-2 sm:mt-2.5 font-careera text-3xl sm:text-4xl md:text-[42px] font-normal bg-gradient-to-r from-amber-100 via-amber-300 to-[#D4AF37] bg-clip-text text-transparent leading-[1.2] tracking-normal drop-shadow-md normal-case"
+              >
+                Kết nối thành công
+              </span>
             </h1>
 
             {/* Nội dung thông báo tiếp nhận */}

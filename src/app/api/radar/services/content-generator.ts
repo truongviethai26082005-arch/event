@@ -10,7 +10,6 @@
  * Phạm vi: Nội bộ src/app/api/radar/services/content-generator.ts
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { callGeminiWithFallback } from "./gemini-client";
 import {
   IntentAnalysisResult,
@@ -528,15 +527,6 @@ export async function generateFullContentAndSchema(
 
   if (geminiApiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.7,
-        },
-      });
-
       const costTableText = activeProfile.financials?.items
         ?.map((it) => `  * ${it.category}: ${it.description} (${it.quantity} ${it.unit}) = ${formatVND(it.totalPrice)}`)
         .join("\n") || "Đang cập nhật";
