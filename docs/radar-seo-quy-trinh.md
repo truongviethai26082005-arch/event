@@ -234,7 +234,7 @@ Toàn bộ dây chuyền 1–7 đã có trong `/admin-radar` → mục **"0. Dâ
 | Bước | Màn hình | Máy tự làm | Code chính |
 |---|---|---|---|
 | Hôm nay làm gì | Tab đầu tiên | Gom mọi việc cần người, xếp ưu tiên | `admin-radar/pipeline/RadarPipeline.tsx` |
-| 1–3 | Tab "Từ khóa · Top Google · Cào bài" | Serper top 10 (Hà Nội), lọc đối thủ, đọc bài (không tạo nội dung giả) | `lib/radar/serper.ts`, `page-reader.ts`, `run.ts` |
+| 1–3 | Tab "Từ khóa · Top Google · Cào bài" | Serper top 10 (toàn quốc Việt Nam), lọc đối thủ, đọc bài (không tạo nội dung giả) | `lib/radar/serper.ts`, `page-reader.ts`, `run.ts` |
 | 4 So sánh | Tab "So sánh" | Code đo tín hiệu (số chữ, % có giá / FAQ / dự án, năm cập nhật) + AI ra A/B/C | `lib/radar/compare.ts` |
 | 5 Đề xuất | Tab "Đề xuất" | Viết mới / Viết lại + brief + điểm 0–100 có lý do | `lib/radar/compare.ts` (scoreProposal) |
 | 6 Viết & đăng | Tab "Viết & đăng" | AI viết theo brief chỉ từ chất liệu thật (dự án, Bảng đơn giá); QA code (từ cấm, [CẦN SỐ LIỆU], dàn ý); viết mới → Kho bài viết; viết lại → áp dụng giữ slug | `lib/radar/writer.ts` |

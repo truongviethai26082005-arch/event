@@ -376,310 +376,223 @@ export default function RadarCronManager({
   return (
     <div className="space-y-6">
       {/* =====================================================================
-          1. DÂY CHUYỀN SẢN XUẤT NỘI DUNG RADAR SEO (WORKFLOW PIPELINE - ẢNH MẪU)
+          1. 3 BƯỚC CÔNG VIỆC TRỌNG TÂM CỦA KẾ HOẠCH TỪ KHÓA
       ===================================================================== */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-slate-50/90 border border-slate-200 shadow-2xs space-y-4">
-        {/* Header: Hôm nay làm gì */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-slate-50 border border-slate-200 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-              <Compass className="w-4 h-4 text-amber-700" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h4 className="text-sm font-black text-slate-900">
-                  Dây Chuyền Radar SEO — Hôm Nay Làm Gì
-                </h4>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Dây chuyền đang hoạt động" />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Việc đang chờ bạn theo thứ tự dây chuyền, hãy giải quyết việc chặn dòng trước để thông luồng xuất bản.
-              </p>
-            </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-900 uppercase tracking-wide">
+              3 Bước công việc của Kế hoạch từ khóa
+            </h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Quy trình phát hiện khoảng trống nội dung và tự động tạo bài viết mới lấp đầy đề tài cho website
+            </p>
           </div>
-
-          <div className="flex items-center space-x-2 self-start sm:self-auto text-xs text-slate-500 font-medium">
-            <span className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 font-bold text-slate-700 shadow-2xs">
-              Mục tiêu: Chiếm đất từ đối thủ
-            </span>
-          </div>
+          <span className="self-start sm:self-auto rounded-lg bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold">
+            Dây chuyền đang hoạt động
+          </span>
         </div>
 
-        {/* 3 HÀNG DÂY CHUYỀN (THEO MÔ HÌNH CHUẨN TRONG ẢNH) */}
-        <div className="space-y-3 pt-1">
-          {/* Nhánh 1: Nền — Kho tri thức */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-[11px] font-bold text-slate-500 min-w-36">
-              Nền — kho tri thức:
-            </span>
-            <button
-              type="button"
-              onClick={() => onNavigateSection && onNavigateSection("events")}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">0</span>
-              <span>Nền: Kho tri thức thực tế (Ảnh & Báo giá)</span>
-            </button>
+        {/* Lưới 3 bước quy trình */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* Bước 1 */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-black text-blue-700 uppercase tracking-wide">Bước 1</span>
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">Tự động rà quét</span>
+              </div>
+              <h5 className="text-sm font-bold text-slate-900 leading-snug">
+                Quét bài mới của đối thủ
+              </h5>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Máy rà soát các bài viết dịch vụ và cẩm nang mới nhất mà đối thủ vừa xuất bản lên mạng.
+              </p>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500">Thao tác:</span>
+              <button
+                type="button"
+                onClick={handleLiveRun}
+                disabled={isRunningLive || isRunningDryRun}
+                className="font-bold text-[#0A1E5E] hover:underline cursor-pointer"
+              >
+                Quét ngay
+              </button>
+            </div>
           </div>
 
-          {/* Nhánh 2: Chiếm đất — Viết mới (5 trạm dây chuyền) */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-[11px] font-bold text-amber-800 min-w-36 flex items-center space-x-1">
-              <span>Chiếm đất — viết mới:</span>
-            </span>
-
-            {/* Trạm 1: Radar Quét */}
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("radar-machine-status");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[10px] font-black flex items-center justify-center">1</span>
-              <span>Radar: Quét đối thủ</span>
-            </button>
-
-            <span className="text-slate-400 font-bold">➔</span>
-
-            {/* Trạm 2: Khoảng trống */}
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("content-gaps-list");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">2</span>
-              <span>Khoảng trống: Chỗ mình có thấp</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                {missingCount}
-              </span>
-            </button>
-
-            <span className="text-slate-400 font-bold">➔</span>
-
-            {/* Trạm 3: Hướng nội dung */}
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("topic-clusters-map");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">3</span>
-              <span>Hướng nội dung: Gom thành cụm</span>
-            </button>
-
-            <span className="text-slate-400 font-bold">➔</span>
-
-            {/* Trạm 4: Kế hoạch */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onSelectStatus) onSelectStatus("in_plan");
-                const el = document.getElementById("content-gaps-list");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">4</span>
-              <span>Kế hoạch: Bài dự kiến</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                {inPlanCount}
-              </span>
-            </button>
-
-            <span className="text-slate-400 font-bold">➔</span>
-
-            {/* Trạm 5: Nháp chờ duyệt */}
-            <button
-              type="button"
-              onClick={() => onNavigateSection && onNavigateSection("posts")}
-              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center">5</span>
-              <span>Nháp: Chờ duyệt, đăng</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-600 text-white">
-                {draftedCount}
-              </span>
-            </button>
+          {/* Bước 2 */}
+          <div className="p-4 rounded-2xl bg-white border border-amber-200 bg-amber-50/20 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-black text-amber-800 uppercase tracking-wide">Bước 2</span>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">{missingCount} bài thiếu</span>
+              </div>
+              <h5 className="text-sm font-bold text-slate-900 leading-snug">
+                Lọc khoảng trống nội dung
+              </h5>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Hệ thống chỉ ra các từ khóa đối thủ đã lên Top Google mà website Trường Hải chưa có bài viết.
+              </p>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500">Xem danh sách:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectStatus) onSelectStatus("missing");
+                  const el = document.getElementById("content-gaps-list");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="font-bold text-amber-800 hover:underline cursor-pointer"
+              >
+                Xem {missingCount} bài thiếu
+              </button>
+            </div>
           </div>
 
-          {/* Nhánh 3: Giữ đất — Nâng cái đã có */}
-          <div className="flex flex-wrap items-center gap-2 text-xs pt-1 border-t border-slate-200/60">
-            <span className="text-[11px] font-bold text-slate-500 min-w-36">
-              Giữ đất — nâng cái đã có:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("topic-clusters-map");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-medium flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">6</span>
-              <span>Leo top: Nâng trang đã có</span>
-            </button>
-
-            <span className="text-slate-400 font-bold">➔</span>
-
-            <button
-              type="button"
-              onClick={() => onNavigateSection && onNavigateSection("posts")}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-medium flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">7</span>
-              <span>Mạng nhện: Link cũ ➔ mới</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                2
-              </span>
-            </button>
+          {/* Bước 3 */}
+          <div className="p-4 rounded-2xl bg-white border border-emerald-200 bg-emerald-50/20 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wide">Bước 3</span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">{draftedCount} bài nháp</span>
+              </div>
+              <h5 className="text-sm font-bold text-slate-900 leading-snug">
+                Tạo bài viết bằng AI
+              </h5>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Bấm nút để AI tự động viết bài mới vượt trội, bù đắp lỗ hổng nội dung và đưa sang Kho bài viết để duyệt.
+              </p>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500">Kho bài viết:</span>
+              <button
+                type="button"
+                onClick={() => onNavigateSection && onNavigateSection("duyet_bai")}
+                className="font-bold text-emerald-800 hover:underline cursor-pointer"
+              >
+                Xem bài chờ duyệt
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          2. KHỐI "MÁY ĐANG TỰ LÀM GÌ" & BỘ ĐIỀU KHIỂN (THEO ẢNH MẪU)
+          2. TRẠNG THÁI QUÉT TỰ ĐỘNG & BỘ NÚT ĐIỀU KHIỂN
       ===================================================================== */}
-      <div id="radar-machine-status" className="p-6 sm:p-7 rounded-3xl bg-slate-50 border border-slate-200 shadow-xs space-y-6 relative overflow-hidden">
-        {/* Glow nền nhẹ */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-100/30 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-          {/* CỘT TRÁI: HỘP "MÁY ĐANG TỰ LÀM GÌ" */}
-          <div className="space-y-3.5 flex-1 max-w-2xl">
-            <div className="flex items-center space-x-2.5">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
-              </span>
-              <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span>Máy đang tự làm gì</span>
+      <div id="radar-machine-status" className="p-5 sm:p-6 rounded-3xl bg-slate-50 border border-slate-200 shadow-xs space-y-4 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          {/* CỘT TRÁI: TIẾN TRÌNH TỰ ĐỘNG CỦA MÁY */}
+          <div className="space-y-2.5 flex-1 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="text-base font-extrabold text-slate-900">
+                Trạng thái quét tự động
               </h3>
-              <span className="text-[11px] text-slate-500 font-mono">
-                Cron: {config.cronExpression || "30 2 * * *"}
+              <span className="text-xs text-slate-500 font-medium">
+                (Lịch định kỳ lúc {config.scheduleTime || "02:30"} sáng hàng ngày)
               </span>
             </div>
 
-            {/* HỘP BÁO CÁO TIẾN TRÌNH CHI TIẾT (5 DÒNG TỰ NHIÊN) */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs text-slate-700 space-y-2 leading-relaxed shadow-2xs">
-              <p className="flex items-start space-x-2">
+            <div className="p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-700 space-y-1.5 leading-relaxed shadow-2xs">
+              <p className="flex items-start gap-2">
                 <span className="text-emerald-600 font-bold">•</span>
                 <span>
-                  <strong>Lịch đệm đã bật:</strong> {config.scheduleTime || "02:30"} mỗi đêm máy tự quét trang mới của các đối thủ (lịch đệm {config.bufferMinutes} phút dàn trải tải).
+                  <strong>Lịch tự động:</strong> Máy tự động quét bài mới của các đối thủ vào lúc {config.scheduleTime || "02:30"} mỗi đêm để không làm ảnh hưởng tốc độ website.
                 </span>
               </p>
-              <p className="flex items-start space-x-2">
+              <p className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold">•</span>
                 <span>
-                  <strong>Ca radar gần nhất:</strong> Xong lúc {config.lastRunAt ? new Date(config.lastRunAt).toLocaleTimeString("vi-VN") : "02:36:31 ngày 03/11/2026"}, bóc tách 24 bài viết mới (không có lỗi kết nối sitemap).
+                  <strong>Ca quét gần nhất:</strong> Xong lúc {config.lastRunAt ? new Date(config.lastRunAt).toLocaleTimeString("vi-VN") : "12:50:52"}, bóc tách 24 bài viết mới từ đối thủ thành công.
                 </span>
               </p>
-              <p className="flex items-start space-x-2">
+              <p className="flex items-start gap-2">
                 <span className="text-amber-600 font-bold">•</span>
                 <span>
-                  <strong>83 trang</strong> đã lấy chữ thô, đang xếp hàng chờ Gravity AI bóc tách Headings & phân tích Intent.
-                </span>
-              </p>
-              <p className="flex items-start space-x-2">
-                <span className="text-purple-600 font-bold">•</span>
-                <span>
-                  <strong>Gravity AI</strong> đã đọc và đối chiếu bài đối thủ với kho bài Trường Hải Event lúc 09:55:58 hôm nay.
-                </span>
-              </p>
-              <p className="flex items-start space-x-2">
-                <span className="text-rose-600 font-bold">•</span>
-                <span>
-                  <strong>{missingCount} bài máy viết chưa đạt / bị hổng:</strong> Cần bạn xem lại ở bảng bên dưới (bấm "Viết bài nháp ngay" để bù đắp).
+                  <strong>Đối soát nội dung:</strong> AI đã so sánh các bài đối thủ với kho bài viết của Trường Hải Event để tìm ra các chủ đề còn thiếu.
                 </span>
               </p>
             </div>
           </div>
 
-          {/* CỘT PHẢI: 2 Ô CHỈ SỐ HÀNG ĐỢI & BỘ 4 NÚT ĐIỀU KHIỂN */}
-          <div className="flex flex-col items-stretch lg:items-end justify-between gap-5 shrink-0">
-            {/* 2 Ô SỐ LIỆU TO (83 CHỜ MODEL ĐỌC | 278 TRANG ĐÃ ĐỌC) */}
-            <div className="flex items-center space-x-4">
-              {/* Thẻ 1: 83 Chờ model đọc */}
-              <div className="p-3.5 px-5 rounded-2xl bg-white border border-slate-200 text-center shadow-2xs">
-                <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">83</div>
-                <div className="text-[11px] font-semibold text-slate-500 mt-0.5">chờ model đọc</div>
+          {/* CỘT PHẢI: 2 Ô CHỈ SỐ & BỘ NÚT ĐIỀU KHIỂN */}
+          <div className="flex flex-col items-stretch lg:items-end justify-between gap-3.5 shrink-0">
+            {/* 2 Ô chỉ số */}
+            <div className="flex items-center gap-3">
+              <div className="p-3 px-4 rounded-xl bg-white border border-slate-200 text-center shadow-2xs min-w-28">
+                <div className="text-2xl font-black text-slate-900">83</div>
+                <div className="text-[11px] font-semibold text-slate-500 mt-0.5">bài chờ máy đọc</div>
               </div>
 
-              {/* Thẻ 2: 278 Trang đã đọc */}
-              <div className="p-3.5 px-5 rounded-2xl bg-white border border-slate-200 text-center shadow-2xs">
-                <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight">278</div>
-                <div className="text-[11px] font-semibold text-emerald-800 mt-0.5">trang đã đọc</div>
+              <div className="p-3 px-4 rounded-xl bg-white border border-slate-200 text-center shadow-2xs min-w-28">
+                <div className="text-2xl font-black text-emerald-700">278</div>
+                <div className="text-[11px] font-semibold text-emerald-800 mt-0.5">bài đã phân tích</div>
               </div>
             </div>
 
-            {/* BỘ 4 NÚT ĐIỀU KHIỂN */}
+            {/* BỘ NÚT ĐIỀU KHIỂN - BỎ TOÀN BỘ ICON */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsRescheduling(true)}
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all border border-slate-200 flex items-center space-x-1.5 shadow-2xs cursor-pointer"
-                title="Cài đặt khung giờ quét ngầm"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition border border-slate-200 shadow-2xs cursor-pointer"
+                title="Cài đặt khung giờ quét tự động"
               >
-                <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                <span>Hẹn lại</span>
+                Hẹn giờ quét
               </button>
 
               <button
                 type="button"
                 onClick={handleDryRun}
                 disabled={isRunningDryRun || isRunningLive}
-                className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer shadow-2xs ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition border shadow-2xs disabled:opacity-50 cursor-pointer ${
                   dryRunInspection
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                    ? "bg-blue-600 text-white border-blue-600"
                     : "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                 }`}
-                title="Chạy thử nghiệm sitemap đối thủ & xem trước 3 bài mẫu"
+                title="Kiểm tra kết nối sitemap đối thủ thử nghiệm"
               >
-                <Zap className={`w-3.5 h-3.5 shrink-0 ${isRunningDryRun ? "animate-spin text-blue-400" : dryRunInspection ? "text-white" : "text-blue-600"}`} />
-                <span>{isRunningDryRun ? "Đang thử..." : "Chạy thử"}</span>
+                {isRunningDryRun ? "Đang thử…" : "Chạy thử"}
               </button>
 
               <button
                 type="button"
                 onClick={handleLiveRun}
                 disabled={isRunningDryRun || isRunningLive}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-500 text-[#0A1E5E] text-xs font-black transition-all hover:brightness-105 flex items-center space-x-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
-                title="Quét toàn diện đối thủ & cập nhật Khoảng Trống SEO ngay bây giờ"
+                className="px-4 py-2 rounded-xl bg-[#0A1E5E] text-white text-xs font-bold transition hover:bg-[#142d75] shadow-sm disabled:opacity-50 cursor-pointer"
+                title="Kích hoạt quét toàn diện đối thủ và tìm khoảng trống SEO mới"
               >
-                <Play className={`w-3.5 h-3.5 fill-current shrink-0 ${isRunningLive ? "animate-spin" : ""}`} />
-                <span>{isRunningLive ? "Đang quét..." : "Chạy thật"}</span>
+                {isRunningLive ? "Đang quét…" : "Quét thật ngay"}
               </button>
 
               <button
                 type="button"
                 onClick={handleReload}
-                className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 transition-all border border-slate-200 cursor-pointer shadow-2xs"
-                title="Tải lại trạng thái"
+                className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition border border-slate-200 cursor-pointer shadow-2xs"
+                title="Làm mới lại trạng thái"
               >
-                <RotateCw className="w-3.5 h-3.5" />
+                Làm mới
               </button>
             </div>
           </div>
         </div>
 
-        {/* THÔNG TIN CHÚ THÍCH HÀNG ĐỢI (ĐÚNG PHONG CÁCH ẢNH MẪU) */}
-        <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500 font-medium">
+        {/* THÔNG TIN CHÚ THÍCH HÀNG ĐỢI GỌN GÀNG */}
+        <div className="pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500 font-medium">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span><strong>9 đối thủ</strong> đang theo dõi</span>
             <span>•</span>
             <span><strong>17.437 URL</strong> trong sitemap</span>
             <span>•</span>
-            <span>Hàng đợi 83 trang (nhịp 40 trang/đêm ➔ ~2 đêm đọc hết)</span>
+            <span>Hàng đợi 83 bài (nhịp 40 bài/đêm)</span>
           </div>
 
           <div className="text-amber-800 font-semibold">
-            Lịch đệm: {config.scheduleTime || "02:30"} hằng ngày • Ca tiếp theo: {config.scheduleTime || "02:30"} sáng mai
+            Ca quét kế tiếp: {config.scheduleTime || "02:30"} sáng mai
           </div>
         </div>
       </div>

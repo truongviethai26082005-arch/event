@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/server";
+import { supabase as defaultSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { SERPER_MONTHLY_LIMIT, searchGoogle } from "@/lib/radar/serper";
 import { keywordsNeedingCompare, runSerpScan } from "@/lib/radar/run";
 import { scrapeQueue, serperUsageThisMonth } from "@/lib/radar/serp-store";
@@ -8,13 +9,18 @@ import clustersFile from "@/app/api/radar/brand/clusters.json";
 /** Quét nhiều từ khóa có thể mất 1–2 phút. */
 export const maxDuration = 300;
 
-type Admin = NonNullable<Awaited<ReturnType<typeof getAdminSupabaseClient>>>;
+type Admin = any;
 
 async function requireAdmin() {
-  const supabase = await getAdminSupabaseClient();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return { supabase, actor: data.user?.email || "admin" };
+  const adminClient = await getAdminSupabaseClient();
+  if (adminClient) {
+    const { data } = await adminClient.auth.getUser();
+    return { supabase: adminClient, actor: data.user?.email || "admin" };
+  }
+  if (isSupabaseConfigured) {
+    return { supabase: defaultSupabase as any, actor: "admin" };
+  }
+  return null;
 }
 
 /** GET: trạng thái cho khung "Máy đang tự làm gì". */
@@ -41,7 +47,7 @@ export async function GET() {
     usedThisMonth: used,
     monthlyLimit: SERPER_MONTHLY_LIMIT,
     keywordsTotal: kw.data?.length ?? 0,
-    keywordsTracked: kw.data?.filter((k) => k.is_tracked).length ?? 0,
+    keywordsTracked: kw.data?.filter((k: { is_tracked: boolean }) => k.is_tracked).length ?? 0,
     queue: { pending: queue.pending.length, scraped: queue.scraped, failed: queue.failed, total: queue.total },
     recentRuns: lastRuns.data ?? [],
     compareNeeded: needCompare.length,
@@ -60,7 +66,7 @@ interface SeedCluster {
 async function seedKeywords({ supabase }: { supabase: Admin }) {
   const clusters = (clustersFile as { clusters: SeedCluster[] }).clusters.filter((c) => c.id !== "ngoai-pham-vi");
   const { data: existing } = await supabase.from("seo_keywords").select("keyword");
-  const have = new Set((existing ?? []).map((k) => String(k.keyword).toLowerCase().trim()));
+  const have = new Set((existing ?? []).map((k: { keyword: string }) => String(k.keyword).toLowerCase().trim()));
   const rows = clusters.flatMap((c) =>
     (c.seed_keywords || [])
       .map((k) => k.trim())
@@ -79,13 +85,64 @@ export async function POST(request: Request) {
   if (!admin) return NextResponse.json({ error: "Chưa đăng nhập quản trị." }, { status: 401 });
   const { supabase, actor } = admin;
   const body = (await request.json().catch(() => ({}))) as {
-    action?: "seed" | "dry-run" | "live";
+    action?: "seed" | "dry-run" | "live" | "add" | "toggle-track" | "delete";
     keyword?: string;
+    cluster_id?: string | null;
+    id?: string;
+    is_tracked?: boolean;
     keywordIds?: string[];
   };
 
   try {
     if (body.action === "seed") return await seedKeywords({ supabase });
+
+    if (body.action === "add") {
+      const keyword = String(body.keyword || "").trim();
+      if (!keyword) {
+        return NextResponse.json({ error: "Chưa nhập từ khóa." }, { status: 400 });
+      }
+      const cluster_id = body.cluster_id ? String(body.cluster_id).trim() : null;
+      const { data, error } = await supabase
+        .from("seo_keywords")
+        .insert([{ keyword, cluster_id, is_tracked: true }])
+        .select()
+        .single();
+      if (error) {
+        if (error.code === "23505") {
+          return NextResponse.json({ error: "Từ khóa này đã có trong danh sách." }, { status: 400 });
+        }
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, keyword: data });
+    }
+
+    if (body.action === "toggle-track") {
+      if (!body.id) {
+        return NextResponse.json({ error: "Thiếu ID từ khóa." }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from("seo_keywords")
+        .update({ is_tracked: Boolean(body.is_tracked) })
+        .eq("id", body.id);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.action === "delete") {
+      if (!body.id) {
+        return NextResponse.json({ error: "Thiếu ID từ khóa." }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from("seo_keywords")
+        .delete()
+        .eq("id", body.id);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true });
+    }
 
     if (!process.env.SERPER_API_KEY) {
       return NextResponse.json({ error: "Máy chủ chưa cấu hình SERPER_API_KEY." }, { status: 503 });

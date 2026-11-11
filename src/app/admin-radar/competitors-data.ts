@@ -37,7 +37,14 @@ export interface ContentGapItem {
   targetKeyword: string;
   competitorSource: string;
   competitorUrl: string;
-  clusterCategory: "Khai trương & Khánh thành" | "Teambuilding & Outing" | "Hội nghị & Gala" | "Âm thanh & Thiết bị" | "Cẩm nang & Kinh nghiệm";
+  clusterCategory:
+    | "Khai trương & Khánh thành"
+    | "Teambuilding & Outing"
+    | "Hội nghị & Gala"
+    | "Âm thanh & Thiết bị"
+    | "Cẩm nang & Kinh nghiệm"
+    | "Sinh nhật & Tiệc cưới"
+    | string;
   priority: "high" | "medium" | "low";
   searchIntent: "informational" | "commercial" | "transactional";
   ourSiteStatus: "missing" | "in_plan" | "drafted";
@@ -197,6 +204,36 @@ export const DEFAULT_CONTENT_GAPS: ContentGapItem[] = [
     gapReason: "Tập khách hàng doanh nghiệp khu công nghiệp có ngân sách lớn (100 - 500 triệu).",
     estimatedSearchVolume: "800 tìm kiếm/tháng",
     createdAt: "2026-10-31T02:32:15.000Z",
+  },
+  {
+    id: "gap-6",
+    topic: "Kịch bản tổ chức tiệc sinh nhật công ty 5 năm ý nghĩa và ấm cúng",
+    targetKeyword: "kịch bản tổ chức sinh nhật công ty 5 năm",
+    competitorSource: "Sen Xanh Event",
+    competitorUrl: "https://senxanhevent.vn/kich-ban-sinh-nhat-cong-ty",
+    clusterCategory: "Sinh nhật & Tiệc cưới",
+    priority: "high",
+    searchIntent: "commercial",
+    ourSiteStatus: "missing",
+    suggestedTitle: "Kịch Bản Tổ Chức Tiệc Sinh Nhật Công Ty 5 Năm & 10 Năm Ý Nghĩa, Tiết Kiệm Chi Phí",
+    gapReason: "Nhiều doanh nghiệp tìm kiếm kịch bản mẫu cho ngày kỷ niệm thành lập công ty; web Trường Hải Event hiện chưa có bài viết chi tiết.",
+    estimatedSearchVolume: "1,500 tìm kiếm/tháng",
+    createdAt: "2026-11-04T02:30:00.000Z",
+  },
+  {
+    id: "gap-7",
+    topic: "Báo giá gói trang trí và tổ chức tiệc cưới ngoài trời lãng mạn trọn gói",
+    targetKeyword: "báo giá tiệc cưới ngoài trời trọn gói",
+    competitorSource: "Á Châu Event",
+    competitorUrl: "https://sukienachau.com/bao-gia-tiec-cuoi-ngoai-troi",
+    clusterCategory: "Sinh nhật & Tiệc cưới",
+    priority: "medium",
+    searchIntent: "transactional",
+    ourSiteStatus: "in_plan",
+    suggestedTitle: "Báo Giá Tổ Chức Tiệc Cưới Ngoài Trời Trọn Gói 2026: Sân Vườn, Bãi Biển, Resort",
+    gapReason: "Xu hướng đám cưới ngoài trời tăng mạnh trong giới trẻ; đối thủ đã lên Top với bảng báo giá chi tiết từng hạng mục.",
+    estimatedSearchVolume: "2,100 tìm kiếm/tháng",
+    createdAt: "2026-11-04T02:30:00.000Z",
   },
 ];
 

@@ -4,8 +4,8 @@ import { COMPANY_INFO } from "@/lib/company-data";
 /** Giới hạn lượt Serper mỗi tháng (credit miễn phí 2.500, hạn 6 tháng). Đổi bằng SERPER_MONTHLY_LIMIT. */
 export const SERPER_MONTHLY_LIMIT = Number(process.env.SERPER_MONTHLY_LIMIT) || 300;
 
-/** Vị trí người tìm: kết quả giống khách ở Hà Nội thấy. */
-const SEARCH_LOCATION = "Hanoi, Hanoi, Vietnam";
+/** Vị trí người tìm: mặc định toàn Việt Nam (hoặc tùy chỉnh qua biến SERPER_LOCATION). */
+const SEARCH_LOCATION = process.env.SERPER_LOCATION || "Vietnam";
 
 export type ResultKind = "competitor" | "own" | "social" | "news" | "marketplace" | "gov" | "video" | "other";
 
@@ -90,7 +90,7 @@ function realLink(link: string) {
   return link;
 }
 
-/** Tìm 1 từ khóa trên Google Việt Nam (vị trí Hà Nội), trả top 10 đã phân loại. Tốn 1 lượt Serper. */
+/** Tìm 1 từ khóa trên Google Việt Nam (phạm vi toàn quốc), trả top 10 đã phân loại. Tốn 1 lượt Serper. */
 export async function searchGoogle(keyword: string): Promise<SerpSearch> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) throw new Error("Máy chủ chưa cấu hình SERPER_API_KEY.");

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.serp_comparisons (
   summary TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE INDEX IF NOT EXISTS serp_comparisons_keyword_idx ON public.serp_comparisons (keyword_id, created_at DESC);
 
 -- BƯỚC 5–6: ĐỀ XUẤT VIẾT MỚI / VIẾT LẠI ----------------------------------------

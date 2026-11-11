@@ -89,9 +89,11 @@ export async function GET(req: NextRequest) {
         priority,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to load brand data";
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to load brand data" },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -110,10 +112,46 @@ export async function PUT(req: NextRequest) {
     }
 
     let filePath = "";
+    let payloadToWrite: unknown = data;
+
     if (target === "company") {
       filePath = path.join(BRAND_DIR, "company.json");
     } else if (target === "services") {
       filePath = path.join(BRAND_DIR, "services.json");
+      const existing = readJsonFile(filePath) as Record<string, unknown> | null;
+      const incoming = data as Record<string, unknown>;
+      if (!incoming || !Array.isArray(incoming.services)) {
+        return NextResponse.json(
+          { success: false, error: "Services payload must include a services array" },
+          { status: 400 }
+        );
+      }
+      const existingMeta =
+        existing && typeof existing._meta === "object" && existing._meta !== null
+          ? (existing._meta as Record<string, unknown>)
+          : {};
+      const incomingMeta =
+        typeof incoming._meta === "object" && incoming._meta !== null
+          ? (incoming._meta as Record<string, unknown>)
+          : {};
+      payloadToWrite = {
+        _meta: {
+          ...existingMeta,
+          ...incomingMeta,
+          updated_at: new Date().toISOString(),
+        },
+        services: incoming.services,
+        packages: Array.isArray(incoming.packages)
+          ? incoming.packages
+          : Array.isArray(existing?.packages)
+          ? existing.packages
+          : [],
+        combos: Array.isArray(incoming.combos)
+          ? incoming.combos
+          : Array.isArray(existing?.combos)
+          ? existing.combos
+          : [],
+      };
     } else if (target === "projects") {
       filePath = path.join(BRAND_DIR, "projects.json");
     } else if (target === "clusters") {
@@ -125,15 +163,18 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    fs.writeFileSync(filePath, JSON.stringify(payloadToWrite, null, 2), "utf-8");
 
     return NextResponse.json({
       success: true,
       message: `Updated ${target} successfully`,
+      data: payloadToWrite,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update brand data";
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to update brand data" },
+      { success: false, error: message },
       { status: 500 }
     );
   }

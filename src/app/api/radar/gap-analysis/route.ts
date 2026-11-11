@@ -84,6 +84,26 @@ export async function GET(req: NextRequest) {
           },
         ],
       },
+      {
+        cluster: "Tổ chức sự kiện sinh nhật, tiệc cưới",
+        competitorTrends: "Xu hướng tiệc cưới ngoài trời, private wedding bãi biển, tiệc sinh nhật công ty kết hợp tri ân.",
+        gapTopics: [
+          {
+            topic: "Kế hoạch và chi phí tổ chức tiệc cưới ngoài trời trọn gói",
+            keyword: "chi phí tổ chức tiệc cưới ngoài trời trọn gói",
+            intent: "transactional",
+            priority: "high",
+            estimatedVolume: "1,600 tìm kiếm/tháng",
+          },
+          {
+            topic: "Ý tưởng và kịch bản tổ chức sinh nhật công ty ấn tượng",
+            keyword: "kịch bản tổ chức sinh nhật công ty ấn tượng",
+            intent: "commercial",
+            priority: "medium",
+            estimatedVolume: "1,100 tìm kiếm/tháng",
+          },
+        ],
+      },
     ];
 
     // Đối chiếu xem bài viết của chúng ta đã có từ khóa nào
