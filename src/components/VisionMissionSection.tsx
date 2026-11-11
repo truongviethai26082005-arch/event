@@ -86,7 +86,7 @@ export default function VisionMissionSection({
                 </div>
 
                 {/* Right Column: Architectural Skyscraper Image */}
-                <div className="lg:col-span-6 relative min-h-[300px] sm:min-h-[380px] lg:min-h-[440px] overflow-hidden bg-slate-200">
+                <div className="lg:col-span-6 relative h-56 sm:h-80 lg:min-h-[440px] overflow-hidden bg-slate-200">
                   <img
                     src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=85"
                     alt="Tầm nhìn Trường Hải Event & Travel - Tòa nhà hiện đại"
@@ -109,7 +109,7 @@ export default function VisionMissionSection({
             <div className="rounded-2xl sm:rounded-3xl bg-[#0A1E5E] border border-blue-900/80 shadow-xl overflow-hidden group hover:shadow-2xl transition-all duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
                 {/* Left Column: Team Hands Stacked Image (Shows first on desktop, matching image 3) */}
-                <div className="lg:col-span-6 order-2 lg:order-1 relative min-h-[300px] sm:min-h-[380px] lg:min-h-[440px] overflow-hidden bg-slate-900">
+                <div className="lg:col-span-6 order-2 lg:order-1 relative h-56 sm:h-80 lg:min-h-[440px] overflow-hidden bg-slate-900">
                   <img
                     src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=1400&q=85"
                     alt="Sứ mệnh Trường Hải Event & Travel - Đội ngũ đồng lòng phụng sự"
