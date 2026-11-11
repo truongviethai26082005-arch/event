@@ -59,12 +59,12 @@ export default function TrackTab({ keywords, status }: { keywords: Keyword[]; st
 
   return (
     <div className="space-y-5">
-      <Card title="Lịch tự chạy hằng tuần" hint="Mỗi 02:00 sáng Chủ nhật: quét top Google → cào bài mới → so sánh → tạo đề xuất. Sáng thứ Hai mở “Hôm nay làm gì” để xử lý.">
+      <Card title="Giai đoạn 5: Lịch quét tự động hằng tuần" hint="Mỗi 02:00 sáng Chủ nhật: quét top Google → cào bài mới → so sánh → tạo đề xuất. Sáng thứ Hai mở “Hôm nay làm gì” để xử lý.">
         {status?.cronReady ? (
           <p className="text-sm text-emerald-700">✓ Đã sẵn sàng trên máy chủ (cần website đang chạy trên Vercel).</p>
         ) : (
           <div className="text-xs text-slate-600">
-            <p className="font-semibold text-amber-700">Chưa bật. Hiện tại bấm “Chạy thật” mỗi tuần một lần ở tab 1–3.</p>
+            <p className="font-semibold text-amber-700">Chưa bật. Hiện tại bấm “Chạy thật” mỗi tuần một lần ở Giai đoạn 1.</p>
             <p className="mt-1">
               Để bật: trên Vercel → Settings → Environment Variables, thêm <code>CRON_SECRET</code> (chuỗi ngẫu nhiên tự đặt) và{" "}
               <code>SUPABASE_SERVICE_ROLE_KEY</code>, cùng <code>SERPER_API_KEY</code>, <code>GEMINI_API_KEY</code>. Lịch đã khai báo trong <code>vercel.json</code>.
@@ -73,7 +73,7 @@ export default function TrackTab({ keywords, status }: { keywords: Keyword[]; st
         )}
       </Card>
 
-      <Card title="Thứ hạng theo thời gian" hint="Vị trí của website mình trên Google qua các lần quét (mới nhất bên trái). Tụt ≥ 3 bậc hoặc rơi khỏi top 10 = tụt hạng.">
+      <Card title="Bảng theo dõi biến động thứ hạng từ khóa" hint="Vị trí của website mình trên Google qua các lần quét (mới nhất bên trái). Tụt ≥ 3 bậc hoặc rơi khỏi top 10 = tụt hạng.">
         {tracked.length === 0 ? (
           <Empty>Chưa có dữ liệu. Quét top Google ở tab 1–3.</Empty>
         ) : (

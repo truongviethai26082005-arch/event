@@ -1,27 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Building2,
   CheckCircle2,
   AlertCircle,
-  FileText,
   ShieldCheck,
   Layers,
-  Sparkles,
-  ExternalLink,
   Save,
   RefreshCw,
   Search,
   BookOpen,
-  HelpCircle,
   FolderArchive,
-  ChevronRight,
   Sliders,
   Check,
-  X,
   Lock,
 } from "lucide-react";
+import ServicesPackagesManager, {
+  ServicesBrainFile,
+} from "./ServicesPackagesManager";
 
 interface ClaimToVerify {
   claim: string;
@@ -30,7 +27,7 @@ interface ClaimToVerify {
 }
 
 interface CompanyData {
-  _meta?: any;
+  _meta?: Record<string, unknown>;
   legal_name: string;
   brand_name: string;
   short_name: string;
@@ -46,15 +43,6 @@ interface CompanyData {
   business_lines: string[];
   client_groups: { group: string; clients: string[] }[];
   claims_to_verify: ClaimToVerify[];
-}
-
-interface ServiceData {
-  id: string;
-  name: string;
-  short_name: string;
-  page_url: string;
-  cluster_ids: string[];
-  description: string;
 }
 
 interface ProjectData {
@@ -77,10 +65,34 @@ interface ProjectData {
 interface ClusterData {
   id: string;
   name: string;
-  description: string;
-  seed_keywords: string[];
-  pillar_slug: string;
+  description?: string;
+  includes?: string;
+  seed_keywords?: string[];
+  pillar_slug?: string;
+  pillar_topic?: string | null;
 }
+
+interface ChecklistCriterion {
+  id: string;
+  checker: string;
+  group: string;
+  rule: string;
+}
+
+interface RulesData {
+  voice: string;
+  structure: string;
+  checklist?: {
+    criteria?: ChecklistCriterion[];
+  } | null;
+  priority?: Record<string, unknown> | null;
+}
+
+const EMPTY_SERVICES_BRAIN: ServicesBrainFile = {
+  services: [],
+  packages: [],
+  combos: [],
+};
 
 export default function BrandBrainViewer() {
   const [subTab, setSubTab] = useState<
@@ -92,25 +104,27 @@ export default function BrandBrainViewer() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [company, setCompany] = useState<CompanyData | null>(null);
-  const [services, setServices] = useState<ServiceData[]>([]);
+  const [servicesBrain, setServicesBrain] =
+    useState<ServicesBrainFile>(EMPTY_SERVICES_BRAIN);
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [clusters, setClusters] = useState<ClusterData[]>([]);
-  const [rules, setRules] = useState<{
-    voice: string;
-    structure: string;
-    checklist: any;
-    priority: any;
-  } | null>(null);
+  const [rules, setRules] = useState<RulesData | null>(null);
 
   // Fetch all brand data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/radar/brand");
       const json = await res.json();
       if (json.success && json.data) {
         setCompany(json.data.company);
-        setServices(json.data.services?.services || []);
+        const rawServices = json.data.services || {};
+        setServicesBrain({
+          _meta: rawServices._meta,
+          services: Array.isArray(rawServices.services) ? rawServices.services : [],
+          packages: Array.isArray(rawServices.packages) ? rawServices.packages : [],
+          combos: Array.isArray(rawServices.combos) ? rawServices.combos : [],
+        });
         setProjects(json.data.projects?.projects || []);
         setClusters(json.data.clusters?.clusters || []);
         setRules({
@@ -125,11 +139,14 @@ export default function BrandBrainViewer() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchData]);
 
   // Handle toggle verification for claims
   const handleToggleClaim = (index: number) => {
@@ -201,7 +218,7 @@ export default function BrandBrainViewer() {
           </div>
         </div>
         <button
-          onClick={fetchData}
+          onClick={() => void fetchData()}
           className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Tải lại dữ liệu
@@ -236,7 +253,11 @@ export default function BrandBrainViewer() {
           }`}
         >
           <Layers className="w-4 h-4" />
-          13 Dịch vụ chuẩn ({services.length})
+          Dịch vụ & Gói (
+          {servicesBrain.services.length +
+            servicesBrain.packages.length +
+            servicesBrain.combos.length}
+          )
         </button>
 
         <button
@@ -429,47 +450,13 @@ export default function BrandBrainViewer() {
         </div>
       )}
 
-      {/* SUBTAB 2: 13 DỊCH VỤ CHUẨN */}
+      {/* SUBTAB 2: DỊCH VỤ & GÓI SỰ KIỆN (CÓ CHỈNH SỬA) */}
       {subTab === "services" && (
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Danh mục 13 dịch vụ chính thức kèm link trang đích <code>/dich-vu/*</code>. Khi AI viết bài, nó sẽ tự động chèn liên kết nội bộ (Internal link) về các trang này.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.map((svc) => (
-              <div
-                key={svc.id}
-                className="bg-white p-4 rounded-2xl border border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="text-[10px] font-black px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md">
-                    {svc.id}
-                  </span>
-                  <a
-                    href={svc.page_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-amber-600 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    Xem trang <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">{svc.name}</h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                    {svc.description}
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Slug: {svc.page_url}</span>
-                  <span className="font-semibold text-slate-600">
-                    Cụm: {svc.cluster_ids?.join(", ")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ServicesPackagesManager
+          servicesData={servicesBrain}
+          clusters={clusters.map((c) => ({ id: c.id, name: c.name }))}
+          onUpdated={(nextData) => setServicesBrain(nextData)}
+        />
       )}
 
       {/* SUBTAB 3: DỰ ÁN THẬT ĐÃ LÀM */}
@@ -556,7 +543,7 @@ export default function BrandBrainViewer() {
                     {c.id}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600">{c.description}</p>
+                <p className="text-xs text-slate-600">{c.description || c.includes}</p>
                 <div className="text-xs space-y-1.5 pt-2 border-t border-slate-100">
                   <span className="font-bold text-slate-700 block">
                     Từ khóa hạt giống (Seed keywords):
@@ -601,7 +588,7 @@ export default function BrandBrainViewer() {
               20 Tiêu chí kiểm soát chất lượng (QA Checklist Q1–Q20)
             </h4>
             <div className="max-h-[500px] overflow-y-auto space-y-2 pr-2">
-              {rules.checklist?.criteria?.map((item: any) => (
+              {rules.checklist?.criteria?.map((item: ChecklistCriterion) => (
                 <div
                   key={item.id}
                   className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-start gap-2.5 text-xs"

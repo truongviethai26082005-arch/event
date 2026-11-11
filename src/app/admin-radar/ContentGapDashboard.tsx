@@ -9,27 +9,7 @@ import {
   DEFAULT_CONTENT_GAPS,
   deduplicateContentGaps,
 } from "./competitors-data";
-import {
-  Sparkles,
-  TrendingUp,
-  ArrowRight,
-  ExternalLink,
-  Search,
-  Target,
-  Clock,
-  Layers,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
-  Users,
-  Volume2,
-  Compass,
-  RotateCcw,
-  CheckSquare,
-  FileText,
-  AlertTriangle,
-  Lightbulb,
-} from "lucide-react";
+import { Search } from "lucide-react";
 
 interface ContentGapDashboardProps {
   onGenerateDraftFromGap?: (gap: ContentGapItem) => void;
@@ -56,30 +36,17 @@ export default function ContentGapDashboard({
   const inPlanCount = inPlanGaps.length;
   const draftedCount = draftedGaps.length;
 
-  // Gom cụm chủ đề
+  // Gom cụm chủ đề động từ danh sách gaps
   const clusterCounts = useMemo(() => {
-    return [
-      {
-        name: "Khai trương & Khánh thành",
-        count: gaps.filter((g) => g.clusterCategory === "Khai trương & Khánh thành").length,
-        icon: Sparkles,
-      },
-      {
-        name: "Âm thanh & Thiết bị",
-        count: gaps.filter((g) => g.clusterCategory === "Âm thanh & Thiết bị").length,
-        icon: Volume2,
-      },
-      {
-        name: "Teambuilding & Outing",
-        count: gaps.filter((g) => g.clusterCategory === "Teambuilding & Outing").length,
-        icon: Users,
-      },
-      {
-        name: "Hội nghị & Gala",
-        count: gaps.filter((g) => g.clusterCategory === "Hội nghị & Gala").length,
-        icon: Building2,
-      },
-    ];
+    const countsMap = new Map<string, number>();
+    gaps.forEach((g) => {
+      const cat = g.clusterCategory || "Chung";
+      countsMap.set(cat, (countsMap.get(cat) || 0) + 1);
+    });
+    return Array.from(countsMap.entries()).map(([name, count]) => ({
+      name,
+      count,
+    }));
   }, [gaps]);
 
   const handleUpdateStatus = (id: string, newStatus: ContentGapItem["ourSiteStatus"]) => {
@@ -165,18 +132,16 @@ export default function ContentGapDashboard({
           {/* Top Pill Header */}
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center space-x-2">
-              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-400 text-slate-950 flex items-center gap-1.5 shadow-sm">
-                <Target className="w-3.5 h-3.5 text-slate-950 fill-current" />
-                HÔM NAY LÀM GÌ?
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-sm">
+                ƯU TIÊN LÀM NGAY
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                Đề xuất ưu tiên số 1 (Web đang thiếu)
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30">
+                Web đang thiếu bài viết này
               </span>
             </div>
 
             <span className="text-xs text-slate-300">
-              Cụm: <strong className="text-white">{topRecommendedGap.clusterCategory}</strong>
+              Cụm chủ đề: <strong className="text-white">{topRecommendedGap.clusterCategory}</strong>
             </span>
           </div>
 
@@ -187,14 +152,9 @@ export default function ContentGapDashboard({
                 {topRecommendedGap.suggestedTitle}
               </h3>
 
-              <div className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-white/10 border border-white/15 p-3 rounded-2xl flex items-start gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-amber-300 font-bold">Lý do cần viết ngay: </strong>
-                  <span>
-                    Đối thủ <b>{topRecommendedGap.competitorSource}</b> đang đứng Top 1 với từ khóa này nhưng website Trường Hải Event chưa có bài viết. Bạn nên viết bài này ngay để đón khách đang có nhu cầu thực tế.
-                  </span>
-                </div>
+              <div className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-white/10 border border-white/15 p-3 rounded-2xl">
+                <span className="text-amber-300 font-bold">Lý do: </span>
+                Đối thủ <b className="text-white">{topRecommendedGap.competitorSource}</b> đang giữ Top tìm kiếm nhưng website Trường Hải chưa có bài viết. Bạn nên tạo bài này ngay để đón khách hàng đang tìm kiếm.
               </div>
 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300 pt-1">
@@ -213,7 +173,7 @@ export default function ContentGapDashboard({
                 </span>
                 <span>•</span>
                 <span>
-                  Đối thủ đang dẫn đầu:{" "}
+                  Đối thủ dẫn đầu:{" "}
                   <strong className="text-amber-200">{topRecommendedGap.competitorSource}</strong>
                 </span>
               </div>
@@ -224,47 +184,43 @@ export default function ContentGapDashboard({
               <button
                 type="button"
                 onClick={() => handleCreateDraft(topRecommendedGap)}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black shadow-lg shadow-amber-500/20 transition-all cursor-pointer text-center"
               >
-                <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>Viết bài này bằng AI</span>
-                <ArrowRight className="w-4 h-4" />
+                Viết bài này bằng AI
               </button>
 
-              <div className="flex items-center justify-center sm:justify-end gap-3 text-xs text-slate-300 pt-1">
-                {topRecommendedGap.competitorUrl && (
+              {topRecommendedGap.competitorUrl && (
+                <div className="flex items-center justify-center sm:justify-end gap-3 text-xs text-slate-300 pt-1">
                   <a
                     href={topRecommendedGap.competitorUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="hover:text-amber-300 flex items-center gap-1 transition-colors"
+                    className="hover:text-amber-300 underline underline-offset-2 transition-colors"
                   >
-                    <span>Xem bài gốc đối thủ</span>
-                    <ExternalLink className="w-3 h-3" />
+                    Xem bài đối thủ
                   </a>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       ) : (
-        /* Khi toàn bộ các bài thiếu đã được xử lý (không hiện card nháp bừa bãi) */
+        /* Khi toàn bộ các bài thiếu đã được xử lý */
         <div
           id="hero-action-card"
           className="rounded-3xl bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 border-2 border-emerald-400/40 p-6 sm:p-7 text-white shadow-lg space-y-3"
         >
           <div className="flex items-center space-x-2">
-            <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-400 text-slate-950 flex items-center gap-1.5 shadow-sm">
-              <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
-              HOÀN TẤT MỤC TIÊU HÔM NAY
+            <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-400 text-slate-950 shadow-sm">
+              MỤC TIÊU ĐÃ HOÀN TẤT
             </span>
           </div>
           <h3 className="text-lg sm:text-xl font-black text-white">
-            🎉 Bạn đã xử lý toàn bộ các bài viết thiếu trong kho!
+            Đã xử lý toàn bộ các bài viết thiếu trong kho
           </h3>
           <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl leading-relaxed">
-            Tất cả các khoảng trống nội dung đã phát hiện hiện đều đã có bản nháp hoặc đã được đưa vào kế hoạch.
-            Không còn bài nào bị bỏ sót. Bạn có thể sang <b>Kho bài viết</b> để kiểm tra hoặc bấm <b>Chạy quét ca mới</b> ở trên để tìm thêm đề tài mới.
+            Tất cả khoảng trống nội dung đã phát hiện hiện đều đã có bản nháp hoặc đã được đưa vào kế hoạch.
+            Bạn có thể sang <b>Kho bài viết</b> để kiểm tra hoặc bấm <b>Quét thật ngay</b> ở trên để tìm thêm đề tài mới.
           </p>
         </div>
       )}
@@ -275,21 +231,19 @@ export default function ContentGapDashboard({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
-              <Compass className="w-5 h-5 text-amber-600" />
               <h4 className="text-base font-black text-slate-900">
-                Bản Đồ Các Khoảng Trống SEO
+                Danh sách từ khóa đối thủ có mà web chưa có
               </h4>
               <button
                 type="button"
                 onClick={() => setStatusFilter("missing")}
-                className="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200 transition cursor-pointer"
-                title="Bấm để lọc đúng các bài chưa có trên web"
+                className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200 transition cursor-pointer"
               >
-                🔴 {missingCount} bài chưa có trên web
+                {missingCount} bài cần viết
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Chọn nhóm trạng thái bên dưới để xem đúng danh sách bài cần làm:
+              Chọn nhóm để xem danh sách bài viết theo từng trạng thái thực hiện
             </p>
           </div>
 
@@ -297,102 +251,65 @@ export default function ContentGapDashboard({
             <button
               type="button"
               onClick={handleResetToDefault}
-              className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition cursor-pointer"
-              title="Khôi phục danh sách mẫu và dọn sạch các đề tài trùng lặp"
+              className="text-xs text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition cursor-pointer font-medium"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Khôi phục mẫu chuẩn ({DEFAULT_CONTENT_GAPS.length} bài)</span>
+              Khôi phục danh sách mẫu
             </button>
           </div>
         </div>
 
-        {/* BỘ LỌC TRẠNG THÁI CHÍNH (PHÂN CHIA RÀNH MẠCH 3 TAB RÕ RÀNG) */}
+        {/* BỘ LỌC TRẠNG THÁI */}
         <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
           <button
             type="button"
             onClick={() => setStatusFilter("missing")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              statusFilter === "missing"
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${statusFilter === "missing"
                 ? "bg-rose-600 text-white shadow-sm font-black"
                 : "text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-            <span>🔴 Cần viết ngay (Chưa có trên web)</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                statusFilter === "missing"
-                  ? "bg-rose-800 text-white"
-                  : "bg-rose-100 text-rose-800"
               }`}
-            >
-              {missingCount} bài
-            </span>
+          >
+            Chưa có trên web ({missingCount})
           </button>
 
           <button
             type="button"
             onClick={() => setStatusFilter("in_plan")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              statusFilter === "in_plan"
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${statusFilter === "in_plan"
                 ? "bg-amber-600 text-white shadow-sm font-black"
                 : "text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <span>🟡 Đang lên kế hoạch</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                statusFilter === "in_plan"
-                  ? "bg-amber-800 text-white"
-                  : "bg-amber-100 text-amber-800"
               }`}
-            >
-              {inPlanCount} bài
-            </span>
+          >
+            Đang lên kế hoạch ({inPlanCount})
           </button>
 
           <button
             type="button"
             onClick={() => setStatusFilter("drafted")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              statusFilter === "drafted"
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${statusFilter === "drafted"
                 ? "bg-emerald-600 text-white shadow-sm font-black"
                 : "text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <span>🟢 Đã tạo bản nháp</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                statusFilter === "drafted"
-                  ? "bg-emerald-800 text-white"
-                  : "bg-emerald-100 text-emerald-800"
               }`}
-            >
-              {draftedCount} bài
-            </span>
+          >
+            Đã có bản nháp ({draftedCount})
           </button>
 
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              statusFilter === "all"
+            className={`px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${statusFilter === "all"
                 ? "bg-slate-800 text-white shadow-sm font-bold"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
-            <span>Tất cả ({gaps.length})</span>
+            Tất cả ({gaps.length})
           </button>
         </div>
 
-        {/* Thông báo ngữ cảnh khi lọc bài chưa có trên web */}
+        {/* Thông báo ngữ cảnh */}
         {statusFilter === "missing" && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-2">
-            <span className="font-medium flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
-              <span>
-                Đang hiển thị đúng <b>{filteredGaps.length} bài viết website Trường Hải Event hoàn toàn chưa có</b>. Bạn chỉ cần bấm nút <b>"Viết bài này"</b> để AI Studio tự động tạo bài chuẩn SEO.
-              </span>
+          <div className="px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
+            <span>
+              Đang hiển thị <b>{filteredGaps.length} từ khóa đối thủ đang lên Top mà web chưa có bài</b>. Bấm <b>"Viết bài bằng AI"</b> để tự động tạo bài viết ngay.
             </span>
           </div>
         )}
@@ -402,11 +319,10 @@ export default function ContentGapDashboard({
           <button
             type="button"
             onClick={() => setCategoryFilter("all")}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              categoryFilter === "all"
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${categoryFilter === "all"
                 ? "bg-[#0A1E5E] text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
+              }`}
           >
             <span>Tất cả cụm</span>
             <span className="px-1.5 py-0.2 text-[10px] bg-white/20 rounded-full font-mono">
@@ -415,25 +331,21 @@ export default function ContentGapDashboard({
           </button>
 
           {clusterCounts.map((c) => {
-            const Icon = c.icon;
             const isSelected = categoryFilter === c.name;
             return (
               <button
                 key={c.name}
                 type="button"
                 onClick={() => setCategoryFilter(c.name)}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                  isSelected
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${isSelected
                     ? "bg-[#0A1E5E] text-white shadow-xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+                  }`}
               >
-                <Icon className="w-3.5 h-3.5" />
                 <span>{c.name}</span>
                 <span
-                  className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold ${
-                    isSelected ? "bg-amber-400 text-slate-950" : "bg-white text-slate-700"
-                  }`}
+                  className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold ${isSelected ? "bg-amber-400 text-slate-950" : "bg-white text-slate-700"
+                    }`}
                 >
                   {c.count}
                 </span>
@@ -460,11 +372,10 @@ export default function ContentGapDashboard({
           </span>
         </div>
 
-        {/* Danh Sách Card Khoảng Trống (TRÌNH BÀY RÕ RÀNG, DỄ HIỂU) */}
+        {/* Danh Sách Card Khoảng Trống */}
         <div className="space-y-3 pt-2">
           {filteredGaps.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
               <p className="font-bold text-slate-700">
                 {statusFilter === "missing"
                   ? "Tuyệt vời! Không còn bài viết nào chưa có trên web trong nhóm này."
@@ -484,31 +395,28 @@ export default function ContentGapDashboard({
             filteredGaps.map((gap) => (
               <div
                 key={gap.id}
-                className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  gap.ourSiteStatus === "missing"
+                className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${gap.ourSiteStatus === "missing"
                     ? "bg-white border-rose-200 hover:border-amber-400 shadow-2xs hover:shadow-xs"
                     : gap.ourSiteStatus === "in_plan"
-                    ? "bg-amber-50/40 border-amber-200 hover:border-amber-400"
-                    : "bg-slate-50/80 border-slate-200 opacity-85"
-                }`}
+                      ? "bg-amber-50/40 border-amber-200 hover:border-amber-400"
+                      : "bg-slate-50/80 border-slate-200 opacity-85"
+                  }`}
               >
                 {/* Left: Info */}
                 <div className="space-y-2 max-w-3xl">
                   {/* Status & Category Badges */}
                   <div className="flex flex-wrap items-center gap-2 text-[11px]">
                     {gap.ourSiteStatus === "missing" ? (
-                      <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-black border border-rose-300 flex items-center gap-1.5 shadow-2xs">
-                        <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-                        🔴 Chưa có trên web (Cần viết ngay)
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold border border-rose-200">
+                        Chưa có trên web
                       </span>
                     ) : gap.ourSiteStatus === "in_plan" ? (
-                      <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300">
-                        🟡 Đã lên kế hoạch
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-200">
+                        Đang lên kế hoạch
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        🟢 Đã có bản nháp trong kho
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                        Đã có bản nháp
                       </span>
                     )}
 
@@ -518,7 +426,7 @@ export default function ContentGapDashboard({
 
                     {gap.estimatedSearchVolume && (
                       <span className="text-slate-600 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                        📊 {gap.estimatedSearchVolume}
+                        {gap.estimatedSearchVolume}
                       </span>
                     )}
                   </div>
@@ -528,9 +436,9 @@ export default function ContentGapDashboard({
                     {gap.suggestedTitle}
                   </h5>
 
-                  {/* Lý do AI giải thích bằng tiếng Việt con người */}
+                  {/* Lý do */}
                   <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
-                    <span className="font-bold text-slate-800">💡 Lý do đề xuất: </span>
+                    <span className="font-bold text-slate-800">Lý do: </span>
                     {gap.gapReason && !gap.gapReason.includes("Phát hiện từ ca quét tự động:")
                       ? gap.gapReason
                       : `Đối thủ ${gap.competitorSource} đang có bài viết thứ hạng cao trên Google. Website Trường Hải Event cần bài viết này để tiếp cận khách hàng đang tìm kiếm.`}
@@ -545,7 +453,7 @@ export default function ContentGapDashboard({
                     </span>
                     <span>•</span>
                     <span>
-                      Đối thủ đang dẫn đầu: <strong className="text-slate-800">{gap.competitorSource}</strong>
+                      Đối thủ dẫn đầu: <strong className="text-slate-800">{gap.competitorSource}</strong>
                     </span>
                   </div>
                 </div>
@@ -558,7 +466,6 @@ export default function ContentGapDashboard({
                         type="button"
                         onClick={() => handleUpdateStatus(gap.id, "in_plan")}
                         className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-                        title="Đưa vào danh sách dự kiến"
                       >
                         Lên kế hoạch
                       </button>
@@ -566,11 +473,9 @@ export default function ContentGapDashboard({
                       <button
                         type="button"
                         onClick={() => handleCreateDraft(gap)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-slate-950 text-xs font-black shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-slate-950 text-xs font-black shadow-xs cursor-pointer transition-all"
                       >
-                        <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
-                        <span>Viết bài này ngay</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        Viết bài bằng AI
                       </button>
                     </>
                   ) : gap.ourSiteStatus === "in_plan" ? (
@@ -586,15 +491,12 @@ export default function ContentGapDashboard({
                       <button
                         type="button"
                         onClick={() => handleCreateDraft(gap)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-slate-950 text-xs font-black shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-slate-950 text-xs font-black shadow-xs cursor-pointer transition-all"
                       >
-                        <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
-                        <span>Viết nháp ngay</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        Viết bài bằng AI
                       </button>
                     </>
                   ) : (
-                    /* Trạng thái đã tạo nháp: Cho phép chuyển sang Tab duyệt bài hoặc làm lại */
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -603,17 +505,15 @@ export default function ContentGapDashboard({
                             onNavigateSection("duyet_bai");
                           }
                         }}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-colors cursor-pointer"
                       >
-                        <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Xem nháp trong Kho bài viết</span>
+                        Xem trong Kho bài viết
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleUpdateStatus(gap.id, "missing")}
                         className="px-2 py-1.5 text-[11px] text-slate-400 hover:text-slate-700 hover:underline cursor-pointer"
-                        title="Đưa lại về trạng thái chưa viết"
                       >
                         Viết lại
                       </button>
@@ -625,10 +525,9 @@ export default function ContentGapDashboard({
                       href={gap.competitorUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors self-center"
-                      title="Xem bài gốc đối thủ"
+                      className="px-3 py-2 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors self-center whitespace-nowrap"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      Xem bài đối thủ
                     </a>
                   )}
                 </div>
