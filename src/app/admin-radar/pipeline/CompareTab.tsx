@@ -69,8 +69,8 @@ export default function CompareTab({ keywords, comparisons, compareNeeded, onCha
   return (
     <div className="space-y-5">
       <Card
-        title="4. So sánh: các bài đang top có gì mà mình chưa có"
-        hint="AI đọc các bài đối thủ đã cào, so với bài của Trường Hải. Code tự đo: số chữ, bao nhiêu bài có giá / FAQ / dự án thật. Kết quả tạo đề xuất viết ở bước 5."
+        title="Giai đoạn 2: So sánh nội dung Top Google với website Trường Hải"
+        hint="AI đọc các bài đối thủ đã cào, so sánh trực tiếp với bài của Trường Hải để tìm lỗ hổng: số chữ, báo giá, FAQ, hình ảnh thực tế."
         actions={
           <button
             type="button"

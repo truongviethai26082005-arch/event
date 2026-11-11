@@ -1,7 +1,5 @@
 "use client";
 
-import { Activity, Brain, CheckSquare, Compass, Globe, PenLine, Route } from "lucide-react";
-
 export type RadarNavSection =
   | "top_google"
   | "viet_bai"
@@ -9,7 +7,6 @@ export type RadarNavSection =
   | "bo_nao"
   | "doi_thu"
   | "ke_hoach"
-  // Tên cũ, vẫn giữ để các nút điều hướng cũ không gãy:
   | "scanner"
   | "editor"
   | "posts"
@@ -19,7 +16,7 @@ export type RadarNavSection =
   | "cron"
   | "logs";
 
-/** Gộp tên cũ về đúng mục đang hiển thị. */
+/** Gộp tên cũ về đúng mục đang hiển thị */
 export function canonicalSection(section: RadarNavSection): RadarNavSection {
   switch (section) {
     case "scanner":
@@ -39,43 +36,42 @@ export function canonicalSection(section: RadarNavSection): RadarNavSection {
   }
 }
 
-/** Tiêu đề + mô tả ngắn của từng mục (dùng cho đầu trang Radar). */
+/** Tiêu đề + mô tả ngắn gọn, dễ hiểu của từng khu vực */
 export const RADAR_SECTION_INFO: Record<string, { title: string; description: string }> = {
   top_google: {
-    title: "Dây chuyền SEO",
+    title: "Quy trình SEO tự động",
     description:
-      "Quy trình chính: xem top Google → đọc bài đối thủ → so sánh → đề xuất → AI viết → duyệt & đăng → theo dõi thứ hạng.",
+      "Dây chuyền 5 giai đoạn: Quét Top 10 Google → Đọc nội dung đối thủ → So sánh tìm khoảng trống → Đề xuất ý tưởng → AI viết bài & Đo lường thứ hạng.",
   },
   duyet_bai: {
-    title: "Kho bài viết",
-    description: "Đọc lại bài nháp, điền các chỗ [CẦN SỐ LIỆU], tick danh sách kiểm tra rồi mới đăng lên website.",
+    title: "Kho bài viết & Duyệt đăng",
+    description: "Xem lại các bài viết AI đã soạn thảo, bổ sung thông tin giá cả/số liệu thực tế của công ty rồi phát hành lên website.",
   },
   viet_bai: {
     title: "Viết bài theo yêu cầu",
-    description: "Tự chọn một bài hoặc website đối thủ, AI đọc cấu trúc và viết bản nháp mới cho mình.",
+    description: "Chủ động dán link bài viết hoặc tên miền website đối thủ để AI mổ xẻ cấu trúc và viết một bài hoàn toàn mới cho Trường Hải.",
   },
   bo_nao: {
-    title: "Bộ não thương hiệu",
-    description: "Dữ liệu thật của công ty mà AI được phép dùng: dự án đã làm, thiết bị, giọng văn.",
+    title: "Dữ liệu thương hiệu",
+    description: "Kho dữ liệu gốc của doanh nghiệp: năng lực kho thiết bị, bảng giá, danh mục dịch vụ và hình ảnh các sự kiện đã tổ chức thực tế.",
   },
   doi_thu: {
-    title: "Danh sách đối thủ",
-    description: "Công cụ phụ: tự thêm website đối thủ để quét bài. Dữ liệu chỉ lưu trên trình duyệt này.",
+    title: "Danh sách đối thủ theo dõi",
+    description: "Danh sách các website đối thủ cạnh tranh trực tiếp trong ngành tổ chức sự kiện & du lịch.",
   },
   ke_hoach: {
-    title: "Kế hoạch nội dung",
-    description: "Công cụ phụ: chủ đề đối thủ có mà mình chưa có. Dữ liệu chỉ lưu trên trình duyệt này.",
+    title: "Kế hoạch từ khóa & Khoảng trống",
+    description: "Các chủ đề và từ khóa giá trị cao mà đối thủ đã lên Top Google nhưng website Trường Hải chưa có bài viết.",
   },
   logs: {
-    title: "Nhật ký quét",
-    description: "Công cụ phụ: lịch sử các lần quét và viết bài bằng công cụ phụ.",
+    title: "Nhật ký hoạt động hệ thống",
+    description: "Lịch sử chi tiết các lượt quét Google, cào dữ liệu đối thủ và tiến trình tạo bài viết của máy.",
   },
 };
 
 interface Tab {
   id: RadarNavSection;
   label: string;
-  icon: typeof Route;
   count?: number;
   highlight?: boolean;
 }
@@ -88,10 +84,6 @@ export interface RadarSidebarProps {
   isScanning: boolean;
 }
 
-/**
- * Thanh mục của Radar SEO (nằm ngang, trong khung quản trị chung).
- * Nhóm 1 = quy trình chính theo thứ tự làm việc; nhóm 2 = công cụ phụ.
- */
 export default function RadarSidebar({
   activeSection,
   onSelectSection,
@@ -102,43 +94,52 @@ export default function RadarSidebar({
   const current = canonicalSection(activeSection);
 
   const main: Tab[] = [
-    { id: "top_google", label: "Dây chuyền SEO", icon: Route },
-    { id: "duyet_bai", label: "Kho bài viết", icon: CheckSquare, count: counts.drafts || undefined, highlight: counts.drafts > 0 },
-    { id: "viet_bai", label: "Viết bài theo yêu cầu", icon: PenLine },
-    { id: "bo_nao", label: "Bộ não thương hiệu", icon: Brain },
+    { id: "top_google", label: "Quy trình SEO tự động" },
+    { id: "duyet_bai", label: "Kho bài viết", count: counts.drafts || undefined, highlight: counts.drafts > 0 },
+    { id: "viet_bai", label: "Viết theo yêu cầu" },
+    { id: "bo_nao", label: "Dữ liệu thương hiệu" },
   ];
+
   const extra: Tab[] = [
-    { id: "doi_thu", label: "Đối thủ", icon: Globe, count: counts.competitors || undefined },
-    { id: "ke_hoach", label: "Kế hoạch nội dung", icon: Compass, count: counts.gaps || undefined },
-    { id: "logs", label: "Nhật ký", icon: Activity, count: counts.logs || undefined },
+    { id: "doi_thu", label: "Đối thủ", count: counts.competitors || undefined },
+    { id: "ke_hoach", label: "Kế hoạch từ khóa", count: counts.gaps || undefined },
+    { id: "logs", label: "Nhật ký", count: counts.logs || undefined },
   ];
 
   const renderTab = (tab: Tab, small = false) => {
     const active = current === tab.id;
-    const Icon = tab.icon;
     return (
       <button
         key={tab.id}
         type="button"
         onClick={() => onSelectSection(tab.id)}
         aria-current={active ? "page" : undefined}
-        className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 font-semibold transition ${
-          small ? "py-1.5 text-xs" : "py-2 text-sm"
+        className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl font-bold transition cursor-pointer ${
+          small
+            ? "px-3 py-1.5 text-xs bg-white text-slate-700 border border-slate-200 hover:border-slate-300 shadow-2xs"
+            : "px-4 py-2 text-xs sm:text-sm"
         } ${
           active
-            ? "border-[#0A1E5E] bg-[#0A1E5E] text-white shadow-sm"
-            : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-[#0A1E5E]"
+            ? small
+              ? "bg-[#0B1536] text-white shadow-sm ring-1 ring-[#0B1536]"
+              : "bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black"
+            : small
+            ? "hover:bg-slate-50"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
         }`}
       >
-        <Icon className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
-        {tab.label}
+        <span>{tab.label}</span>
         {tab.id === "viet_bai" && (isScanning || activeEditorTitle) && (
           <span className={`h-2 w-2 rounded-full ${isScanning ? "animate-pulse bg-amber-400" : "bg-emerald-500"}`} />
         )}
         {tab.count !== undefined && (
           <span
-            className={`rounded-md px-1.5 text-[11px] font-bold ${
-              active ? "bg-white/20 text-white" : tab.highlight ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-600"
+            className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+              active && !small
+                ? "bg-amber-400 text-slate-950"
+                : tab.highlight
+                ? "bg-amber-100 text-amber-900"
+                : "bg-slate-100 text-slate-700"
             }`}
           >
             {tab.count}
@@ -149,26 +150,32 @@ export default function RadarSidebar({
   };
 
   return (
-    <nav aria-label="Các mục Radar SEO" className="space-y-2">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none]">{main.map((t) => renderTab(t))}</div>
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto [scrollbar-width:none] border-slate-200 lg:border-l lg:pl-4">
-          <span className="mr-1 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Công cụ phụ</span>
+    <nav aria-label="Điều hướng tính năng Radar SEO" className="space-y-3">
+      {/* Hàng nút chức năng chính và chức năng mở rộng */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {main.map((t) => renderTab(t))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200/80 pt-2 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3">
+          <span className="mr-1 text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+            MỞ RỘNG:
+          </span>
           {extra.map((t) => renderTab(t, true))}
         </div>
       </div>
 
       {activeEditorTitle && current !== "viet_bai" && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">
-          <span className="min-w-0 truncate text-amber-900">
-            <strong>Đang viết dở:</strong> {activeEditorTitle}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs shadow-2xs">
+          <span className="min-w-0 truncate text-amber-950 font-medium">
+            <strong className="font-bold text-amber-900">Bài đang viết dở:</strong> {activeEditorTitle}
           </span>
           <button
             type="button"
             onClick={() => onSelectSection("viet_bai")}
-            className="shrink-0 rounded-lg bg-[#0A1E5E] px-2.5 py-1 font-bold text-white hover:bg-[#142d75]"
+            className="shrink-0 rounded-lg bg-[#0A1E5E] px-3 py-1 font-bold text-white hover:bg-[#142d75] transition"
           >
-            Tiếp tục viết
+            Mở bài đang viết
           </button>
         </div>
       )}

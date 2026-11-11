@@ -6,14 +6,8 @@ import {
   ChevronDown,
   ChevronUp,
   CircleAlert,
-  Download,
   ExternalLink,
-  FlaskConical,
   Loader2,
-  Play,
-  Plus,
-  RefreshCw,
-  Trash2,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import clustersFile from "@/app/api/radar/brand/clusters.json";
@@ -175,6 +169,10 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pages, setPages] = useState<Map<string, PageInfo>>(new Map());
   const [scrapeProgress, setScrapeProgress] = useState<string>("");
+  const [newKeyword, setNewKeyword] = useState("");
+  const [newCluster, setNewCluster] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -245,7 +243,7 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
   const seed = () =>
     run("seed", async () => {
       const r = await api<{ added: number }>("/api/radar/serp", { action: "seed" });
-      setNotice(r.added ? `Đã nạp ${r.added} từ khóa gốc từ 11 cụm chủ đề.` : "Các từ khóa gốc đã có đủ.");
+      setNotice(r.added ? `Đã nạp thêm ${r.added} từ khóa mới từ ${CLUSTERS.length} cụm chủ đề.` : `Các từ khóa gốc (${CLUSTERS.length} cụm) đã có đủ trong hệ thống.`);
     });
 
   const dryRun = (e: FormEvent) => {
@@ -282,42 +280,80 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
       if (snapshot) await loadPages(snapshot.results.map((r) => r.link));
     });
 
-  const addKeyword = async (e: FormEvent<HTMLFormElement>) => {
+  const addKeyword = async (e: FormEvent) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const keyword = String(form.get("keyword") || "").trim();
-    if (!keyword) return;
-    const supabase = createSupabaseBrowserClient();
-    const { error: insertError } = await supabase
-      .from("seo_keywords")
-      .insert([{ keyword, cluster_id: String(form.get("cluster_id") || "") || null }]);
-    if (insertError) {
-      setError(insertError.code === "23505" ? "Từ khóa này đã có." : insertError.message);
-      return;
+    const kw = newKeyword.trim();
+    if (!kw) return;
+    setIsAdding(true);
+    setAddError("");
+    setError("");
+    try {
+      try {
+        await api<{ success: boolean }>("/api/radar/serp", {
+          action: "add",
+          keyword: kw,
+          cluster_id: newCluster || null,
+        });
+      } catch (apiErr: any) {
+        // Fallback supabase client nếu api endpoint gặp sự cố mạng
+        const supabase = createSupabaseBrowserClient();
+        const { error: insertError } = await supabase
+          .from("seo_keywords")
+          .insert([{ keyword: kw, cluster_id: newCluster || null, is_tracked: true }]);
+        if (insertError) throw insertError;
+      }
+      setNewKeyword("");
+      setNewCluster("");
+      setNotice(`Đã thêm từ khóa "${kw}" thành công.`);
+      await load();
+      onChanged?.();
+    } catch (err: any) {
+      const msg =
+        err?.code === "23505" || String(err?.message || "").includes("đã có")
+          ? "Từ khóa này đã có trong hệ thống."
+          : (err?.message || "Lỗi khi thêm từ khóa.");
+      setAddError(msg);
+      setError(msg);
+    } finally {
+      setIsAdding(false);
     }
-    e.currentTarget.reset();
-    void load();
   };
 
   const trackKeyword = async (keyword: string) => {
-    const supabase = createSupabaseBrowserClient();
     const k = keywords.find((x) => x.id === openId);
-    const { error: insertError } = await supabase.from("seo_keywords").insert([{ keyword, cluster_id: k?.cluster_id ?? null }]);
-    setNotice(insertError ? (insertError.code === "23505" ? "Từ khóa này đã có." : insertError.message) : `Đã thêm "${keyword}" vào danh sách theo dõi.`);
+    try {
+      await api("/api/radar/serp", { action: "add", keyword, cluster_id: k?.cluster_id ?? null });
+      setNotice(`Đã thêm "${keyword}" vào danh sách theo dõi.`);
+    } catch (err: any) {
+      const msg = String(err?.message || "").includes("đã có") ? "Từ khóa này đã có." : (err?.message || "Lỗi thêm từ khóa.");
+      setNotice(msg);
+    }
     void load();
+    onChanged?.();
   };
 
   const toggleTracked = async (k: Keyword) => {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.from("seo_keywords").update({ is_tracked: !k.is_tracked }).eq("id", k.id);
-    setKeywords((prev) => prev.map((x) => (x.id === k.id ? { ...x, is_tracked: !x.is_tracked } : x)));
+    const nextVal = !k.is_tracked;
+    setKeywords((prev) => prev.map((x) => (x.id === k.id ? { ...x, is_tracked: nextVal } : x)));
+    try {
+      await api("/api/radar/serp", { action: "toggle-track", id: k.id, is_tracked: nextVal });
+    } catch {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.from("seo_keywords").update({ is_tracked: nextVal }).eq("id", k.id);
+    }
+    onChanged?.();
   };
 
   const removeKeyword = async (k: Keyword) => {
     if (!window.confirm(`Xóa từ khóa "${k.keyword}" và lịch sử quét của nó?`)) return;
-    const supabase = createSupabaseBrowserClient();
-    await supabase.from("seo_keywords").delete().eq("id", k.id);
+    try {
+      await api("/api/radar/serp", { action: "delete", id: k.id });
+    } catch {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.from("seo_keywords").delete().eq("id", k.id);
+    }
     void load();
+    onChanged?.();
   };
 
   const tracked = keywords.filter((k) => k.is_tracked).length;
@@ -331,7 +367,7 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-black text-slate-900">1–3. Từ khóa → Top Google → Cào bài</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Mỗi từ khóa: lấy 10 kết quả đầu trên Google (khu vực Hà Nội), lọc ra đối thủ thật (bỏ Facebook, YouTube, báo, sàn, cơ quan nhà nước),
+          Mỗi từ khóa: lấy 10 kết quả đầu trên Google (toàn quốc Việt Nam), lọc ra đối thủ thật (bỏ Facebook, YouTube, báo, sàn, cơ quan nhà nước),
           rồi đọc nội dung các bài đó. Đây là dữ liệu cho bước 4 &ldquo;So sánh&rdquo;.
         </p>
       </div>
@@ -382,36 +418,53 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
         {/* Thao tác */}
         <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-extrabold text-slate-900">Thao tác</h3>
-          {keywords.length === 0 && (
-            <button type="button" onClick={() => void seed()} disabled={!!busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-              {busy === "seed" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Nạp từ khóa gốc từ 11 cụm chủ đề
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => void seed()}
+            disabled={!!busy}
+            className={`flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:opacity-50 cursor-pointer ${
+              keywords.length === 0
+                ? "bg-[#0A1E5E] text-white"
+                : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            {busy === "seed"
+              ? "Đang nạp từ khóa…"
+              : keywords.length === 0
+              ? `Nạp từ khóa mẫu từ ${CLUSTERS.length} cụm`
+              : `Đồng bộ từ khóa mẫu (${CLUSTERS.length} cụm)`}
+          </button>
           <form onSubmit={dryRun} className="flex gap-2">
             <input
               value={dryKeyword}
               onChange={(e) => setDryKeyword(e.target.value)}
-              placeholder="Từ khóa chạy thử"
-              className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-sm"
+              placeholder="Nhập từ khóa để chạy thử…"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-sm focus:border-slate-400 focus:outline-none"
             />
-            <button type="submit" disabled={!!busy || !dryKeyword.trim()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 disabled:opacity-50">
-              {busy === "dry" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5" />} Chạy thử
+            <button
+              type="submit"
+              disabled={!!busy || !dryKeyword.trim()}
+              className="rounded-lg border border-slate-300 px-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            >
+              {busy === "dry" ? "Đang thử…" : "Chạy thử"}
             </button>
           </form>
-          <p className="-mt-1 text-[10px] text-slate-400">Chạy thử: xem top 10 của 1 từ khóa, tốn 1 lượt, không lưu.</p>
-          <button type="button" onClick={liveRun} disabled={!!busy || !tracked} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-            {busy === "live" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            {busy === "live" ? "Đang quét top Google…" : `Chạy thật: quét ${tracked} từ khóa (${tracked} lượt)`}
+          <p className="-mt-1 text-[10px] text-slate-400">Chạy thử: kiểm tra Top 10 của 1 từ khóa, dùng 1 lượt quét, không lưu vào cơ sở dữ liệu.</p>
+          <button
+            type="button"
+            onClick={liveRun}
+            disabled={!!busy || !tracked}
+            className="flex w-full items-center justify-center rounded-xl bg-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#142d75] transition disabled:opacity-50 cursor-pointer"
+          >
+            {busy === "live" ? "Đang quét Top Google…" : `Quét thật: lấy Top 10 cho ${tracked} từ khóa`}
           </button>
           <button
             type="button"
             onClick={() => void scrapeAll()}
             disabled={!!busy || !status?.queue.pending}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-[#0A1E5E] disabled:opacity-40"
+            className="flex w-full items-center justify-center rounded-xl border border-[#0A1E5E] px-4 py-2.5 text-sm font-bold text-[#0A1E5E] hover:bg-slate-50 transition disabled:opacity-40 cursor-pointer"
           >
-            {busy === "scrape" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Cào bài đối thủ ({status?.queue.pending ?? 0} bài chờ)
+            {busy === "scrape" ? "Đang cào dữ liệu đối thủ…" : `Cào bài đối thủ (${status?.queue.pending ?? 0} bài chờ)`}
           </button>
           {scrapeProgress && <p className="text-xs text-slate-600">{scrapeProgress}</p>}
         </div>
@@ -436,25 +489,50 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
             <h3 className="text-sm font-extrabold text-slate-900">Từ khóa theo dõi ({keywords.length})</h3>
             <p className="text-xs text-slate-500">Bấm vào từ khóa để xem top 10 Google lần quét gần nhất.</p>
           </div>
-          <form onSubmit={addKeyword} className="flex flex-wrap gap-2">
-            <input name="keyword" placeholder="Thêm từ khóa…" className="h-9 w-56 rounded-lg border border-slate-200 px-3 text-sm" />
-            <select name="cluster_id" className="h-9 max-w-52 rounded-lg border border-slate-200 bg-white px-2 text-xs">
-              <option value="">Chọn cụm</option>
-              {CLUSTERS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">
-              <Plus className="h-3.5 w-3.5" /> Thêm
-            </button>
+          <form onSubmit={addKeyword} className="flex flex-col items-end gap-1.5">
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={newKeyword}
+                onChange={(e) => {
+                  setNewKeyword(e.target.value);
+                  if (addError) setAddError("");
+                }}
+                placeholder="Thêm từ khóa…"
+                className="h-9 w-56 rounded-lg border border-slate-200 px-3 text-sm focus:border-slate-400 focus:outline-none"
+                disabled={isAdding}
+              />
+              <select
+                value={newCluster}
+                onChange={(e) => setNewCluster(e.target.value)}
+                className="h-9 max-w-56 rounded-lg border border-slate-200 bg-white px-2 text-xs focus:border-slate-400 focus:outline-none"
+                disabled={isAdding}
+              >
+                <option value="">Chọn cụm (tùy chọn)</option>
+                {CLUSTERS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                disabled={isAdding || !newKeyword.trim()}
+                className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+              >
+                {isAdding ? "Đang thêm…" : "Thêm từ khóa"}
+              </button>
+            </div>
+            {addError && (
+              <span className="text-xs font-medium text-rose-600">
+                {addError}
+              </span>
+            )}
           </form>
         </div>
 
         {keywords.length === 0 ? (
           <p className="mt-6 rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-500">
-            Chưa có từ khóa. Bấm &ldquo;Nạp từ khóa gốc từ 11 cụm chủ đề&rdquo; ở khung Thao tác, hoặc thêm từ khóa ở trên.
+            Chưa có từ khóa. Bấm &ldquo;Nạp từ khóa gốc từ {CLUSTERS.length} cụm chủ đề&rdquo; ở khung Thao tác, hoặc thêm từ khóa ở trên.
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -496,8 +574,12 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
                         <input type="checkbox" checked={k.is_tracked} onChange={() => void toggleTracked(k)} className="h-4 w-4" aria-label="Theo dõi" />
                       </td>
                       <td className="py-2.5 text-right">
-                        <button type="button" onClick={() => void removeKeyword(k)} aria-label="Xóa" className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-                          <Trash2 className="h-4 w-4" />
+                        <button
+                          type="button"
+                          onClick={() => void removeKeyword(k)}
+                          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                        >
+                          Xóa
                         </button>
                       </td>
                     </tr>
@@ -510,7 +592,7 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
                             </p>
                           ) : (
                             <div className="space-y-3">
-                              <p className="text-[11px] text-slate-500">Top 10 Google lúc {fmtTime(snapshot.scanned_at)} (khu vực Hà Nội)</p>
+                              <p className="text-[11px] text-slate-500">Top 10 Google lúc {fmtTime(snapshot.scanned_at)} (toàn quốc Việt Nam)</p>
                               <TopTenTable results={snapshot.results} pages={pages} />
                               {(snapshot.related_searches.length > 0 || snapshot.people_also_ask.length > 0) && (
                                 <div className="text-xs">
@@ -521,9 +603,9 @@ export default function SerpRadarPanel({ onChanged }: { onChanged?: () => void }
                                         key={q}
                                         type="button"
                                         onClick={() => void trackKeyword(q)}
-                                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-700 hover:border-[#0A1E5E]"
+                                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-700 hover:border-[#0A1E5E] hover:text-[#0A1E5E] transition cursor-pointer"
                                       >
-                                        <Plus className="h-3 w-3" /> {q}
+                                        + {q}
                                       </button>
                                     ))}
                                   </div>

@@ -108,9 +108,26 @@
       "seed_keywords": ["quy trình tổ chức sự kiện", "lập kế hoạch tổ chức sự kiện", "checklist tổ chức sự kiện", "kịch bản mc sự kiện", "công ty tổ chức sự kiện hà nội"]
     },
     {
+      "id": "sinh-nhat-tiec-cuoi",
+      "name": "Tổ chức sự kiện sinh nhật, tiệc cưới",
+      "includes": "Tiệc sinh nhật công ty, sinh nhật VIP cá nhân, tiệc thôi nôi, tiệc cưới ngoài trời, tiệc cưới bãi biển, trang trí tiệc cưới, lễ đính hôn, kỷ niệm ngày cưới",
+      "excludes": "Sinh nhật nhỏ tại nhà hàng không có setup sự kiện âm thanh ánh sáng",
+      "service_id": "sinh-nhat-tiec-cuoi",
+      "business_value": "cao",
+      "pillar_topic": "Tổ chức sự kiện sinh nhật, tiệc cưới trọn gói đẳng cấp",
+      "seed_keywords": [
+        "tổ chức sinh nhật trọn gói",
+        "tổ chức tiệc cưới ngoài trời",
+        "kịch bản tiệc sinh nhật công ty",
+        "trang trí tiệc cưới sang trọng",
+        "tổ chức kỷ niệm ngày cưới",
+        "chi phí tổ chức tiệc cưới trọn gói"
+      ]
+    },
+    {
       "id": "ngoai-pham-vi",
       "name": "Ngoài phạm vi",
-      "includes": "Cưới hỏi, sự kiện cá nhân, tin tức nội bộ của đối thủ, tuyển dụng, chủ đề Trường Hải không cung cấp dịch vụ",
+      "includes": "Tin tức nội bộ của đối thủ, tuyển dụng, chủ đề ngoài ngành sự kiện du lịch",
       "excludes": "",
       "service_id": null,
       "business_value": "thap",

@@ -2,12 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  Building2,
-  CalendarDays,
   Check,
   CircleAlert,
   Copy,
-  Download,
   Edit3,
   Eye,
   FileText,
@@ -28,6 +25,7 @@ import LeadActivityPanel from "@/app/admin/_components/LeadActivityPanel";
 import LeadDuplicates from "@/app/admin/_components/LeadDuplicates";
 import AddLeadModal from "@/app/admin/_components/AddLeadModal";
 import LeadAiPanel, { AI_SCORE_STYLE } from "@/app/admin/_components/LeadAiPanel";
+import ConversionFunnel from "@/app/admin-radar/ConversionFunnel";
 import {
   AdminLead,
   ADMIN_LEAD_SELECT,
@@ -122,6 +120,51 @@ function readVietnameseCurrency(amount: number): string {
   return text.charAt(0).toUpperCase() + text.slice(1) + " đồng chẵn.";
 }
 
+function formatLeadReceivedTime(dateString?: string, currentNowMs: number = 0) {
+  if (!dateString) return { time: "—", date: "—", relBadge: "", relClass: "" };
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return { time: "—", date: dateString, relBadge: "", relClass: "" };
+
+  let relBadge = "";
+  let relClass = "bg-slate-100 text-slate-600";
+
+  if (currentNowMs > 0) {
+    const diffMs = currentNowMs - d.getTime();
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+      relBadge = diffHours <= 0 ? "Vừa xong" : `${diffHours}h trước`;
+      relClass = "bg-blue-50 text-blue-700 border border-blue-200";
+    } else if (diffDays === 1) {
+      relBadge = "Hôm qua";
+      relClass = "bg-amber-50 text-amber-700 border border-amber-200";
+    } else if (diffDays <= 3) {
+      relBadge = `${diffDays} ngày trước`;
+      relClass = "bg-amber-50/80 text-amber-800 border border-amber-200";
+    } else if (diffDays <= 7) {
+      relBadge = `${diffDays} ngày trước`;
+      relClass = "bg-slate-100 text-slate-700 border border-slate-200";
+    } else {
+      relBadge = `${Math.floor(diffDays / 7)} tuần trước`;
+      relClass = "bg-slate-100 text-slate-500 border border-slate-200";
+    }
+  }
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
+
+  return {
+    time: `${hours}:${mins}`,
+    date: `${day}/${month}/${year}`,
+    relBadge,
+    relClass,
+  };
+}
+
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,9 +174,12 @@ export default function AdminLeadsPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "ALL">("ALL");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "ALL">("ALL");
   const [eventTypeFilter, setEventTypeFilter] = useState("ALL");
+  const [heatFilter, setHeatFilter] = useState<"ALL" | "HOT" | "WARM" | "COLD">("ALL");
+  const [timePreset, setTimePreset] = useState<"ALL" | "TODAY" | "3_DAYS" | "7_DAYS" | "30_DAYS" | "CUSTOM">("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedLead, setSelectedLead] = useState<AdminLead | null>(null);
+  const [nowMs, setNowMs] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [crmReady, setCrmReady] = useState(true);
   const [aiReady, setAiReady] = useState(false);
@@ -178,7 +224,11 @@ export default function AdminLeadsPage() {
   }
 
   useEffect(() => {
-    void loadLeads();
+    const initTimer = window.setTimeout(() => {
+      setNowMs(Date.now());
+      void loadLeads();
+    }, 0);
+    return () => window.clearTimeout(initTimer);
   }, []);
 
   /** Tải lại 1 lead (sau khi ghi nhận liên hệ / lưu báo giá) và làm mới lịch sử. */
@@ -225,7 +275,7 @@ export default function AdminLeadsPage() {
     [leads]
   );
 
-  const filteredLeads = useMemo(() => {
+  const leadsWithoutStatusFilter = useMemo(() => {
     const search = query.trim().toLocaleLowerCase("vi");
     return leads.filter((lead) => {
       const matchesSearch =
@@ -234,17 +284,57 @@ export default function AdminLeadsPage() {
           .join(" ")
           .toLocaleLowerCase("vi")
           .includes(search);
-      const created = toVnDateKey(lead.created_at);
+
+      const matchesSource = sourceFilter === "ALL" || resolveLeadSource(lead) === sourceFilter;
+      const matchesEventType = eventTypeFilter === "ALL" || eventTypeLabel(lead.event_type) === eventTypeFilter;
+      const matchesHeat = heatFilter === "ALL" || lead.ai_score === heatFilter;
+
+      let matchesTime = true;
+      const leadTime = new Date(lead.created_at).getTime();
+      if (nowMs > 0) {
+        if (timePreset === "TODAY") {
+          const todayKey = toVnDateKey(new Date(nowMs).toISOString());
+          matchesTime = toVnDateKey(lead.created_at) === todayKey;
+        } else if (timePreset === "3_DAYS") {
+          matchesTime = !isNaN(leadTime) && leadTime >= nowMs - 3 * 24 * 60 * 60 * 1000;
+        } else if (timePreset === "7_DAYS") {
+          matchesTime = !isNaN(leadTime) && leadTime >= nowMs - 7 * 24 * 60 * 60 * 1000;
+        } else if (timePreset === "30_DAYS") {
+          matchesTime = !isNaN(leadTime) && leadTime >= nowMs - 30 * 24 * 60 * 60 * 1000;
+        }
+      }
+      if (timePreset === "CUSTOM") {
+        const created = toVnDateKey(lead.created_at);
+        matchesTime = (!dateFrom || created >= dateFrom) && (!dateTo || created <= dateTo);
+      }
+
       return (
         matchesSearch &&
-        (statusFilter === "ALL" || lead.status === statusFilter) &&
-        (sourceFilter === "ALL" || resolveLeadSource(lead) === sourceFilter) &&
-        (eventTypeFilter === "ALL" || eventTypeLabel(lead.event_type) === eventTypeFilter) &&
-        (!dateFrom || created >= dateFrom) &&
-        (!dateTo || created <= dateTo)
+        matchesSource &&
+        matchesEventType &&
+        matchesHeat &&
+        matchesTime
       );
     });
-  }, [dateFrom, dateTo, eventTypeFilter, leads, query, sourceFilter, statusFilter]);
+  }, [
+    dateFrom,
+    dateTo,
+    eventTypeFilter,
+    heatFilter,
+    leads,
+    nowMs,
+    query,
+    sourceFilter,
+    timePreset,
+  ]);
+
+  const filteredLeads = useMemo(
+    () =>
+      statusFilter === "ALL"
+        ? leadsWithoutStatusFilter
+        : leadsWithoutStatusFilter.filter((lead) => lead.status === statusFilter),
+    [leadsWithoutStatusFilter, statusFilter]
+  );
 
   /** Mở khung lập báo giá mới cho khách (3 dòng gợi ý theo ngân sách, sửa lại trước khi gửi). */
   const openNewQuote = (lead: AdminLead) => {
@@ -611,10 +701,40 @@ export default function AdminLeadsPage() {
         </div>
       )}
 
+      {/* PHỄU CHUYỂN ĐỔI KHÁCH HÀNG CHI TIẾT */}
+      <section className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-xs">
+        <ConversionFunnel
+          leads={leadsWithoutStatusFilter}
+          selectedStage={statusFilter === "ALL" ? null : statusFilter}
+          onSelectStage={(stage) => setStatusFilter(stage || "ALL")}
+          onOpenLead={(leadId) => {
+            const found = leads.find((item) => item.id === leadId);
+            if (found) setSelectedLead(found);
+          }}
+        />
+      </section>
+
+      {/* BỘ LỌC GIAI ĐOẠN PHỄU (TÌNH TRẠNG GIAI ĐOẠN) */}
       <nav aria-label="Lọc theo giai đoạn" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
         {(["ALL", ...LEAD_STATUSES] as const).map((status) => {
           const active = statusFilter === status;
-          const count = status === "ALL" ? leads.length : leads.filter((lead) => lead.status === status).length;
+          const count =
+            status === "ALL"
+              ? leadsWithoutStatusFilter.length
+              : leadsWithoutStatusFilter.filter((lead) => lead.status === status).length;
+          const label =
+            status === "ALL"
+              ? "Tất cả khách"
+              : status === "NEW"
+              ? "1. Tiếp nhận"
+              : status === "QUOTED"
+              ? "2. Đã báo giá"
+              : status === "NEGOTIATING"
+              ? "3. Thương lượng"
+              : status === "WON"
+              ? "4. Đã chốt"
+              : "⚠️ Rớt phễu";
+
           return (
             <button
               key={status}
@@ -623,12 +743,20 @@ export default function AdminLeadsPage() {
               aria-pressed={active}
               className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${
                 active
-                  ? "border-[#0A1E5E] bg-[#0A1E5E] text-white"
+                  ? status === "LOST"
+                    ? "border-rose-600 bg-rose-600 text-white"
+                    : status === "WON"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-[#0A1E5E] bg-[#0A1E5E] text-white"
                   : "border-slate-200 bg-white text-slate-600 hover:border-[#0A1E5E] hover:text-[#0A1E5E]"
               }`}
             >
-              {status === "ALL" ? "Tất cả" : LEAD_STATUS_LABELS[status]}
-              <span className={`rounded-md px-1.5 text-xs font-bold ${active ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>
+              {label}
+              <span
+                className={`rounded-md px-1.5 py-0.2 text-xs font-bold ${
+                  active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
                 {count}
               </span>
             </button>
@@ -636,151 +764,336 @@ export default function AdminLeadsPage() {
         })}
       </nav>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.6fr)_repeat(4,minmax(135px,1fr))]">
-          <label className="relative">
-            <span className="sr-only">Tìm tên, số điện thoại, email hoặc công ty</span>
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Tên, công ty, điện thoại, email"
-              className="h-10 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-[#0A1E5E] focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
-          <select
-            aria-label="Lọc nguồn khách hàng"
-            value={sourceFilter}
-            onChange={(event) =>
-              setSourceFilter(
-                event.target.value === "ALL" || isLeadSource(event.target.value)
-                  ? event.target.value
-                  : "ALL"
-              )
-            }
-            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#0A1E5E]"
-          >
-            <option value="ALL">Tất cả nguồn</option>
-            {LEAD_SOURCES.map((source) => (
-              <option key={source} value={source}>
-                {LEAD_SOURCE_LABELS[source]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Lọc loại sự kiện"
-            value={eventTypeFilter}
-            onChange={(event) => setEventTypeFilter(event.target.value)}
-            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#0A1E5E]"
-          >
-            <option value="ALL">Tất cả loại sự kiện</option>
-            {eventTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-          </select>
-          <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-2.5">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
-            <input
-              aria-label="Từ ngày tạo"
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className="min-w-0 w-full text-xs text-slate-600 outline-none"
-            />
-          </label>
-          <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-2.5">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
-            <input
-              aria-label="Đến ngày tạo"
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className="min-w-0 w-full text-xs text-slate-600 outline-none"
-            />
-          </label>
+      {/* BỘ LỌC TỐI ƯU: THỜI GIAN (3 NGÀY TRƯỚC, 7 NGÀY TRƯỚC...) + ĐỘ NÓNG LẠNH + TÌM KIẾM */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:p-5">
+        <div className="flex flex-col gap-3">
+          {/* Hàng 1: Bộ lọc thời gian nhanh & Độ nóng */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            {/* Lọc thời gian 3 ngày, 7 ngày trước... */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-bold text-slate-500">Thời gian:</span>
+              {[
+                { key: "ALL", label: "Tất cả" },
+                { key: "TODAY", label: "Hôm nay" },
+                { key: "3_DAYS", label: "3 ngày trước" },
+                { key: "7_DAYS", label: "7 ngày trước" },
+                { key: "30_DAYS", label: "30 ngày qua" },
+                { key: "CUSTOM", label: "Tùy chọn ngày..." },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setTimePreset(item.key as typeof timePreset)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    timePreset === item.key
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Lọc độ nóng lạnh AI Score */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-bold text-slate-500">Độ nhiệt:</span>
+              {[
+                { key: "ALL", label: "Tất cả" },
+                { key: "HOT", label: "🔥 Nóng" },
+                { key: "WARM", label: "🌤 Ấm" },
+                { key: "COLD", label: "❄️ Lạnh" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setHeatFilter(item.key as typeof heatFilter)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    heatFilter === item.key
+                      ? item.key === "HOT"
+                        ? "bg-rose-600 text-white"
+                        : item.key === "WARM"
+                        ? "bg-amber-600 text-white"
+                        : item.key === "COLD"
+                        ? "bg-sky-600 text-white"
+                        : "bg-slate-900 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hàng 2: Tìm kiếm + Lọc Nguồn + Lọc Sự kiện + Ngày tùy chọn */}
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.8fr)_repeat(3,minmax(140px,1fr))]">
+            <label className="relative">
+              <span className="sr-only">Tìm tên, SĐT, email hoặc công ty</span>
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Tìm tên khách, SĐT, email, tên công ty..."
+                className="h-10 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-[#0A1E5E] focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+
+            <select
+              aria-label="Lọc nguồn khách hàng"
+              value={sourceFilter}
+              onChange={(event) =>
+                setSourceFilter(
+                  event.target.value === "ALL" || isLeadSource(event.target.value)
+                    ? event.target.value
+                    : "ALL"
+                )
+              }
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#0A1E5E]"
+            >
+              <option value="ALL">Tất cả nguồn tiếp nhận</option>
+              {LEAD_SOURCES.map((source) => (
+                <option key={source} value={source}>
+                  {LEAD_SOURCE_LABELS[source]}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Lọc loại sự kiện"
+              value={eventTypeFilter}
+              onChange={(event) => setEventTypeFilter(event.target.value)}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#0A1E5E]"
+            >
+              <option value="ALL">Tất cả loại sự kiện</option>
+              {eventTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+
+            {timePreset === "CUSTOM" ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  aria-label="Từ ngày tạo"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  className="h-10 w-1/2 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 outline-none"
+                />
+                <input
+                  aria-label="Đến ngày tạo"
+                  type="date"
+                  value={dateTo}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  className="h-10 w-1/2 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 outline-none"
+                />
+              </div>
+            ) : (
+              <div className="flex h-10 items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 text-xs text-slate-500">
+                <span>Số lượng:</span>
+                <strong className="text-sm font-bold text-slate-900">
+                  {filteredLeads.length} / {leads.length} khách
+                </strong>
+              </div>
+            )}
+          </div>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Hiển thị <strong className="text-slate-800">{filteredLeads.length}</strong> / {leads.length} khách hàng
-        </p>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* BẢNG DANH SÁCH KHÁCH HÀNG: CỘT THỨ TỰ THEO YÊU CẦU:
+          1. Ngày nhận lead (ĐẦU TIÊN!)
+          2. Khách hàng (Tên, SĐT, Email nếu có)
+          3. Tên tổ chức & Sự kiện
+          4. Trạng thái & Phụ trách
+          5. Quy mô & Ngân sách (CUỐI CÙNG TRONG DỮ LIỆU)
+          6. Thao tác */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] border-collapse text-left">
+          <table className="w-full min-w-[1100px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3 font-bold">Khách hàng</th>
-                <th className="px-4 py-3 font-bold">Sự kiện</th>
-                <th className="px-4 py-3 font-bold">Quy mô</th>
-                <th className="px-4 py-3 font-bold">Ngân sách</th>
-                <th className="px-4 py-3 font-bold">Trạng thái</th>
-                <th className="px-4 py-3 font-bold">Phụ trách</th>
-                <th className="px-4 py-3 font-bold">Ngày nhận</th>
-                <th className="px-4 py-3 text-right font-bold">Thao tác</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                <th className="px-4 py-3 font-extrabold text-[#0A1E5E]">1. Ngày nhận lead</th>
+                <th className="px-4 py-3 font-extrabold">2. Khách hàng &amp; Liên hệ</th>
+                <th className="px-4 py-3 font-extrabold">3. Tổ chức &amp; Sự kiện</th>
+                <th className="px-4 py-3 font-extrabold">4. Giai đoạn &amp; Phụ trách</th>
+                <th className="px-4 py-3 font-extrabold text-emerald-800">5. Quy mô &amp; Ngân sách</th>
+                <th className="px-4 py-3 text-right font-extrabold">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-14 text-center text-sm text-slate-500">Đang tải danh sách khách hàng...</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-14 text-center text-sm text-slate-500">
+                    Đang tải danh sách khách hàng...
+                  </td>
+                </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-14 text-center">
+                  <td colSpan={6} className="px-4 py-14 text-center">
                     <p className="font-semibold text-slate-700">Chưa có khách hàng phù hợp</p>
-                    <p className="mt-1 text-xs text-slate-500">Đổi bộ lọc, hoặc bấm “Thêm khách” để nhập khách gọi điện / nhắn tin.</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Hãy đổi bộ lọc thời gian, giai đoạn hoặc bấm “Thêm khách” để nhập khách mới.
+                    </p>
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="transition hover:bg-slate-50/70">
-                    <td className="px-4 py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLead(lead)}
-                        className="text-left"
-                      >
-                        <span className="block font-bold text-slate-900 hover:text-[#0A1E5E]">{lead.full_name}</span>
-                        {lead.ai_score && AI_SCORE_STYLE[lead.ai_score] && (
-                          <span className={`mr-1 mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${AI_SCORE_STYLE[lead.ai_score].className}`}>
-                            {AI_SCORE_STYLE[lead.ai_score].label}
+                filteredLeads.map((lead) => {
+                  const timeInfo = formatLeadReceivedTime(lead.created_at, nowMs);
+                  const cleanPhone = normalizePhone(lead.phone);
+                  const isDuplicatePhone = cleanPhone && (phoneCounts.get(cleanPhone) || 0) > 1;
+
+                  return (
+                    <tr key={lead.id} className="transition hover:bg-slate-50/70">
+                      {/* CỘT 1: NGÀY NHẬN LEAD (ĐẦU TIÊN THEO YÊU CẦU!) */}
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="space-y-1">
+                          <span className="block text-xs font-bold text-slate-900">
+                            {timeInfo.time} · {timeInfo.date}
+                          </span>
+                          {timeInfo.relBadge && (
+                            <span
+                              className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${timeInfo.relClass}`}
+                            >
+                              {timeInfo.relBadge}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* CỘT 2: KHÁCH HÀNG (Tên, SĐT, Email nếu có) */}
+                      <td className="px-4 py-3.5 align-top">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLead(lead)}
+                          className="text-left group"
+                        >
+                          <span className="block font-black text-slate-900 group-hover:text-[#0A1E5E] group-hover:underline">
+                            {lead.full_name}
+                          </span>
+                        </button>
+
+                        <div className="mt-1 space-y-0.5">
+                          {cleanPhone ? (
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={`tel:${cleanPhone}`}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
+                                title="Bấm để gọi điện"
+                              >
+                                <Phone className="h-3 w-3 text-blue-500" />
+                                {lead.phone}
+                              </a>
+                              {isDuplicatePhone && (
+                                <span className="rounded bg-rose-50 px-1 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200">
+                                  Trùng SĐT
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-block rounded bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
+                              Chờ cập nhật SĐT
+                            </span>
+                          )}
+
+                          {lead.email ? (
+                            <a
+                              href={`mailto:${lead.email}`}
+                              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 hover:underline truncate max-w-[200px]"
+                              title={`Gửi email: ${lead.email}`}
+                            >
+                              <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                              <span className="truncate">{lead.email}</span>
+                            </a>
+                          ) : (
+                            <span className="block text-[10px] text-slate-400">Chưa có email</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* CỘT 3: TÊN TỔ CHỨC & SỰ KIỆN */}
+                      <td className="max-w-[260px] px-4 py-3.5 align-top">
+                        <span className="block font-bold text-slate-900">
+                          {lead.company_name || "Khách hàng cá nhân"}
+                        </span>
+                        <span className="mt-0.5 inline-block text-xs font-semibold text-slate-700">
+                          {eventTypeLabel(lead.event_type)}
+                        </span>
+                        {(lead.event_date || lead.location) && (
+                          <span className="mt-1 block truncate text-[11px] text-slate-500">
+                            {[lead.event_date ? formatDate(lead.event_date) : null, lead.location]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         )}
-                        {!normalizePhone(lead.phone) && (
-                          <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
-                            Chưa có SĐT
+                      </td>
+
+                      {/* CỘT 4: TRẠNG THÁI & PHỤ TRÁCH */}
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-inset ${statusColors[lead.status]}`}
+                            >
+                              {LEAD_STATUS_LABELS[lead.status] || lead.status}
+                            </span>
+                            {lead.ai_score && AI_SCORE_STYLE[lead.ai_score] && (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${AI_SCORE_STYLE[lead.ai_score].className}`}
+                              >
+                                {AI_SCORE_STYLE[lead.ai_score].label}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <span className="text-[11px] text-slate-400">Phụ trách:</span>
+                            <span className="font-medium text-slate-800">
+                              {lead.assigned_to || "Chưa phân công"}
+                            </span>
+                          </div>
+
+                          <span className="block text-[10px] text-slate-400">
+                            Nguồn: {LEAD_SOURCE_LABELS[resolveLeadSource(lead)]}
                           </span>
-                        )}
-                        {(phoneCounts.get(normalizePhone(lead.phone)) || 0) > 1 && (
-                          <span className="ml-1 mt-1 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200">
-                            Trùng SĐT
+                        </div>
+                      </td>
+
+                      {/* CỘT 5: QUY MÔ & NGÂN SÁCH (CUỐI CÙNG THEO YÊU CẦU!) */}
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-emerald-700">
+                            {formatCurrency(lead.budget)}
+                          </p>
+                          <span className="block text-xs font-medium text-slate-600">
+                            {lead.guest_count ? `${lead.guest_count} khách tham dự` : "Chưa rõ số khách"}
                           </span>
-                        )}
-                        <span className="mt-1 block text-xs text-slate-500">{lead.company_name || "Khách hàng cá nhân"}</span>
-                      </button>
-                    </td>
-                    <td className="max-w-56 px-4 py-3.5">
-                      <span className="block truncate text-sm font-semibold text-slate-800">{eventTypeLabel(lead.event_type)}</span>
-                      <span className="mt-1 block text-xs text-slate-500">{LEAD_SOURCE_LABELS[resolveLeadSource(lead)]}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-slate-700">
-                      {lead.guest_count ? `${lead.guest_count} khách` : "Chưa rõ"}
-                    </td>
-                    <td className="px-4 py-3.5 text-sm font-semibold text-slate-800">{formatCurrency(lead.budget)}</td>
-                    <td className="px-4 py-3.5">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${statusColors[lead.status]}`}>
-                        {LEAD_STATUS_LABELS[lead.status] || lead.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-slate-600">{lead.assigned_to || "Chưa phân công"}</td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500">{formatDate(lead.created_at)}</td>
-                    <td className="px-4 py-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLead(lead)}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-[#0A1E5E] hover:text-[#0A1E5E]"
-                      >
-                        Mở hồ sơ
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+
+                      {/* CỘT 6: THAO TÁC */}
+                      <td className="px-4 py-3.5 text-right align-top">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLead(lead)}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:border-[#0A1E5E] hover:text-[#0A1E5E]"
+                          >
+                            Mở hồ sơ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openNewQuote(lead)}
+                            className="rounded-lg bg-[#0A1E5E] px-2.5 py-1 text-xs font-bold text-white shadow-2xs hover:bg-[#152e7a]"
+                          >
+                            Báo giá
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
