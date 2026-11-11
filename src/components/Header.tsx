@@ -175,6 +175,11 @@ export default function Header() {
       dropdown: {
         simple: [
           {
+            href: "/du-an",
+            label: "Dự Án Tiêu Biểu & Album Thực Tế",
+            desc: "Hình ảnh các sự kiện, đại lễ và tour đã triển khai",
+          },
+          {
             href: "/ho-so-nang-luc#toan-bo",
             label: "Toàn Bộ E-Profile Năng Lực",
             desc: "Bản slide deck & báo cáo tổng quan chuẩn B2B",
@@ -270,10 +275,10 @@ export default function Header() {
 
       {/* Main Navbar */}
       <div className="max-w-7xl 2xl:max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo / Brand Name */}
-          <Link href="/" className="flex shrink-0 items-center space-x-3 group">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#D4AF37] via-[#F5E08B] to-[#997A15] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-300">
+          <Link href="/" className="flex shrink-0 items-center space-x-2.5 sm:space-x-3 group">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#D4AF37] via-[#F5E08B] to-[#997A15] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-300">
               <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center overflow-hidden">
                 <Image
                   src="/images/logo.png"
@@ -286,10 +291,10 @@ export default function Header() {
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-lg md:text-xl xl:text-2xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
+              <span className="font-extrabold text-base sm:text-xl xl:text-2xl tracking-tight text-[#0A1E5E] group-hover:text-[#D4AF37] transition-colors leading-tight">
                 TRƯỜNG HẢI
               </span>
-              <span className="text-[11px] xl:text-xs uppercase tracking-widest text-[#B8860B] font-bold">
+              <span className="text-[9.5px] sm:text-[11px] xl:text-xs uppercase tracking-widest text-[#B8860B] font-bold">
                 EVENT & TRAVEL
               </span>
             </div>
@@ -438,14 +443,22 @@ export default function Header() {
             </Link>
           </div>
 
-              {/* Mobile menu button */}
+              {/* Mobile quick CTA & menu toggle button */}
               <div className="flex lg:hidden items-center space-x-2">
+                <Link
+                  href="/dich-vu#bao-gia"
+                  onClick={(e) => handleNavClick(e, "/dich-vu#bao-gia")}
+                  className="sm:hidden px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#DC2626] to-[#D4AF37] text-white text-xs font-black shadow-md uppercase tracking-wider"
+                >
+                  Báo Giá
+                </Link>
+
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="p-2 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                  className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/60"
                   aria-label="Toggle menu"
                 >
-                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
               </div>
             </>

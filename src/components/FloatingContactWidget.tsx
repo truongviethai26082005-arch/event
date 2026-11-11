@@ -84,7 +84,7 @@ export default function FloatingContactWidget() {
   return (
     <aside
       aria-label="Kênh liên hệ nhanh"
-      className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2.5 sm:gap-3 pointer-events-auto"
+      className="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2 sm:gap-3 pointer-events-auto pb-[env(safe-area-inset-bottom,0px)]"
     >
       {contactItems.map((item) => (
         <a
@@ -98,7 +98,7 @@ export default function FloatingContactWidget() {
             }
           }}
           aria-label={item.label}
-          className={`group relative flex items-center justify-center w-12 h-12 sm:w-[50px] sm:h-[50px] rounded-full text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 ${item.bgClass}`}
+          className={`group relative flex items-center justify-center w-11 h-11 sm:w-[50px] sm:h-[50px] rounded-full text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 ${item.bgClass}`}
         >
           {item.hasPulse && (
             <span className="absolute -inset-1.5 rounded-full bg-amber-400 opacity-40 animate-ping -z-10 pointer-events-none" />

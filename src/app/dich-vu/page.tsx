@@ -17,6 +17,7 @@ import {
   SERVICE_FAQS,
 } from "./data/services-data";
 import ServiceModal from "./components/ServiceModal";
+import ServiceProjectsModal from "@/components/ServiceProjectsModal";
 import PromotionSection from "./components/PromotionSection";
 import LeadForm from "./components/LeadForm";
 import ScrollReveal from "./components/ScrollReveal";
@@ -31,6 +32,7 @@ import {
   Flame,
   ArrowRight,
   Eye,
+  FolderOpen,
   SlidersHorizontal,
   ChevronDown,
   Warehouse,
@@ -44,12 +46,13 @@ export default function ServicesPage() {
   const [mainTab, setMainTab] = useState<"all" | "su-kien" | "du-lich">("all");
   const [selectedSubTag, setSelectedSubTag] = useState<string>("all");
 
-  // State điều khiển modal xem chi tiết dịch vụ
+  // State điều khiển modal xem chi tiết dịch vụ & modal dự án thực tế
   const [activeModalService, setActiveModalService] = useState<ServiceDetail | null>(null);
+  const [activeProjectSlug, setActiveProjectSlug] = useState<string | null>(null);
 
   // State điều khiển Form báo giá tự động
   const [selectedServiceForQuote, setSelectedServiceForQuote] = useState<string>(
-    "Tổ chức Lễ Khai trương, Khánh thành & Khởi công"
+    "Lễ Khai Trương"
   );
   const [selectedPromo, setSelectedPromo] = useState<PromotionCombo | null>(null);
 
@@ -69,16 +72,8 @@ export default function ServicesPage() {
       } else if (hash === "du-lich") {
         setMainTab("du-lich");
         setSelectedSubTag("all");
-      } else if (
-        hash === "khai-truong-khanh-thanh" ||
-        hash === "tiec-tat-nien-yep" ||
-        hash === "hoi-nghi-hoi-thao-bds" ||
-        hash === "cho-thue-trang-thiet-bi"
-      ) {
-        setMainTab("su-kien");
-        setSelectedSubTag("all");
-      } else if (hash === "team-building-tour-mice") {
-        setMainTab("du-lich");
+      } else if (CORE_SERVICES.some((s) => s.id === hash)) {
+        setMainTab("all");
         setSelectedSubTag("all");
       }
 
@@ -202,63 +197,85 @@ export default function ServicesPage() {
       ========================================================================= */}
       <section id="danh-muc-dich-vu" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-14 relative z-20">
         <ScrollReveal direction="up" delay={40} duration={650}>
-          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-xl border border-slate-200/90 flex flex-col md:flex-row items-center justify-between gap-3">
-            {/* Main Filter Tabs: Chỉ giữ các đầu mục trọng tâm */}
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-              <button
-                onClick={() => {
-                  setMainTab("all");
-                  setSelectedSubTag("all");
-                }}
-                className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "all"
-                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
-                    : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
-                  }`}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span>Tất Cả ({CORE_SERVICES.length})</span>
-              </button>
+          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-xl border border-slate-200/90 space-y-3">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+              {/* Main Filter Tabs: Chỉ giữ các đầu mục trọng tâm */}
+              <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                <button
+                  onClick={() => {
+                    setMainTab("all");
+                    setSelectedSubTag("all");
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "all" && selectedSubTag === "all"
+                      ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                      : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+                    }`}
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span>Tất Cả ({CORE_SERVICES.length})</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setMainTab("su-kien");
-                  setSelectedSubTag("all");
-                }}
-                className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "su-kien"
-                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
-                    : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
-                  }`}
-              >
-                <Calendar className="w-4 h-4" />
-                <span>Mảng Sự Kiện</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setMainTab("su-kien");
+                    setSelectedSubTag("all");
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "su-kien" && selectedSubTag === "all"
+                      ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                      : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+                    }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Mảng Sự Kiện</span>
+                </button>
 
+                <button
+                  onClick={() => {
+                    setMainTab("du-lich");
+                    setSelectedSubTag("all");
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "du-lich" && selectedSubTag === "all"
+                      ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
+                      : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
+                    }`}
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Team Building & Khác</span>
+                </button>
+              </div>
+
+              {/* Nút hành động dẫn thẳng đến Form điền */}
               <button
                 onClick={() => {
-                  setMainTab("du-lich");
-                  setSelectedSubTag("all");
+                  const el = document.getElementById("bao-gia");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${mainTab === "du-lich"
-                    ? "bg-[#0A1E5E] text-[#D4AF37] shadow-md shadow-[#0A1E5E]/20"
-                    : "bg-slate-100 text-slate-600 hover:text-[#0A1E5E]"
-                  }`}
+                className="w-full md:w-auto px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-amber-300 shrink-0"
               >
-                <Compass className="w-4 h-4" />
-                <span>Mảng Du Lịch & Tour</span>
+                <span>Điền Form Báo Giá Nhanh</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#0A1E5E]" />
               </button>
             </div>
 
-            {/* Nút hành động dẫn thẳng đến Form điền */}
-            <button
-              onClick={() => {
-                const el = document.getElementById("bao-gia");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="w-full md:w-auto px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-amber-400 to-[#D4AF37] text-[#0A1E5E] shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-amber-300 shrink-0"
-            >
-              <span>Điền Form Báo Giá Nhanh</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#0A1E5E]" />
-            </button>
+            {/* 9 Danh mục chi tiết */}
+            <div className="pt-2.5 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+              {CORE_SERVICES.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setMainTab("all");
+                    setSelectedSubTag(selectedSubTag === item.tag ? "all" : item.tag);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                    selectedSubTag === item.tag
+                      ? "bg-[#0A1E5E] text-[#D4AF37] border-[#0A1E5E] shadow-sm"
+                      : "bg-slate-50 text-slate-600 border-slate-200/80 hover:border-[#D4AF37]/60 hover:text-[#0A1E5E]"
+                  }`}
+                >
+                  {item.tag}
+                </button>
+              ))}
+            </div>
           </div>
         </ScrollReveal>
       </section>
@@ -296,7 +313,8 @@ export default function ServicesPage() {
             >
               <div
                 id={service.id}
-                className="scroll-mt-28 bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group h-full"
+                onClick={() => setActiveProjectSlug(service.id)}
+                className="scroll-mt-28 bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group h-full cursor-pointer"
               >
                 {/* Image & Tag Header */}
                 <div className="h-56 relative overflow-hidden bg-slate-900 shrink-0">
@@ -314,6 +332,12 @@ export default function ServicesPage() {
                     </span>
                   </div>
 
+                  <div className="absolute bottom-3 left-3.5">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[11px] font-semibold text-[#D4AF37] border border-[#D4AF37]/40">
+                      <FolderOpen className="w-3 h-3" />
+                      <span>Bấm để xem dự án & hình ảnh</span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Card Body */}
@@ -343,22 +367,44 @@ export default function ServicesPage() {
                   </div>
 
                   {/* Card Action Buttons */}
-                  <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
+                  <div className="pt-4 border-t border-slate-100 space-y-2">
                     <button
-                      onClick={() => setActiveModalService(service)}
-                      className="py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-[#0A1E5E] hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveProjectSlug(service.id);
+                      }}
+                      className="w-full py-2.5 px-3 rounded-xl font-bold text-xs bg-[#0A1E5E] text-[#D4AF37] hover:bg-[#122b82] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Xem Bóc Tách</span>
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>Xem Dự Án Đã Thực Hiện & Hình Ảnh</span>
                     </button>
 
-                    <button
-                      onClick={() => handleSelectService(service.title)}
-                      className="py-2.5 px-3 rounded-xl font-black text-xs bg-gradient-to-r from-[#D4AF37] to-[#c7a02b] hover:brightness-105 text-[#0A1E5E] shadow-sm transition-all flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <span>Nhận Báo Giá</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveModalService(service);
+                        }}
+                        className="py-2 px-3 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem Bóc Tách</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectService(service.title);
+                        }}
+                        className="py-2 px-3 rounded-xl font-black text-xs bg-gradient-to-r from-[#D4AF37] to-[#c7a02b] hover:brightness-105 text-[#0A1E5E] shadow-sm transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span>Nhận Báo Giá</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -565,6 +611,12 @@ export default function ServicesPage() {
         service={activeModalService}
         onClose={() => setActiveModalService(null)}
         onSelectForQuote={(title) => handleSelectService(title)}
+      />
+
+      <ServiceProjectsModal
+        serviceSlug={activeProjectSlug}
+        onClose={() => setActiveProjectSlug(null)}
+        onSelectForQuote={(title: string) => handleSelectService(title)}
       />
 
     </div>
